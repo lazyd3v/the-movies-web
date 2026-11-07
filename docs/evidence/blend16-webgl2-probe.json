@@ -1,0 +1,620 @@
+{
+  "main": {
+    "completed": true,
+    "renderer": "WebKit WebGL",
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "dither": false,
+    "attributes": {
+      "alpha": true,
+      "antialias": false,
+      "depth": false,
+      "desynchronized": false,
+      "failIfMajorPerformanceCaveat": false,
+      "powerPreference": "default",
+      "premultipliedAlpha": false,
+      "preserveDrawingBuffer": true,
+      "stencil": false,
+      "xrCompatible": false
+    },
+    "targets": [
+      {
+        "name": "RGB5_A1",
+        "status": 36053,
+        "channelBits": [
+          5,
+          5,
+          5,
+          1
+        ],
+        "attachmentBits": [
+          5,
+          5,
+          5,
+          1
+        ],
+        "internalFormat": 32855,
+        "readFormat": 6408,
+        "readType": 32820,
+        "tests": [
+          {
+            "name": "two-overlapping-white-alpha3-single-draw",
+            "source": [
+              1,
+              1,
+              1,
+              0.011764705882352941
+            ],
+            "destination": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              8,
+              8,
+              8,
+              255
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "modelDeferredLevels": [
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "red128-over-blue",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 1,
+            "rgba": [
+              132,
+              0,
+              123,
+              255
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelDeferredLevels": [
+              16,
+              0,
+              15,
+              1
+            ]
+          },
+          {
+            "name": "two-red128-over-blue-single-draw",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              189,
+              0,
+              66,
+              255
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              23,
+              0,
+              8,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              24,
+              0,
+              7,
+              1
+            ],
+            "modelDeferredLevels": [
+              23,
+              0,
+              8,
+              1
+            ]
+          }
+        ]
+      },
+      {
+        "name": "RGBA8-control",
+        "status": 36053,
+        "channelBits": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "attachmentBits": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "internalFormat": 32856,
+        "readFormat": 6408,
+        "readType": 5121,
+        "tests": [
+          {
+            "name": "two-overlapping-white-alpha3-single-draw",
+            "source": [
+              1,
+              1,
+              1,
+              0.011764705882352941
+            ],
+            "destination": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              6,
+              6,
+              6,
+              249
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "modelDeferredLevels": [
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "red128-over-blue",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 1,
+            "rgba": [
+              128,
+              0,
+              127,
+              191
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelDeferredLevels": [
+              16,
+              0,
+              15,
+              1
+            ]
+          },
+          {
+            "name": "two-red128-over-blue-single-draw",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              192,
+              0,
+              63,
+              159
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              23,
+              0,
+              8,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              24,
+              0,
+              7,
+              1
+            ],
+            "modelDeferredLevels": [
+              23,
+              0,
+              8,
+              1
+            ]
+          }
+        ]
+      }
+    ],
+    "scope": "Actual API-reported format sizes and pixels; no original-driver precision claim"
+  },
+  "worker": {
+    "completed": true,
+    "renderer": "WebKit WebGL",
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "dither": false,
+    "attributes": {
+      "alpha": true,
+      "antialias": false,
+      "depth": false,
+      "desynchronized": false,
+      "failIfMajorPerformanceCaveat": false,
+      "powerPreference": "default",
+      "premultipliedAlpha": false,
+      "preserveDrawingBuffer": true,
+      "stencil": false,
+      "xrCompatible": false
+    },
+    "targets": [
+      {
+        "name": "RGB5_A1",
+        "status": 36053,
+        "channelBits": [
+          5,
+          5,
+          5,
+          1
+        ],
+        "attachmentBits": [
+          5,
+          5,
+          5,
+          1
+        ],
+        "internalFormat": 32855,
+        "readFormat": 6408,
+        "readType": 32820,
+        "tests": [
+          {
+            "name": "two-overlapping-white-alpha3-single-draw",
+            "source": [
+              1,
+              1,
+              1,
+              0.011764705882352941
+            ],
+            "destination": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              8,
+              8,
+              8,
+              255
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "modelDeferredLevels": [
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "red128-over-blue",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 1,
+            "rgba": [
+              132,
+              0,
+              123,
+              255
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelDeferredLevels": [
+              16,
+              0,
+              15,
+              1
+            ]
+          },
+          {
+            "name": "two-red128-over-blue-single-draw",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              189,
+              0,
+              66,
+              255
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              23,
+              0,
+              8,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              24,
+              0,
+              7,
+              1
+            ],
+            "modelDeferredLevels": [
+              23,
+              0,
+              8,
+              1
+            ]
+          }
+        ]
+      },
+      {
+        "name": "RGBA8-control",
+        "status": 36053,
+        "channelBits": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "attachmentBits": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "internalFormat": 32856,
+        "readFormat": 6408,
+        "readType": 5121,
+        "tests": [
+          {
+            "name": "two-overlapping-white-alpha3-single-draw",
+            "source": [
+              1,
+              1,
+              1,
+              0.011764705882352941
+            ],
+            "destination": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              6,
+              6,
+              6,
+              249
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "modelDeferredLevels": [
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "red128-over-blue",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 1,
+            "rgba": [
+              128,
+              0,
+              127,
+              191
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              16,
+              0,
+              15,
+              1
+            ],
+            "modelDeferredLevels": [
+              16,
+              0,
+              15,
+              1
+            ]
+          },
+          {
+            "name": "two-red128-over-blue-single-draw",
+            "source": [
+              1,
+              0,
+              0,
+              0.5019607843137255
+            ],
+            "destination": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "triangles": 2,
+            "rgba": [
+              192,
+              0,
+              63,
+              159
+            ],
+            "uniform": true,
+            "logicalLevels": [
+              23,
+              0,
+              8,
+              1
+            ],
+            "modelPerFragmentLevels": [
+              24,
+              0,
+              7,
+              1
+            ],
+            "modelDeferredLevels": [
+              23,
+              0,
+              8,
+              1
+            ]
+          }
+        ]
+      }
+    ],
+    "scope": "Actual API-reported format sizes and pixels; no original-driver precision claim"
+  }
+}

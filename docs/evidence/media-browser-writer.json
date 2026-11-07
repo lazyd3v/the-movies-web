@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "results": {
+    "frame.yuv": {
+      "bytes": 460800,
+      "sha256": "481e3eaf8ab8d69d48f2e9f4eb1f67d0bf43c02daf178a41e4f45f154c767160",
+      "milliseconds": 22.809999998658895,
+      "matchesLocalWasm": true
+    },
+    "audio.pcm": {
+      "bytes": 184752,
+      "sha256": "091003df5f17fe4c183e087945a87a37150ceba82a63cfadfee1e5c8e4607037",
+      "milliseconds": 6.855000000447035,
+      "matchesLocalWasm": true
+    }
+  },
+  "writer": {
+    "encoder": "WMV2 + WMAv2; no WMV3 encoder",
+    "bytes": 45591,
+    "sha256": "bd6c9b0f11a63b3f9a4e3f3f3d159f00c6df8ce66d9f3c8b170c64fca3497696",
+    "milliseconds": 58.809999998658895,
+    "matchesLocalWasm": true,
+    "decoded": {
+      "roundtrip.yuv": {
+        "bytes": 460800,
+        "sha256": "481e3eaf8ab8d69d48f2e9f4eb1f67d0bf43c02daf178a41e4f45f154c767160"
+      },
+      "roundtrip.pcm": {
+        "bytes": 163840,
+        "sha256": "270b21c1eb3e2bf336616c319a0c16978fd82fd23d5b648218330c7927c65ed8"
+      }
+    }
+  },
+  "reference": {
+    "videoBytesEqual": true,
+    "audioSamples": 92376,
+    "audioDurationSeconds": 1.04734693877551,
+    "audioMaxAbsoluteS16Difference": 1,
+    "audioRmsDifference": 0.4458049994274469,
+    "nativeVersion": "ffmpeg version 7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+    "wasmVersion": "FFmpeg 5.1.4 / @ffmpeg/core 0.12.10"
+  },
+  "decoder": "ffmpeg version 5.1.4 Copyright (c) 2000-2023 the FFmpeg developers",
+  "note": "Bounded decode diagnostic; no Windows Media COM integration or game playback.",
+  "totalMilliseconds": 211.5950000025332
+}

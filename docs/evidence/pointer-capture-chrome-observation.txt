@@ -1,0 +1,9 @@
+2026-11-07 — real Chrome pointer-lock native ABI fixture
+URL: http://127.0.0.1:4173/runtime/pointer-lock-probe/index.html
+Observed native accessibility status after returning to the diagnostic tab:
+PASSED — actual capture, native warp, real movement and release
+Visible result begins: status=passed, nativeWasm=true, actualPointerLock=true.
+Initial unlocked warp: warped=0, error=50, read=0, point=null.
+Captured native warp: warped=1, error=123, read=1, point=(512,384); noSyntheticDIMotion=true.
+Full JSON and screenshot capture attempts timed out; this is an observation record, not a full result export.
+Original-game captured gameplay remains unverified.

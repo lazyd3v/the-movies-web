@@ -1,0 +1,5 @@
+<!doctype html><html><meta charset="utf-8"><title>Real pointer capture diagnostic</title>
+<style>body{background:#15202b;color:#eee;font:16px sans-serif;max-width:1000px;margin:2rem auto}canvas{width:800px;height:600px;max-width:100%;border:1px solid white}pre{white-space:pre-wrap}button{font:inherit;padding:10px}</style>
+<h1>Pointer capture diagnostic — not the game</h1><p>Click Capture mouse, then move the mouse. Press Escape to release. This checks actual native Wasm cursor APIs, window messages and DirectInput; it never warps the OS pointer.</p>
+<button id="capture" disabled>Capture mouse</button><button id="finish" disabled>Verify release / finish</button><p id="status">Starting native Wasm worker…</p><div id="surface"></div><pre id="result"></pre>
+<script src="../../window-input.js"></script><script src="../../window-surface.js"></script><script src="../../directinput-host.js"></script><script type="module" src="probe.js"></script></html>

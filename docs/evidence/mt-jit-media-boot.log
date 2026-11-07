@@ -1,0 +1,91 @@
+[The Movies] Original game mounted (719 files); 32 MiB read cache.
+Starting ...
+Command line arguments: "./boxedwine" "-root" "/root/key/the-movies-v1" "-zip" "media.zip" "-zip" "TinyCore15Wine11.0-web.zip" "-mount" "movies.zip" "/home/username/.wine/dosdevices/c:/files" "-mount_drive" "/d_drive/key/the-movies-v1" "d" "-resolution" "800x600" "-disableHideCursor" "-safe-memory" "-env" "WINEDLLOVERRIDES=qasf,wmvcore,wmasf,wmadmod,wmadmoe,wmvdmod,wmvdmoe2,wmsdmod,wmsdmoe2,wmspdmod,wmspdmoe,wmvadvd,wmvadve,wmnetmgr,laprxy=n,b" "-w" "/home/username/.wine/dosdevices/c:/files" "/bin/wine" "cmd" "/c" "reg" "add" "HKCU\Software\Wine" "/v" "Version" "/t" "REG_SZ" "/d" "winxp" "/f" "&&" "cmd" "/c" "c:/media-setup.bat"
+WASM JIT MT safe-memory: on
+BoxedWine build timestamp: Nov  1 2026 12:21:23
+Using root directory: /root/key/the-movies-v1
+Using zip file system: media.zip
+Using zip file system: TinyCore15Wine11.0-web.zip
+Resolution set to: 800x600
+Loaded media.zip in 9 ms
+Loaded TinyCore15Wine11.0-web.zip in 588 ms
+Mounted movies.zip in 1572 ms
+Launching "/bin/wine" "cmd" "/c" "reg" "add" "HKCU\Software\Wine" "/v" "Version" "/t" "REG_SZ" "/d" "winxp" "/f" "&&" "cmd" "/c" "c:/media-setup.bat" 
+[WASM JIT] first JIT block executed, tableIdx: 13861
+00a4:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\winebth": c00000e5
+003c:fixme:service:scmdatabase_autostart_services Auto-start service L"winebth" failed to start: 1359
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_SETUP_BEGIN[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE qasf 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmvcore 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmasf 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmadmod 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmadmoe 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmvdmod 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmvdmoe2 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmsdmod 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmsdmoe2 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmspdmod 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmspdmoe 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmvadvd 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmvadve 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE wmnetmgr 0[?25h
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_OVERRIDE laprxy 0[?25h
+017c:err:vulkan:vulkan_init_once Wine was built without Vulkan support.
+WASM JIT simd enabled
+Showing Window
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmadmod.dll'
+[?25lMEDIA_REGISTER wmadmod 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmsdmod.dll'
+[?25lMEDIA_REGISTER wmsdmod 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmspdmod.dll'
+[?25lMEDIA_REGISTER wmspdmod 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmvdmod.dll'
+[?25lMEDIA_REGISTER wmvdmod 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmvadvd.dll'
+[?25lMEDIA_REGISTER wmvadvd 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmadmoe.dll'
+[?25lMEDIA_REGISTER wmadmoe 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmsdmoe2.dll'
+[?25lMEDIA_REGISTER wmsdmoe2 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmspdmoe.dll'
+[?25lMEDIA_REGISTER wmspdmoe 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmvdmoe2.dll'
+[?25lMEDIA_REGISTER wmvdmoe2 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmvadve.dll'
+[?25lMEDIA_REGISTER wmvadve 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\laprxy.dll'
+[?25lMEDIA_REGISTER laprxy 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmnetmgr.dll'
+[?25lMEDIA_REGISTER wmnetmgr 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\wmvcore.dll'
+[?25lMEDIA_REGISTER wmvcore 0[?25h
+regsvr32: Successfully registered DLL 'C:\windows\system32\qasf.dll'
+[?25lMEDIA_REGISTER qasf 0[?25h
+[?25lMEDIA_SETUP_READY[?25h
+[?25lThe Movies: applying compatibility settings[?25h
+[?25lThe Movies: starting MoviesSE.exe[?25h
+0230:fixme:dbghelp:elf_search_auxv can't find symbol in module
+0230:fixme:ntdll:NtQuerySystemInformation info_class SYSTEM_PERFORMANCE_INFORMATION
+worker sent an error! http://127.0.0.1:4173/runtime/boxedwine.js:1: Uncaught RuntimeError: null function
+Uncaught [object ErrorEvent] at http://127.0.0.1:4173/runtime/boxedwine.js:1:66098
+
+Launch failed: Uncaught RuntimeError: null functionUncaught RuntimeError: null function at http://127.0.0.1:4173/runtime/boxedwine.js:1:56726
+[post-exception status] Exception thrown, see JavaScript console
+
+Launch failed: Uncaught RuntimeError: null function

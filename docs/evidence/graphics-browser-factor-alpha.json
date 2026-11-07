@@ -1,0 +1,2136 @@
+{
+  "status": "passed",
+  "label": "Synthetic native D3D9 ABI fixture, not game rendering",
+  "targetFormat": 22,
+  "capabilities": {
+    "schemaVersion": 1,
+    "backend": "WebGPU",
+    "width": 190,
+    "height": 128,
+    "colorFormat": "bgra8unorm",
+    "depthFormat": "depth16unorm",
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    },
+    "limits": {
+      "maxTextureDimension2D": 8192,
+      "maxBufferSize": 268435456,
+      "maxVertexBufferArrayStride": 2048
+    },
+    "renderTargetFormats": [
+      22,
+      25
+    ],
+    "supported": [
+      "A1R5G5B5-output-quantization",
+      "SRCALPHA-INVSRCALPHA-ADD",
+      "RGBA8-blend-RGB5A1-resolve-per-draw",
+      "alpha-test-all-comparisons",
+      "XYZ_DIFFUSE",
+      "XYZ_DIFFUSE_UV",
+      "triangle-list",
+      "uint16-indices",
+      "uint32-indices",
+      "world-view-projection",
+      "RGBA8-texture-point-linear-wrap-mirror-clamp-single-level",
+      "clear",
+      "RGBA8-readback",
+      "ImageBitmap-present"
+    ],
+    "unsupported": [
+      "lighting",
+      "fog",
+      "clip-planes",
+      "vertex-blending",
+      "programmable-shaders",
+      "multitexture",
+      "other-blend-factors-ops",
+      "separate-alpha",
+      "stencil",
+      "MSAA",
+      "mipmaps",
+      "compressed-textures",
+      "resize-reset"
+    ]
+  },
+  "checks": [
+    {
+      "label": "native indexed draw",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 1",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        51,
+        34,
+        17,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 2",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        171,
+        205,
+        239,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 3",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        128,
+        0,
+        128,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 4",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 5",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 6",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 7",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 8",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 9",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 10",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 11",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 12",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 13",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 14",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 15",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 20,
+      "rgba": [
+        20,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 20,
+      "rgba": [
+        80,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 20,
+      "rgba": [
+        140,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 20,
+      "rgba": [
+        200,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 21,
+      "rgba": [
+        20,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 21,
+      "rgba": [
+        80,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 21,
+      "rgba": [
+        140,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 21,
+      "rgba": [
+        200,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 22,
+      "rgba": [
+        20,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 22,
+      "rgba": [
+        80,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 22,
+      "rgba": [
+        140,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 22,
+      "rgba": [
+        200,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 23,
+      "rgba": [
+        20,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 23,
+      "rgba": [
+        80,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 23,
+      "rgba": [
+        140,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 23,
+      "rgba": [
+        200,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW screen-linear diffuse",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        96,
+        96,
+        64,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW perspective UV",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        89,
+        120,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW depth bypasses viewport transform",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 20",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 21",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 22",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 23",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 24",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 25",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 26",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 27",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        128,
+        0,
+        127,
+        191
+      ],
+      "expected": [
+        128,
+        0,
+        127,
+        191
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 28",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        192,
+        0,
+        63,
+        159
+      ],
+      "expected": [
+        192,
+        0,
+        63,
+        159
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 29",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        192,
+        0,
+        63,
+        159
+      ],
+      "expected": [
+        192,
+        0,
+        63,
+        159
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 30",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ],
+      "expected": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 31",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        6,
+        6,
+        6,
+        249
+      ],
+      "expected": [
+        6,
+        6,
+        6,
+        249
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 32",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        6,
+        6,
+        6,
+        249
+      ],
+      "expected": [
+        6,
+        6,
+        6,
+        249
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 33",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        64,
+        0,
+        128,
+        159
+      ],
+      "expected": [
+        64,
+        0,
+        128,
+        159
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 34",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        128,
+        0,
+        64,
+        159
+      ],
+      "expected": [
+        128,
+        0,
+        64,
+        159
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 35",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        128,
+        0,
+        0,
+        64
+      ],
+      "expected": [
+        128,
+        0,
+        0,
+        64
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 36",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "expected": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 37",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "expected": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 38",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        136,
+        136,
+        136,
+        121
+      ],
+      "expected": [
+        136,
+        136,
+        136,
+        121
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RGBA8 blend/draw resolve case 39",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        136,
+        136,
+        136,
+        121
+      ],
+      "expected": [
+        136,
+        136,
+        136,
+        121
+      ]
+    },
+    {
+      "label": "blend untouched pixel",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 40",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 40",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 40",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 40",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 40",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 41",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        127,
+        0,
+        128,
+        191
+      ]
+    },
+    {
+      "label": "Scissor case 41",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 41",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 41",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 41",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 42",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 42",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 42",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 42",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 42",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 43",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 43",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 43",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 43",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 43",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 44",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 44",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 44",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 44",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 44",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 45",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 45",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 45",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 45",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 45",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 46",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 46",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 46",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 46",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 46",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 47",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 47",
+      "x": 40,
+      "y": 30,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 47",
+      "x": 80,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 47",
+      "x": 68,
+      "y": 50,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "Scissor case 47",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "A4R4G4B4 sampled texture",
+      "rgba": [
+        17,
+        34,
+        51,
+        136
+      ],
+      "expected": [
+        17,
+        34,
+        51,
+        136
+      ]
+    },
+    {
+      "label": "DXT3 sampled texture",
+      "rgba": [
+        85,
+        0,
+        170,
+        170
+      ],
+      "expected": [
+        85,
+        0,
+        170,
+        170
+      ]
+    },
+    {
+      "label": "DXT1 transparent sampled texture",
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "label": "DXT1 opaque sampled texture",
+      "rgba": [
+        85,
+        0,
+        170,
+        255
+      ],
+      "expected": [
+        85,
+        0,
+        170,
+        255
+      ]
+    },
+    {
+      "label": "Referenced quad ignores unused NaNs in4MiB VB",
+      "rgba": [
+        51,
+        102,
+        153,
+        255
+      ],
+      "vertexBytes": 96,
+      "indexBytes": 12
+    },
+    {
+      "label": "FVF104 perspective UV and default white diffuse/alpha",
+      "rgba": [
+        89,
+        120,
+        0,
+        128
+      ],
+      "vertexBytes": 84
+    },
+    {
+      "label": "Texture factor equation case60",
+      "rgba": [
+        64,
+        32,
+        16,
+        64
+      ],
+      "expected": [
+        64,
+        32,
+        16,
+        64
+      ]
+    },
+    {
+      "label": "Texture factor equation case61",
+      "rgba": [
+        64,
+        32,
+        16,
+        64
+      ],
+      "expected": [
+        64,
+        32,
+        16,
+        64
+      ]
+    },
+    {
+      "label": "Texture factor equation case62",
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "expected": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Texture factor equation case63",
+      "rgba": [
+        64,
+        32,
+        16,
+        255
+      ],
+      "expected": [
+        64,
+        32,
+        16,
+        255
+      ]
+    },
+    {
+      "label": "Texture factor equation case64",
+      "rgba": [
+        29,
+        33,
+        42,
+        207
+      ],
+      "expected": [
+        29,
+        33,
+        42,
+        207
+      ]
+    },
+    {
+      "label": "Texture factor equation case65",
+      "rgba": [
+        38,
+        33,
+        35,
+        171
+      ],
+      "expected": [
+        38,
+        33,
+        35,
+        171
+      ]
+    },
+    {
+      "label": "Texture factor equation case66",
+      "rgba": [
+        18,
+        52,
+        86,
+        255
+      ],
+      "expected": [
+        18,
+        52,
+        86,
+        255
+      ]
+    }
+  ],
+  "commands": {
+    "capabilities": 250,
+    "createDevice": 1,
+    "clear": 40,
+    "uploadVertices": 106,
+    "uploadIndices": 101,
+    "drawIndexed": 123,
+    "present": 2,
+    "uploadTextureRGBA": 159,
+    "release": 366,
+    "destroyDevice": 1
+  },
+  "logs": [
+    "[D3D9] factory caller=12345678 result=05002000 args=00000020",
+    "[D3D9] create_device caller=12345678 result=00000000 args=05002000,00000000,00000001,0000002a,00000024,00001000,00002000 pp=000000be,00000080,00000016,00000001,00000000,00000000,00000001,0000002a,00000001,00000001,00000050,00000000,00000000,00000000",
+    "[D3D9] get_caps caller=12345678 result=00000000 args=05002010,00003000",
+    "[D3D9] CreateBuffer requested caller=12345678 type=4 usage=00000208 pool=0 size=48 format=00000042",
+    "[D3D9] CreateBuffer requested caller=12345678 type=5 usage=00000208 pool=0 size=6 format=00000065",
+    "[D3D9] first backend-acknowledged draw device=05002010 method=DrawIndexedPrimitive caller=12345678 primitives=1",
+    "[D3D9] FVF104 draw caller=12345678 result=00000000 method=DrawIndexedPrimitive stride=24 texture=05002080 color=4,2,0 alpha=4,0,2 blend=0,5,6,1 lighting=1",
+    "Native D3D9 ABI real GPU fixture passed"
+  ],
+  "blendComparisons": [
+    {
+      "mode": 27,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        128,
+        0,
+        127,
+        191
+      ],
+      "declaredRGBA8PerDraw": [
+        128,
+        0,
+        127,
+        191
+      ],
+      "illustrativePerFragment5Bit": [
+        128,
+        0,
+        127,
+        191
+      ]
+    },
+    {
+      "mode": 28,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        192,
+        0,
+        63,
+        159
+      ],
+      "declaredRGBA8PerDraw": [
+        192,
+        0,
+        63,
+        159
+      ],
+      "illustrativePerFragment5Bit": [
+        192,
+        0,
+        63,
+        159
+      ]
+    },
+    {
+      "mode": 29,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        192,
+        0,
+        63,
+        159
+      ],
+      "declaredRGBA8PerDraw": [
+        192,
+        0,
+        63,
+        159
+      ],
+      "illustrativePerFragment5Bit": [
+        192,
+        0,
+        63,
+        159
+      ]
+    },
+    {
+      "mode": 30,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        0,
+        255,
+        0,
+        255
+      ],
+      "declaredRGBA8PerDraw": [
+        0,
+        255,
+        0,
+        255
+      ],
+      "illustrativePerFragment5Bit": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "mode": 31,
+      "triangles": 2,
+      "separateDraws": false,
+      "actual": [
+        6,
+        6,
+        6,
+        249
+      ],
+      "declaredRGBA8PerDraw": [
+        6,
+        6,
+        6,
+        249
+      ],
+      "illustrativePerFragment5Bit": [
+        6,
+        6,
+        6,
+        249
+      ]
+    },
+    {
+      "mode": 32,
+      "triangles": 2,
+      "separateDraws": true,
+      "actual": [
+        6,
+        6,
+        6,
+        249
+      ],
+      "declaredRGBA8PerDraw": [
+        6,
+        6,
+        6,
+        249
+      ],
+      "illustrativePerFragment5Bit": [
+        6,
+        6,
+        6,
+        249
+      ]
+    },
+    {
+      "mode": 33,
+      "triangles": 2,
+      "separateDraws": false,
+      "actual": [
+        64,
+        0,
+        128,
+        159
+      ],
+      "declaredRGBA8PerDraw": [
+        64,
+        0,
+        128,
+        159
+      ],
+      "illustrativePerFragment5Bit": [
+        64,
+        0,
+        128,
+        159
+      ]
+    },
+    {
+      "mode": 34,
+      "triangles": 2,
+      "separateDraws": false,
+      "actual": [
+        128,
+        0,
+        64,
+        159
+      ],
+      "declaredRGBA8PerDraw": [
+        128,
+        0,
+        64,
+        159
+      ],
+      "illustrativePerFragment5Bit": [
+        128,
+        0,
+        64,
+        159
+      ]
+    },
+    {
+      "mode": 35,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        128,
+        0,
+        0,
+        64
+      ],
+      "declaredRGBA8PerDraw": [
+        128,
+        0,
+        0,
+        64
+      ],
+      "illustrativePerFragment5Bit": [
+        128,
+        0,
+        0,
+        64
+      ]
+    },
+    {
+      "mode": 36,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "declaredRGBA8PerDraw": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "illustrativePerFragment5Bit": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "mode": 37,
+      "triangles": 1,
+      "separateDraws": false,
+      "actual": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "declaredRGBA8PerDraw": [
+        17,
+        34,
+        51,
+        255
+      ],
+      "illustrativePerFragment5Bit": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "mode": 38,
+      "triangles": 64,
+      "separateDraws": false,
+      "actual": [
+        136,
+        136,
+        136,
+        121
+      ],
+      "declaredRGBA8PerDraw": [
+        136,
+        136,
+        136,
+        121
+      ],
+      "illustrativePerFragment5Bit": [
+        136,
+        136,
+        136,
+        121
+      ]
+    },
+    {
+      "mode": 39,
+      "triangles": 64,
+      "separateDraws": true,
+      "actual": [
+        136,
+        136,
+        136,
+        121
+      ],
+      "declaredRGBA8PerDraw": [
+        136,
+        136,
+        136,
+        121
+      ],
+      "illustrativePerFragment5Bit": [
+        136,
+        136,
+        136,
+        121
+      ]
+    }
+  ],
+  "blendModel": "RGBA8 hardware intermediate; RGB5/A1 UNORM8 conversion after each guest draw; not legacy-driver bit-exact",
+  "transport": "C COM vtables→EM_JS→D3D host→synchronous guest client→dedicated WebGPU worker→RAF bitmap acknowledgement"
+}

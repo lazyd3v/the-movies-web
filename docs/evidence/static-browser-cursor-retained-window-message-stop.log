@@ -1,0 +1,72 @@
+[diagnostic-options] assetReads=false imports=false profiling=true
+Build optimization: O1; Wasm SHA-256: c59141969454ebf33c9921a796ab460b4b526cc36820faac2ea3f355838349b0
+[media] Real WMV2/WMAv2 ASF service ready; bounded 1-second encode jobs, no WMV3 encoder.
+[media-reader] Real WMAv2 stereo 44100 Hz PCM reader ready; bounded input and sample queues.
+[graphics] WebGPU 1024×768 ready; bounded D3D9 subset, animation-frame-paced presentation.
+Mounted 719 original files with one 32 MiB range cache.
+original entry=00ad2451 imports=330; strict bootstrap, 176 API handlers
+[dialog] The Movies(TM): Stunts & Effects.: This is the first time you are running The Movies(TM): Stunts & Effects. The game has chosen to start at a high graphics quality level. If you wish, you can change this setting in the game's video options screen. If you experience any frame rate problems you may want to lower the graphics quality level.
+[window] create hwnd=d000001 client=1024x768 visible=false cursor=none
+[window] show hwnd=d000001 client=1024x768 visible=true cursor=none
+[window] ShowWindow caller=005431b4 hwnd=0d000001 mode=3 accepted=1 visible=1 minimized=0
+[window] cursor hwnd=d000001 client=1024x768 visible=true cursor=none
+[media-com] CoInitialize hr=00000000 arg0=00000000
+[media-com] CoCreateInstance hr=00000000 arg0=00db0abc arg1=00000000 arg2=00000001 arg3=00daf37c arg4=002ffb7c clsid=e436ebb3-524f-11ce-9f53-0020af0ba770 iid=56a868a9-0ad4-11ce-b03a-0020af0ba770
+[media-com] CoCreateInstance hr=00000000 arg0=00db0afc arg1=00000000 arg2=00000001 arg3=00daf34c arg4=002ffb84 clsid=bf87b6e1-8c27-11d0-b3f0-00aa003761c5 iid=93e5a4e0-2d50-11d2-abfa-00a0c9c6e38d
+[media-com] SetFiltergraph hr=00000000 arg0=04001010 arg1=04001000
+[media-com] CoCreateInstance hr=00000000 arg0=00db083c arg1=00000000 arg2=00000001 arg3=00daf4dc arg4=002ffb80 clsid=7c23220e-55bb-11d3-8b16-00c04fb6bd3d iid=56a86895-0ad4-11ce-b03a-0020af0ba770
+[media-com] AddFilter hr=00000000 arg0=04001000 arg1=04001020 arg2=00d76b68
+[media-com] CoInitialize hr=00000000 arg0=00000000
+[D3D9] factory caller=009a7aeb result=05002000 args=00000020
+[D3D9] create_device caller=009a7bc1 result=8876086a args=05002000,00000000,00000001,0d000001,00000044,0105c8c0,0105ca44 pp=00000400,00000300,00000019,00000001,00000000,00000000,00000001,00000000,00000000,00000001,00000050,00000000,00000000,00000000
+[D3D9] create_device caller=009a7bf4 result=00000000 args=05002000,00000000,00000001,0d000001,00000024,0105c8c0,0105ca44 pp=00000400,00000300,00000019,00000001,00000000,00000000,00000001,00000000,00000000,00000001,00000050,00000000,00000000,00000000
+[D3D9] get_caps caller=009a7c11 result=00000000 args=05002010,0105c910
+[D3D9] check_format caller=009a51d6 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000032
+[D3D9] check_format caller=009a51fd result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000018
+[D3D9] check_format caller=009a5224 result=00000000 args=05002000,00000000,00000001,00000016,00000000,00000003,0000001a
+[D3D9] check_format caller=009a524b result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000033
+[D3D9] check_format caller=009a5272 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000003c
+[D3D9] CreateBuffer requested caller=00a3afcb type=4 usage=00000008 pool=0 size=4194304 format=00000000
+[D3D9] CreateBuffer requested caller=00a3b02a type=5 usage=00000008 pool=0 size=1048576 format=00000065
+[D3D9] CreateBuffer requested caller=00a3b08d type=4 usage=00000208 pool=0 size=4194304 format=00000000
+[D3D9] CreateBuffer requested caller=00a3b0ed type=5 usage=00000208 pool=0 size=1048576 format=00000065
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002fec08
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000014
+[D3D9] check_format caller=00afbc04 result=00000000 args=05002000,00000000,00000001,00000016,00000000,00000003,00000015
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000016
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000017
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000018
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000028
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000029
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000019
+[D3D9] check_format caller=00afbc04 result=00000000 args=05002000,00000000,00000001,00000016,00000000,00000003,0000001a
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000001b
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000001c
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002fed80
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff21c
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff394
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff208
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff380
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff1f4
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff36c
+[D3D9] SetLight caller=009cc666 index=1 type=3 words=00000003,3ee0e0e2,3ee0e0e2,3f008081,3f800000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,3f800000,41200000,41200000,41200000,bf13cd3a,bf13cd3a,bf13cd3a,447a0000,00000000,00000000,00000000,00000000,00000000,00000000
+[D3D9] SetLight caller=009cc666 index=0 type=3 words=00000003,3f800000,3f800000,3f800000,3f800000,00000000,00000000,00000000,00000000,3ec0c0c2,3ec0c0c2,3ec0c0c2,3f800000,45dde000,c6115000,46674000,bec0ae74,3efc62b4,bf48d2ab,447a0000,00000000,00000000,00000000,00000000,00000000,00000000
+[D3D9] SetLight caller=009cc666 index=1 type=3 words=00000003,3ee0e0e2,3ee0e0e2,3f008081,3f800000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,3f800000,41200000,41200000,41200000,bf13cd3a,bf13cd3a,bf13cd3a,447a0000,00000000,00000000,00000000,00000000,00000000,00000000
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff258
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff3d0
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff244
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff3bc
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff230
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff3a8
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff21c
+[thread] create id=257 entry=00acf974 handle=0b000006 stack=1048576
+[thread] start id=257 parameter=102f68f8
+[thread] create id=258 entry=00acf974 handle=0b000008 stack=1048576
+[thread] start id=258 parameter=10319b58
+[media-com] CoInitializeEx hr=00000001 arg0=00000000 arg1=00000002
+[media-com] CoCreateInstance hr=80040154 arg0=00d85b2c arg1=00000000 arg2=00000001 arg3=00d85a8c arg4=100dcb40 clsid=47d4d946-62e8-11cf-93bc-444553540000 iid=279afa83-4981-11ce-a521-0020af0be560
+STOP: 0054262a: unsupported DefWindowProcA message
+eax=002ffd28 ecx=002ffd44 edx=002ffd28 esp=002ffd08 ebp=ff000000
+[wait-profile] {"frames":0,"lastSerial":0,"started":0,"windowMs":83902.505,"completedIntervals":[{"thread":"main","kind":1,"caller":"00c0fc49","timeout":10,"hostStatus":0,"count":1,"elapsedMs":12.125,"maxMs":12.125},{"thread":"main","kind":1,"caller":"00c9a9ac","timeout":0,"hostStatus":0,"count":1,"elapsedMs":0.010,"maxMs":0.010},{"thread":"child","kind":2,"caller":"00a55ec3","timeout":4294967295,"hostStatus":73,"count":3,"elapsedMs":158.310,"maxMs":55.045},{"thread":"child","kind":2,"caller":"00542354","timeout":50,"hostStatus":73,"count":2,"elapsedMs":109.939,"maxMs":55.050}]}
+Bootstrap execution: 63017.1 ms to diagnostic stop, including image loading and function registration, excluding dialog interaction (not a gameplay benchmark).
+Asset reads: 69 range requests, 18087936 bytes fetched, 159 cache hits, 18087936 bytes cached.

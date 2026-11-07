@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "metadata": {
+    "container": "asf",
+    "codec": "wmav2",
+    "audioStreamIndex": 0,
+    "sampleRate": 44100,
+    "channels": 2,
+    "bitsPerSample": 16,
+    "blockAlign": 4,
+    "format": "S16LE",
+    "containerDuration100ns": 107660000,
+    "maxSampleBytes": 8192
+  },
+  "runs": [
+    {
+      "selection": {
+        "start100ns": 0,
+        "duration100ns": null
+      },
+      "bytes": 1900544,
+      "packets": 464,
+      "sha256": "28f48cdfa917cdbf5b61aa5ba22fab4399959c11248ddb85ec29e3aab8f0872c",
+      "nativeMaxS16Difference": 1,
+      "first100ns": 929932,
+      "lastEnd100ns": 108094331,
+      "eos": true
+    },
+    {
+      "selection": {
+        "start100ns": 10000000,
+        "duration100ns": 5000000
+      },
+      "bytes": 88200,
+      "packets": 22,
+      "sha256": "d212685a2d2e3646fabfeb947dc93625ea7aacf71f1b631c9d3dfb3c411b3976",
+      "nativeMaxS16Difference": 1,
+      "first100ns": 10000000,
+      "lastEnd100ns": 15000000,
+      "eos": true
+    },
+    {
+      "selection": {
+        "start100ns": 200000000,
+        "duration100ns": null
+      },
+      "bytes": 0,
+      "packets": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nativeMaxS16Difference": 0,
+      "first100ns": null,
+      "lastEnd100ns": null,
+      "eos": true
+    },
+    {
+      "selection": {
+        "start100ns": 0,
+        "duration100ns": 0
+      },
+      "bytes": 0,
+      "packets": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nativeMaxS16Difference": 0,
+      "first100ns": null,
+      "lastEnd100ns": null,
+      "eos": true
+    }
+  ],
+  "quotaRejected": true,
+  "malformedInputRejected": true,
+  "incompleteInputRejected": true,
+  "outOfOrderInputRejected": true,
+  "duplicateReleaseRejected": true,
+  "queueBytesPerReader": 8192,
+  "totalMilliseconds": 980.8700000010431,
+  "note": "Reader backend only; no game integration. Decoder audio PTS differs from native7.1 by up to10.07ms."
+}

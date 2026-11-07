@@ -1,0 +1,88 @@
+--- a/translator/x86toc.py
++++ b/translator/x86toc.py
+@@ -778,9 +778,13 @@
+         return None
+ 
+     def vload(self, ins, op, var, n):
++        # Only emitter-owned local arrays may receive unguarded register copies.
++        # Guest operands keep the ordinary memcpy/RW path and its runtime lock.
++        if var not in ("b_", "c8_") or n not in (8, 16):
++            raise Unsupported("unproven SIMD local destination")
+         r = self.vreg(ins, op)
+         if r:
+-            return f"memcpy({var}, {r[0]}, {n});"
++            return f"__builtin_memcpy({var}, {r[0]}, {n});"
+         return f"memcpy({var}, HP({self.addr(ins, op)}), {n});"
+ 
+     def vector_int(self, ins, m, o):
+@@ -791,8 +795,8 @@
+         d = self.vreg(ins, o[0])
+         if m in self.VBIN and d and len(o) == 2:
+             dst, n = d
+-            return (f"{{ uint8_t a_[16], b_[16]; memcpy(a_, {dst}, {n}); {self.vload(ins, o[1], 'b_', n)} "
+-                    f"{self.VBIN[m].replace('N', str(n))}; memcpy({dst}, a_, {n}); }}")
++            return (f"{{ uint8_t a_[16], b_[16]; __builtin_memcpy(a_, {dst}, {n}); {self.vload(ins, o[1], 'b_', n)} "
++                    f"{self.VBIN[m].replace('N', str(n))}; __builtin_memcpy({dst}, a_, {n}); }}")
+         if m in self.VSHIFT and d:
+             dst, n = d
+             lane, kind = self.VSHIFT[m]
+@@ -800,45 +804,45 @@
+                 cnt = f"{o[1].imm & 0xff}u"
+             else:
+                 cnt = "cnt_"
+-            pre = "" if o[1].type == CS_OP_IMM else f"uint8_t c8_[16]; {self.vload(ins, o[1], 'c8_', 8)} uint64_t cnt_; memcpy(&cnt_, c8_, 8); "
+-            return (f"{{ uint8_t a_[16]; {pre}memcpy(a_, {dst}, {n}); v_shift(a_, {cnt}, {n}, {lane}, {kind}); "
+-                    f"memcpy({dst}, a_, {n}); }}")
++            pre = "" if o[1].type == CS_OP_IMM else f"uint8_t c8_[16]; {self.vload(ins, o[1], 'c8_', 8)} uint64_t cnt_; __builtin_memcpy(&cnt_, c8_, 8); "
++            return (f"{{ uint8_t a_[16]; {pre}__builtin_memcpy(a_, {dst}, {n}); v_shift(a_, {cnt}, {n}, {lane}, {kind}); "
++                    f"__builtin_memcpy({dst}, a_, {n}); }}")
+         if m in ("pslldq", "psrldq") and d:
+             dst, n = d
+-            return (f"{{ uint8_t a_[16]; memcpy(a_, {dst}, {n}); v_bshift(a_, {o[1].imm}u, {n}, {int(m == 'pslldq')}); "
+-                    f"memcpy({dst}, a_, {n}); }}")
++            return (f"{{ uint8_t a_[16]; __builtin_memcpy(a_, {dst}, {n}); v_bshift(a_, {o[1].imm}u, {n}, {int(m == 'pslldq')}); "
++                    f"__builtin_memcpy({dst}, a_, {n}); }}")
+         if m in ("pshufw", "pshufd", "pshuflw", "pshufhw") and d:
+             dst, n = d
+             lane, words, base = {"pshufw": (2, 4, 0), "pshufd": (4, 4, 0), "pshuflw": (2, 4, 0),
+                                  "pshufhw": (2, 4, 8)}[m]
+-            return (f"{{ uint8_t a_[16], b_[16]; {self.vload(ins, o[1], 'b_', n)} memcpy(a_, b_, {n}); "
+-                    f"v_pshufw(a_, b_, {o[2].imm}u, {lane}, {words}, {base}); memcpy({dst}, a_, {n}); }}")
++            return (f"{{ uint8_t a_[16], b_[16]; {self.vload(ins, o[1], 'b_', n)} __builtin_memcpy(a_, b_, {n}); "
++                    f"v_pshufw(a_, b_, {o[2].imm}u, {lane}, {words}, {base}); __builtin_memcpy({dst}, a_, {n}); }}")
+         if m == "movd":
+             if d:
+                 dst, n = d
+-                return f"{{ uint32_t v_ = {self.read(ins, o[1], 4)}; memset({dst}, 0, {n}); memcpy({dst}, &v_, 4); }}"
++                return f"{{ uint32_t v_ = {self.read(ins, o[1], 4)}; __builtin_memset({dst}, 0, {n}); __builtin_memcpy({dst}, &v_, 4); }}"
+             sreg = self.vreg(ins, o[1])
+             if sreg:
+-                return f"{{ uint32_t v_; memcpy(&v_, {sreg[0]}, 4); {self.write(ins, o[0], 'v_', 4)} }}"
++                return f"{{ uint32_t v_; __builtin_memcpy(&v_, {sreg[0]}, 4); {self.write(ins, o[0], 'v_', 4)} }}"
+             return None
+         if m in ("movq", "movntq", "movq2dq", "movdq2q"):
+             s_ = self.vreg(ins, o[1])
+             if d:
+                 dst, n = d
+-                src = (f"memcpy(&v_, {s_[0]}, 8);" if s_ else f"v_ = R64({self.addr(ins, o[1])});")
+-                return f"{{ uint64_t v_; {src} memset({dst}, 0, {n}); memcpy({dst}, &v_, 8); }}"
++                src = (f"__builtin_memcpy(&v_, {s_[0]}, 8);" if s_ else f"v_ = R64({self.addr(ins, o[1])});")
++                return f"{{ uint64_t v_; {src} __builtin_memset({dst}, 0, {n}); __builtin_memcpy({dst}, &v_, 8); }}"
+             if s_ and o[0].type == CS_OP_MEM:
+-                return f"{{ uint64_t v_; memcpy(&v_, {s_[0]}, 8); W64({self.addr(ins, o[0])}, v_); }}"
++                return f"{{ uint64_t v_; __builtin_memcpy(&v_, {s_[0]}, 8); W64({self.addr(ins, o[0])}, v_); }}"
+             return None
+         if m == "pextrw":
+             s_ = self.vreg(ins, o[1])
+             if s_:
+-                return (f"{{ uint16_t w_; memcpy(&w_, (uint8_t *){s_[0]} + 2 * ({o[2].imm}u % {s_[1] // 2}), 2); "
++                return (f"{{ uint16_t w_; __builtin_memcpy(&w_, (uint8_t *){s_[0]} + 2 * ({o[2].imm}u % {s_[1] // 2}), 2); "
+                         f"{self.write(ins, o[0], '(uint32_t)w_', 4)} }}")
+         if m == "pinsrw" and d:
+             dst, n = d
+             src = self.read(ins, o[1], 4) if o[1].type == CS_OP_REG else f"R16({self.addr(ins, o[1])})"
+-            return f"{{ uint16_t w_ = (uint16_t)({src}); memcpy((uint8_t *){dst} + 2 * ({o[2].imm}u % {n // 2}), &w_, 2); }}"
++            return f"{{ uint16_t w_ = (uint16_t)({src}); __builtin_memcpy((uint8_t *){dst} + 2 * ({o[2].imm}u % {n // 2}), &w_, 2); }}"
+         if m == "pmovmskb":
+             s_ = self.vreg(ins, o[1])
+             if s_:

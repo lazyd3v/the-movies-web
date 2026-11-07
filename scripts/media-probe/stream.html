@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>Bounded original WMV stream</title>
+<style>body{font:16px system-ui;max-width:900px;margin:40px auto;background:#141820;color:#eee}button{padding:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>Original WMV bounded sample stream</h1><p>Full atvi_logo.wmv, BGR24 and S16LE samples through a one-slot SharedArrayBuffer queue. Hash/timestamp comparison with native FFmpeg. This runs as fast as consumption permits; it is not timed playback or a game media interface.</p>
+<button id="start">Decode full clip</button> <button id="stop" disabled>Stop worker</button>
+<label>Consumer delay <input id="delay" type="number" min="0" max="100" value="2"> ms per packet</label>
+<span id="heartbeat"></span><pre id="result">Ready.</pre><script src="stream.js"></script>

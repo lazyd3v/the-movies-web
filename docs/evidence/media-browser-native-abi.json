@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "label": "Synthetic native COM ABI fixture, not game playback",
+  "operations": {
+    "create": 1,
+    "configure": 1,
+    "release": 1
+  },
+  "logs": [
+    "media COM graph, profile XML, ownership, encoding restrictions and backend bridge tests passed"
+  ],
+  "transport": "Native COM vtables → EM_JS → synchronous client → real verified WMV2/WMAv2 codec service"
+}

@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "frames": 309,
+  "audioBytes": 1900544,
+  "audioSampleFrames": 475136,
+  "frameBytes": 921600,
+  "queueContract": "publish must consume or copy before returning",
+  "videoFormat": "BGR24",
+  "audioFormat": "S16LE stereo 44100Hz",
+  "videoAccumulatorBytes": 921600,
+  "audioAccumulatorBytes": 8192,
+  "packets": 541,
+  "audioPackets": 232,
+  "audioMaxAbsoluteS16Difference": 1,
+  "allVideoHashesAndPtsMatch": true,
+  "allAudioTimestampSpansMatchLocalWasm": true,
+  "queueSlots": 1,
+  "queueBytes": 921600,
+  "consumerDelayMilliseconds": 2,
+  "elapsedMilliseconds": 2550.760000001639
+}

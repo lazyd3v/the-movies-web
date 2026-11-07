@@ -1,0 +1,837 @@
+{
+  "status": "passed",
+  "label": "Synthetic native D3D9 ABI fixture, not game rendering",
+  "targetFormat": 22,
+  "capabilities": {
+    "schemaVersion": 1,
+    "backend": "WebGPU",
+    "width": 190,
+    "height": 128,
+    "colorFormat": "bgra8unorm",
+    "depthFormat": "depth16unorm",
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    },
+    "limits": {
+      "maxTextureDimension2D": 8192,
+      "maxBufferSize": 268435456,
+      "maxVertexBufferArrayStride": 2048
+    },
+    "renderTargetFormats": [
+      22,
+      25
+    ],
+    "supported": [
+      "A1R5G5B5-output-quantization",
+      "alpha-test-all-comparisons",
+      "XYZ_DIFFUSE",
+      "XYZ_DIFFUSE_UV",
+      "triangle-list",
+      "uint16-indices",
+      "uint32-indices",
+      "world-view-projection",
+      "RGBA8-texture-point-linear-wrap-mirror-clamp-single-level",
+      "clear",
+      "RGBA8-readback",
+      "ImageBitmap-present"
+    ],
+    "unsupported": [
+      "lighting",
+      "fog",
+      "clip-planes",
+      "vertex-blending",
+      "programmable-shaders",
+      "multitexture",
+      "blending",
+      "stencil",
+      "MSAA",
+      "mipmaps",
+      "compressed-textures",
+      "resize-reset"
+    ]
+  },
+  "checks": [
+    {
+      "label": "native indexed draw",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 1",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        51,
+        34,
+        17,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 2",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        171,
+        205,
+        239,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 3",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        128,
+        0,
+        128,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 4",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 5",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 6",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 7",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 8",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 9",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 10",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 11",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 12",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 13",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 14",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native texture/sampler case 15",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        0,
+        255,
+        127
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 20,
+      "rgba": [
+        20,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 20,
+      "rgba": [
+        80,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 20,
+      "rgba": [
+        140,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 20,
+      "rgba": [
+        200,
+        20,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 21,
+      "rgba": [
+        20,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 21,
+      "rgba": [
+        80,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 21,
+      "rgba": [
+        140,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 21,
+      "rgba": [
+        200,
+        80,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 22,
+      "rgba": [
+        20,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 22,
+      "rgba": [
+        80,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 22,
+      "rgba": [
+        140,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 22,
+      "rgba": [
+        200,
+        140,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 20,
+      "y": 23,
+      "rgba": [
+        20,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 21,
+      "y": 23,
+      "rgba": [
+        80,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 22,
+      "y": 23,
+      "rgba": [
+        140,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW half-pixel texel",
+      "x": 23,
+      "y": 23,
+      "rgba": [
+        200,
+        200,
+        40,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW screen-linear diffuse",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        96,
+        96,
+        64,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW perspective UV",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        89,
+        120,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "RHW depth bypasses viewport transform",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 20",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 21",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 22",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 23",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 24",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 25",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        0,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "Depth comparison/write case 26",
+      "x": 68,
+      "y": 44,
+      "rgba": [
+        255,
+        0,
+        255,
+        255
+      ]
+    },
+    {
+      "label": "RHW outside geometry",
+      "x": 19,
+      "y": 19,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    }
+  ],
+  "commands": {
+    "capabilities": 21,
+    "createDevice": 1,
+    "clear": 21,
+    "uploadVertices": 17,
+    "uploadIndices": 12,
+    "drawIndexed": 27,
+    "present": 1,
+    "uploadTextureRGBA": 10,
+    "release": 39,
+    "destroyDevice": 1
+  },
+  "logs": [
+    "[D3D9] factory caller=12345678 result=05002000 args=00000020",
+    "[D3D9] create_device caller=12345678 result=00000000 args=05002000,00000000,00000001,0000002a,00000024,00001000,00002000 pp=000000be,00000080,00000016,00000001,00000000,00000000,00000001,0000002a,00000001,00000001,00000050,00000000,00000000,00000000",
+    "[D3D9] get_caps caller=12345678 result=00000000 args=05002010,00003000",
+    "Native D3D9 ABI real GPU fixture passed"
+  ],
+  "transport": "C COM vtables→EM_JS→D3D host→synchronous guest client→dedicated WebGPU worker→RAF bitmap acknowledgement"
+}

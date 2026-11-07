@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "sampleRate": 44100,
+  "channels": 2,
+  "bufferFrames": 128,
+  "ringBytes": 131072,
+  "controlBytes": 36,
+  "playedBuffers": 192,
+  "resetBuffers": 8,
+  "closedBuffers": 2,
+  "consumedFrames": 24576,
+  "renderedFrames": 28544,
+  "underrunFrames": 3968,
+  "pausedConsumption": 0,
+  "contextState": "closed",
+  "completionMeaning": "Consumed into AudioWorklet output; not physical DAC completion",
+  "hidden": false
+}

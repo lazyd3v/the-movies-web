@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>Clocked original WMV sample proof</title>
+<style>body{font:16px system-ui;max-width:960px;margin:30px auto;background:#141820;color:#eee}button{padding:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>Independent video/audio clocked sample delivery</h1>
+<p>Original full intro, two decoder workers, separate one-slot queues. Muted diagnostic: samples are checked and delivered on their decoder timestamps, with no audio device or game graph. Keep this tab visible for timing measurements.</p>
+<button id="start">Start clocked clip</button> <button id="stop" disabled>Stop</button> <span id="heartbeat"></span>
+<pre id="result">Ready.</pre><script src="timed.js"></script>

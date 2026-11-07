@@ -1,0 +1,8 @@
+body { margin:0; background:#101215; color:#ddd; font:13px system-ui,sans-serif; }
+#controls { padding:10px; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; }
+button { border:1px solid #454b55; background:#252a31; color:#eee; padding:7px 10px; border-radius:4px; cursor:pointer; }
+#console { max-width:1100px; margin:12px auto; }
+#output { box-sizing:border-box; width:100%; background:#080a0c; color:#b3c6b8; border:1px solid #30363b; font:11px monospace; }
+.emscripten_border { max-width:100%; border:0; }
+#loading { padding:15px; }
+hr {display:none}

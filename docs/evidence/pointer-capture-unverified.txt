@@ -1,0 +1,7 @@
+- heading "Pointer capture diagnostic — not the game" [level=1]
+- paragraph: Click Capture mouse, then move the mouse. Press Escape to release. This checks actual native Wasm cursor APIs, window messages and DirectInput; it never warps the OS pointer.
+- button "Capture mouse"
+- button "Verify release / finish" [disabled]
+- paragraph: Mouse capture was denied. Click Capture mouse to retry.
+- generic "Pointer diagnostic" [active]
+- generic: "{ \"checks\": [ { \"initialUnlocked\": { \"type\": \"reply\", \"id\": 1, \"warped\": 0, \"error\": 50, \"read\": 0, \"point\": null } } ], \"point\": null, \"captured\": false, \"movementVerified\": false }"

@@ -1,0 +1,19 @@
+--- a/translator/x86toc.py
++++ b/translator/x86toc.py
+@@ -1027,6 +1027,7 @@
+         secs = {s.Name.rstrip(b"\0").decode(): (self.base + s.VirtualAddress,
+                                                  self.base + s.VirtualAddress + s.Misc_VirtualSize) for s in pe.sections}
+         tlo, thi = secs[".text"]
++        self.text_end = thi
+         jt = {t for ts in self.jumptables.values() for t in ts}
+ 
+         def plausible(t):
+@@ -1168,7 +1169,7 @@
+         if getattr(self, "_sorted_entries", None) is None:
+             self._sorted_entries = sorted(self.ghidra_entries)
+         k = bisect.bisect_right(self._sorted_entries, e)
+-        return self._sorted_entries[k] if k < len(self._sorted_entries) else e
++        return self._sorted_entries[k] if k < len(self._sorted_entries) else self.text_end
+ 
+     def direct_callees(self, f):
+         """Direct call/jump targets plus function addresses used as constants (function pointers)."""

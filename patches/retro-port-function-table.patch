@@ -1,0 +1,99 @@
+--- a/runtime/runtime.c
++++ b/runtime/runtime.c
+@@ -13,27 +13,80 @@
+ 
+ typedef struct { uint32_t addr; GuestFn fn; } FnEntry;
+ static FnEntry *g_fns;
+-static uint32_t g_fn_cap;  /* power of two */
++static uint32_t g_fn_cap;  /* power of two, occupancy at most one half */
++static uint32_t g_fn_count;
++static uint8_t g_fn_lock;
++
++static void function_table_lock(void) {
++    while (__atomic_test_and_set(&g_fn_lock, __ATOMIC_ACQUIRE)) { }
++}
++
++static void function_table_unlock(void) {
++    __atomic_clear(&g_fn_lock, __ATOMIC_RELEASE);
++}
++
++static void function_table_fail(const char *reason) {
++    fprintf(stderr, "function table: %s\n", reason);
++    abort();
++}
++
++/* Called with the table lock held. Existing handlers survive rehashing. */
++static void function_table_grow(void) {
++    if (g_fn_cap > UINT32_MAX / 2u) function_table_fail("capacity overflow");
++    uint32_t capacity = g_fn_cap ? g_fn_cap * 2u : (1u << 16);
++    if ((uint64_t)capacity * sizeof(FnEntry) > SIZE_MAX)
++        function_table_fail("allocation size overflow");
++    FnEntry *next = calloc(capacity, sizeof *next);
++    if (!next) function_table_fail("allocation failed");
++    for (uint32_t old = 0; old < g_fn_cap; old++) {
++        if (!g_fns[old].fn) continue;
++        uint32_t slot = (g_fns[old].addr * 2654435761u) & (capacity - 1u);
++        while (next[slot].fn) slot = (slot + 1u) & (capacity - 1u);
++        next[slot] = g_fns[old];
++    }
++    free(g_fns);
++    g_fns = next;
++    g_fn_cap = capacity;
++}
+ 
+ void register_function(uint32_t addr, GuestFn fn) {
+-    if (!g_fns) {
+-        g_fn_cap = 1u << 16;
+-        g_fns = calloc(g_fn_cap, sizeof *g_fns);
+-    }
+-    uint32_t i = (addr * 2654435761u) & (g_fn_cap - 1);
+-    while (g_fns[i].fn && g_fns[i].addr != addr) i = (i + 1) & (g_fn_cap - 1);
+-    g_fns[i].addr = addr;
+-    g_fns[i].fn = fn;
++    if (!fn) function_table_fail("cannot register null handler");
++    function_table_lock();
++    if (!g_fns) function_table_grow();
++    uint32_t slot = (addr * 2654435761u) & (g_fn_cap - 1u);
++    for (uint32_t probes = 0; probes < g_fn_cap; probes++) {
++        if (!g_fns[slot].fn) break;
++        if (g_fns[slot].addr == addr) {
++            g_fns[slot].fn = fn;
++            function_table_unlock();
++            return;
++        }
++        slot = (slot + 1u) & (g_fn_cap - 1u);
++    }
++    if (g_fn_count >= g_fn_cap / 2u) {
++        function_table_grow();
++        slot = (addr * 2654435761u) & (g_fn_cap - 1u);
++        while (g_fns[slot].fn) slot = (slot + 1u) & (g_fn_cap - 1u);
++    }
++    g_fns[slot].addr = addr;
++    g_fns[slot].fn = fn;
++    g_fn_count++;
++    function_table_unlock();
+ }
+ 
+ GuestFn lookup_function(uint32_t addr) {
+-    if (!g_fns) return NULL;
+-    uint32_t i = (addr * 2654435761u) & (g_fn_cap - 1);
+-    while (g_fns[i].fn) {
+-        if (g_fns[i].addr == addr) return g_fns[i].fn;
+-        i = (i + 1) & (g_fn_cap - 1);
+-    }
+-    return NULL;
++    function_table_lock();
++    GuestFn found = NULL;
++    if (g_fns) {
++        uint32_t slot = (addr * 2654435761u) & (g_fn_cap - 1u);
++        for (uint32_t probes = 0; probes < g_fn_cap; probes++) {
++            if (!g_fns[slot].fn) break;
++            if (g_fns[slot].addr == addr) { found = g_fns[slot].fn; break; }
++            slot = (slot + 1u) & (g_fn_cap - 1u);
++        }
++    }
++    function_table_unlock();
++    return found;
+ }
+ 
+ static void unimplemented_import(CPU *c);

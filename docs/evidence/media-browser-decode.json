@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "results": {
+    "frame.yuv": {
+      "bytes": 460800,
+      "sha256": "481e3eaf8ab8d69d48f2e9f4eb1f67d0bf43c02daf178a41e4f45f154c767160",
+      "milliseconds": 26.08500000089407,
+      "matchesLocalWasm": true
+    },
+    "audio.pcm": {
+      "bytes": 184752,
+      "sha256": "091003df5f17fe4c183e087945a87a37150ceba82a63cfadfee1e5c8e4607037",
+      "milliseconds": 6.614999998360872,
+      "matchesLocalWasm": true
+    }
+  },
+  "reference": {
+    "videoBytesEqual": true,
+    "audioSamples": 92376,
+    "audioDurationSeconds": 1.04734693877551,
+    "audioMaxAbsoluteS16Difference": 1,
+    "audioRmsDifference": 0.4458049994274469,
+    "nativeVersion": "FFmpeg 7.1",
+    "wasmVersion": "FFmpeg 5.1.4 / @ffmpeg/core 0.12.10"
+  },
+  "decoder": "ffmpeg version 5.1.4 Copyright (c) 2000-2023 the FFmpeg developers",
+  "note": "Bounded decode diagnostic; no Windows Media COM integration or game playback.",
+  "totalMilliseconds": 179.9700000025332
+}

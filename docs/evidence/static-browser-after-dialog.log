@@ -1,0 +1,21 @@
+Mounted 719 original files with one 32 MiB range cache.
+original entry=00ad2451 imports=330; strict bootstrap, 99 API handlers
+[file] FindFirstFileA path="c:\Games" result=0a000000 error=0
+[file] FindFirstFileA path="c:\Games\TheMovies" result=0a000001 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffc08 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\language.txt" result=ffffffff error=2
+[file] FindFirstFileA path="data\text\EN-UK\*.*" result=0a000002 error=0
+[file] FindFirstFileA path="data\text\EN-UK\stringdatabase.lhts" result=0a000003 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff5a0 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\text\EN-UK\stringdatabase.lhts" result=09000000 error=0
+[file] ReadFile handle=09000000 requested=2101248 actual=2101248 error=0
+[file] ReadFile handle=09000000 requested=4096 actual=3668 error=0
+[file] FindFirstFileA path="data\text\EN-UK\stringdatabase_addon1.lhts" result=0a000004 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff5a0 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\text\EN-UK\stringdatabase_addon1.lhts" result=09000001 error=0
+[file] ReadFile handle=09000001 requested=163840 actual=163840 error=0
+[file] ReadFile handle=09000001 requested=4096 actual=1504 error=0
+STOP: f0000a60: unimplemented Windows import KERNEL32.DLL!GetDiskFreeSpaceExW (called from 00a0fe1a)
+eax=100466b0 ecx=002ffd34 edx=002ffcec esp=002ffbd4 ebp=00000040
+Bootstrap execution: 4638.1 ms to diagnostic stop, including image loading and function registration, excluding dialog interaction (not a gameplay benchmark).
+Asset reads: 9 range requests, 2359296 bytes fetched, 3 cache hits, 2359296 bytes cached.

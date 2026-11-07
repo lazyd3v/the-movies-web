@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "gameExeSha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+  "entries": [
+    {
+      "entry": 10830768,
+      "end": 10831351,
+      "fileOffset": 6636464,
+      "sha256": "70db04f34260259782414eb650c1015697dd41a9775a74e9b24455d5dcb27a5d",
+      "evidence": "A54740 mode2 stores A543B0 in raster object+0x2C; A53B00 invokes it three times per triangle. Original span ends ret8 at A545F4, followed by INT3 padding. No calls/imports; x87 edge interpolation into guest row tables."
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "ok": true,
+  "frames": 309,
+  "audioSampleFrames": 475136,
+  "audioBytes": 1900544,
+  "audioPackets": 232,
+  "allFrameHashesAndPtsMatch": true,
+  "allAudioSpansMatchLocalWasm": true,
+  "pcmMaxDifference": 1,
+  "clockedSeconds": 10.81071499999985,
+  "expectedEndSeconds": 10.809433106575964,
+  "totalMilliseconds": 11015.730000000447,
+  "firstPacketReadyMilliseconds": {
+    "audio": 196.35000000149012,
+    "video": 201.92500000074506
+  },
+  "maxLatenessMilliseconds": {
+    "video": 5.934999998657986,
+    "audio": 5.981916098283024
+  },
+  "packetsOver100msLate": {
+    "video": 0,
+    "audio": 0
+  },
+  "underrunEpisodesOver100ms": {
+    "video": 0,
+    "audio": 0
+  },
+  "maxDeliveredStartPtsDifferenceSeconds": 0.4645124716553288,
+  "hiddenDuringRun": false,
+  "timingPassed": true,
+  "queueBytes": {
+    "video": 921600,
+    "audio": 8192
+  },
+  "workers": 2,
+  "decoderStats": {
+    "video": {
+      "frames": 309,
+      "audioBytes": 0,
+      "audioSampleFrames": 0,
+      "frameBytes": 921600,
+      "queueContract": "publish must consume or copy before returning",
+      "videoFormat": "BGR24",
+      "audioFormat": "S16LE stereo 44100Hz",
+      "videoAccumulatorBytes": 921600,
+      "audioAccumulatorBytes": 0,
+      "wasmHeapBytes": 33554432,
+      "inputBytes": 1235199
+    },
+    "audio": {
+      "frames": 0,
+      "audioBytes": 1900544,
+      "audioSampleFrames": 475136,
+      "frameBytes": 921600,
+      "queueContract": "publish must consume or copy before returning",
+      "videoFormat": "BGR24",
+      "audioFormat": "S16LE stereo 44100Hz",
+      "videoAccumulatorBytes": 0,
+      "audioAccumulatorBytes": 8192,
+      "wasmHeapBytes": 33554432,
+      "inputBytes": 1235199
+    }
+  },
+  "muted": true,
+  "note": "Audio decoder PTS differs up to10.07ms from native FFmpeg7.1; no audio device or graph."
+}

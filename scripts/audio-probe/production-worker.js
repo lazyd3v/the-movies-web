@@ -1,0 +1,5 @@
+import createRuntime from './production-fixture.js';
+import {createMoviesAudioClient} from '/audio-client.js';
+import {AUDIO} from '/audio-ring.js';
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+onmessage=async({data})=>{let client;try{client=createMoviesAudioClient(data);const runtime=await createRuntime({...client});runtime._audio_start();const deadline=performance.now()+5000;while(runtime._audio_poll()<64){if(performance.now()>deadline)throw Error('Actual consumption timeout');await sleep(10);}const control=new Int32Array(data.controlBuffer);if(Atomics.load(control,AUDIO.CONSUMED)!==8192)throw Error('Incorrect consumed count');Atomics.store(control,AUDIO.STATE,AUDIO.PAUSED);await sleep(30);runtime._audio_queue_reset();runtime._audio_finish_reset();postMessage({passed:true,productionProvider:true,workerSyncReset:true,playedCallbacks:64,resetCallbacks:8,consumedFrames:Atomics.load(control,AUDIO.CONSUMED),resetRequest:Atomics.load(control,AUDIO.RESET_REQUEST),resetAck:Atomics.load(control,AUDIO.RESET_ACK)});}catch(error){postMessage({passed:false,error:String(error)});}finally{client?.dispose();}};

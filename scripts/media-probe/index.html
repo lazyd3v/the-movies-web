@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>Original WMV decode probe</title>
+<style>body{font:16px system-ui;max-width:850px;margin:40px auto;background:#141820;color:#eee}button{padding:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>Original Windows Media decode diagnostic</h1>
+<p>Decodes one 640×480 YUV frame and about one second of stereo PCM from the original atvi_logo.wmv in a dedicated WebAssembly worker. This is a decoder test, not game playback.</p>
+<button id="start">Run bounded decode</button> <button id="writer">Run decode + WMV2/WMAv2 writer roundtrip</button> <span id="heartbeat"></span><pre id="result">Ready.</pre>
+<script src="probe.js"></script>

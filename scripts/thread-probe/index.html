@@ -1,0 +1,3 @@
+<!doctype html><meta charset="utf-8"><title>Guest pthread acceptance</title><button id="run">Run actual runtime pthread test</button><pre id="output">Ready</pre><script>
+let worker;document.querySelector('#run').onclick=()=>{document.querySelector('#run').disabled=true;document.querySelector('#output').textContent='Running';worker=new Worker('worker.js');worker.onmessage=e=>{document.querySelector('#output').textContent+='\n'+JSON.stringify(e.data);if(e.data.ok)document.body.dataset.result='passed';if(e.data.error)document.body.dataset.result='failed';};worker.onerror=e=>{document.body.dataset.result='failed';document.querySelector('#output').textContent+='\n'+e.message;};worker.postMessage({run:true});};
+</script>

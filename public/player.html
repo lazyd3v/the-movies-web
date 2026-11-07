@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>The Movies — WebAssembly player</title><link rel="stylesheet" href="player.css">
+    <meta name="description" content="boxedwine emulator">
+    <meta name="keywords" content="emulator,wine,windows,x86,PC,emscripten,web assembly,wasm,boxedwine">
+    <meta name="author" content="James Bryant, Kevin O'Dwyer">
+      <link rel="stylesheet" type="text/css" href="runtime/boxedwine.css">
+  </head>
+  <body>
+  <div id="loading">
+      <figure id="spinner" style="overflow: visible;">
+         <div class="spinner" style="margin-top: .5em; margin-left: auto; margin-right: auto;"></div>
+	  </figure>
+      <div class="emscripten" id="status">Downloading...</div>
+      <div class="emscripten">
+          <progress value="0" max="100" id="progress"></progress>
+      </div>
+  </div>
+    <div id="app">
+        <div id="controls" class="emscripten">
+            <button id="startbtn" style="display: none" onclick="start()">Start</button>
+            <button id="downloadbtn" style="display: none" onclick="buildGetFilesModal();">Get File(s)</button>
+            <button id="savejitbtn" style="display: none" onclick="saveJitModules()">Save JIT Cache</button>
+            <select id="cdromdisc" style="display: none" onchange="insertCDRomDisc(Number(this.value))"></select>
+            <button id="cdromejectbtn" style="display: none" onclick="ejectCDRomDisc()">Eject</button>
+            <a style="display: none" id="modalLink" href="#openModal">Open</a>
+            <a style="display: none" id="modalLinkExe" href="#openModalExe">Open</a>
+          <input type="checkbox" id="pointerLock">Lock/hide mouse pointer
+          <input type="checkbox" id="showConsole" onclick="toggleConsole();" checked>Show console
+        </div>
+        <p id="archive-stats" style="margin:2px 8px 6px;text-align:center;font-size:11px;color:#aab3be" aria-live="off">Game archive: waiting for mount.</p>
+        <div id="dropzone">
+            <div class="emscripten_border">
+                <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+                <!-- Emscripten fullscreen sizing also resolves the bare "canvas" selector. -->
+                <canvas class="emscripten boxedwine-webgl-canvas" id="boxedwine-webgl-canvas-0" oncontextmenu="event.preventDefault()"></canvas>
+            </div>
+        </div>
+        <div id="console">
+            <textarea class="emscripten" id="output" rows="8" style="display: none"></textarea>
+        </div>
+        <div id="openModal" class="modalDialog">
+            <div> <a href="#close" title="Close" class="close" onclick="closeGetFilesModal();">X</a>
+                <div>
+                    <h3>Get File(s)</h3>
+                    <input id="selectedItem" type="text" size="50" readonly>
+                    <button onclick="extract();">Get</button>
+                </div>
+                <div id="tree" class="scroll-style">
+                </div>
+                <div id="overlayRow">
+                    <button onclick="saveOverlay();" title="Zip everything Wine and programs changed, to load later with ?overlay=overlay.zip">Save Overlay</button>
+                </div>
+                <div>
+                    <h3 id="loadStatus">Loading...</h3>
+                </div>
+            </div>
+        </div>
+        <div id="openModalExe" class="modalDialog">
+            <div> <a id="openModalExeClick" href="#close" title="Close" class="close">X</a>
+                <div>
+                    <h3>Execute (d:)</h3>
+                    <div id="message"></div>
+                    <div id="items" class="scroll-style"></div>
+                </div>
+            </div>
+        </div>
+        <hr>
+    </div>
+        <script src="runtime/fsfs.js"></script>
+        <script src="runtime/boxedwine-shell.js"></script>
+<script src="range-file.js"></script>
+<script src="proc-stat.js"></script>
+<script src="player.js"></script>
+<script src="archive-stats.js"></script>
+
+  </body>
+</html>

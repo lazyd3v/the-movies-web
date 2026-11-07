@@ -1,0 +1,8 @@
+{
+  "passed": false,
+  "mainBlocked": true,
+  "message": "Synthetic child failure while parent is blocked",
+  "childHeartbeatAtStop": 20,
+  "childHeartbeatAfterStop": 45,
+  "nestedChildStopped": false
+}

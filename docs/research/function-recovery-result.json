@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "executable": "MoviesSE.exe",
+  "executableSha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+  "executableBytes": 12230656,
+  "exporterSha256": "1c6e2cfbc88746070f1c61e12f202e3372d6f2ffca4dfeb310893c696578207f",
+  "ghidra": "ghidra_12.1.4_PUBLIC",
+  "elapsedSeconds": 632.28,
+  "functionCount": 59557,
+  "jumpTableCount": 1138,
+  "note": "Recovered functions are analysis results, not a proof of complete code coverage or playable translation.",
+  "unresolvedJumpCount": 608,
+  "analysisDiagnostics": [
+    "WARN  Ignoring leading '_' chars on no-return name '___raise_securityfailure' specified in file: <repo>/.cache/analysis-tools/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/data/PEFunctionsThatDoNotReturn (NoReturnFunctionAnalyzer)  ",
+    "WARN  Ignoring leading '_' chars on no-return name '___report_rangecheckfailure' specified in file: <repo>/.cache/analysis-tools/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/data/PEFunctionsThatDoNotReturn (NoReturnFunctionAnalyzer)  ",
+    "ERROR Invalid PNG data at 00d8c61c (PngDataType)  ",
+    "ERROR Invalid PNG data at 00d8de98 (PngDataType)  ",
+    "WARN  Decompiling 00a71490: Unable to read bytes at ram:00010200 (DecompileCallback)  "
+  ],
+  "unresolvedComputedJumps": 608
+}

@@ -1,0 +1,123 @@
+{
+  "scope": "Paired startup profiles; not gameplay",
+  "identicalHostSources": true,
+  "identicalHostInputs": true,
+  "profiles": [
+    {
+      "optimization": 1,
+      "compileFlags": [
+        "-O1",
+        "-frounding-math",
+        "-I<repo>/.cache/recomp-full/bootstrap-wasm-o1/runtime",
+        "-I<repo>/.cache/recomp-full/out",
+        "-ffp-contract=off",
+        "-fno-strict-aliasing",
+        "-fwrapv"
+      ],
+      "linkFlags": [
+        "-O1",
+        "-sALLOW_MEMORY_GROWTH=1",
+        "-sINITIAL_MEMORY=33554432",
+        "-sMAXIMUM_MEMORY=2147483648",
+        "-sSTACK_SIZE=16777216",
+        "-sENVIRONMENT=node",
+        "-sNODERAWFS=1",
+        "-sEXIT_RUNTIME=1"
+      ],
+      "hostSourceSha256": {
+        "runtime.c": "d8d268875816c5534ff2f1dc1cb9cb513c13480578487b9521f9a95a6fc68fbd",
+        "atomic-api.c": "be9d1269dbdd95f85893b2633f73dee9a24500f384c19b1c6ce93bf901d5b3f8",
+        "audio-api.c": "9f3f5c82cc96808b4ea85e4f74741857411b5db7089dbc3080afa94b4727974b",
+        "bootstrap.c": "91c9de0179ebcd94d48f0bf02918df8afc265ce22ba39e19e815ace03deb32a0",
+        "d3d9-api.c": "d645a658188aba8100b8559f0d3fd741315ff94fee263216550f22023fea6577",
+        "dialog-api.c": "81a9eced6ac05d22d39d7c2501e5b761b0d5f4ab4ec61a441f2178b6e0fe5e85",
+        "directinput-api.c": "fa9a1c0ba8e3718ff14cfc00a97ea6af59a12d226c8683ed53e561e6eb52612a",
+        "file-api.c": "3dbb8aa8f3c96832bbce041df2dfb69a464a0009c128dcbe5b2a73ff57118dc1",
+        "heap-api.c": "518cfae26beab6d0596fd803d2b79c9079af2be8847a35d78b59dae35e0bfee7",
+        "media-com.c": "b1a215f08444b57d6887c00cfda677a6c8ff065625acaea6cbd682da908f51ba",
+        "process-api.c": "f20fe48f1ef2edee1bcba7e504fdbcfacf50f13d8582e83923cabbccd749212c",
+        "registry-api.c": "dcdb11d41bb2c52c3984abd44ab8f29dd2b09ca0daac4396a861e45cfb7167dd",
+        "resource-api.c": "2709b4a5e526045685e75fadb1d2d0126b96d4c4e8bacaa88a6374654ae390c1",
+        "shell-api.c": "e97b4d288f017a3db1750bd6e310cb8ea9a0459e7d55254367ac04cc97f53829",
+        "startup-api.c": "fb19228cef49a8d83f2451619a201a30eb54ae5c63efa5099ecf128722716947",
+        "sync-api.c": "8dfbe14c1495c634116a5b340e9d64bb072d4ccb6d81c712e29a0ea8884e66b9",
+        "text-api.c": "5564921ef644504e1037c7ff44f0ab0e2a465861ca46c24f73bb43770f8d1900",
+        "thread-api.c": "7360409eb8c3b947488583fba272229e06bff37375cac5fda3295dc2bf7b7923",
+        "time-api.c": "d2529bad049d2c60b6797b90f4640a42b1f1ee3b850a0f5e52edfda897868898",
+        "window-api.c": "aae67e6a38988b74fe81e04bb16a14f14079d89ed9f1ad3963e32785e5cdf57a"
+      },
+      "artifacts": {
+        "probe.wasm": {
+          "sha256": "fd32bdb762937f610e615414dc700e566a5dfe4932012f29d2e8cf02ced989dc",
+          "bytes": 130416169
+        },
+        "MoviesSE.exe": {
+          "sha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+          "bytes": 12230656
+        },
+        "probe.js": {
+          "sha256": "f0a601283f6e5f6bf25441d5a9598d80b9a5eefe363680af6da5a4aa10ce4bb7",
+          "bytes": 141307
+        }
+      }
+    },
+    {
+      "optimization": 2,
+      "compileFlags": [
+        "-O2",
+        "-frounding-math",
+        "-I<repo>/.cache/recomp-full/bootstrap-wasm-o2/runtime",
+        "-I<repo>/.cache/recomp-full/out",
+        "-ffp-contract=off",
+        "-fno-strict-aliasing",
+        "-fwrapv"
+      ],
+      "linkFlags": [
+        "-O2",
+        "-sALLOW_MEMORY_GROWTH=1",
+        "-sINITIAL_MEMORY=33554432",
+        "-sMAXIMUM_MEMORY=2147483648",
+        "-sSTACK_SIZE=16777216",
+        "-sENVIRONMENT=node",
+        "-sNODERAWFS=1",
+        "-sEXIT_RUNTIME=1"
+      ],
+      "hostSourceSha256": {
+        "runtime.c": "d8d268875816c5534ff2f1dc1cb9cb513c13480578487b9521f9a95a6fc68fbd",
+        "atomic-api.c": "be9d1269dbdd95f85893b2633f73dee9a24500f384c19b1c6ce93bf901d5b3f8",
+        "audio-api.c": "9f3f5c82cc96808b4ea85e4f74741857411b5db7089dbc3080afa94b4727974b",
+        "bootstrap.c": "91c9de0179ebcd94d48f0bf02918df8afc265ce22ba39e19e815ace03deb32a0",
+        "d3d9-api.c": "d645a658188aba8100b8559f0d3fd741315ff94fee263216550f22023fea6577",
+        "dialog-api.c": "81a9eced6ac05d22d39d7c2501e5b761b0d5f4ab4ec61a441f2178b6e0fe5e85",
+        "directinput-api.c": "fa9a1c0ba8e3718ff14cfc00a97ea6af59a12d226c8683ed53e561e6eb52612a",
+        "file-api.c": "3dbb8aa8f3c96832bbce041df2dfb69a464a0009c128dcbe5b2a73ff57118dc1",
+        "heap-api.c": "518cfae26beab6d0596fd803d2b79c9079af2be8847a35d78b59dae35e0bfee7",
+        "media-com.c": "b1a215f08444b57d6887c00cfda677a6c8ff065625acaea6cbd682da908f51ba",
+        "process-api.c": "f20fe48f1ef2edee1bcba7e504fdbcfacf50f13d8582e83923cabbccd749212c",
+        "registry-api.c": "dcdb11d41bb2c52c3984abd44ab8f29dd2b09ca0daac4396a861e45cfb7167dd",
+        "resource-api.c": "2709b4a5e526045685e75fadb1d2d0126b96d4c4e8bacaa88a6374654ae390c1",
+        "shell-api.c": "e97b4d288f017a3db1750bd6e310cb8ea9a0459e7d55254367ac04cc97f53829",
+        "startup-api.c": "fb19228cef49a8d83f2451619a201a30eb54ae5c63efa5099ecf128722716947",
+        "sync-api.c": "8dfbe14c1495c634116a5b340e9d64bb072d4ccb6d81c712e29a0ea8884e66b9",
+        "text-api.c": "5564921ef644504e1037c7ff44f0ab0e2a465861ca46c24f73bb43770f8d1900",
+        "thread-api.c": "7360409eb8c3b947488583fba272229e06bff37375cac5fda3295dc2bf7b7923",
+        "time-api.c": "d2529bad049d2c60b6797b90f4640a42b1f1ee3b850a0f5e52edfda897868898",
+        "window-api.c": "aae67e6a38988b74fe81e04bb16a14f14079d89ed9f1ad3963e32785e5cdf57a"
+      },
+      "artifacts": {
+        "probe.wasm": {
+          "sha256": "76095d950692e07f94490d8307c1003336f1fd8bbd0dee236e2b39c31ed6e508",
+          "bytes": 113873592
+        },
+        "MoviesSE.exe": {
+          "sha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+          "bytes": 12230656
+        },
+        "probe.js": {
+          "sha256": "57654f9055856ee94bc166c989444105142bc2d31083fc3ef677746e7b694a26",
+          "bytes": 74649
+        }
+      }
+    }
+  ]
+}

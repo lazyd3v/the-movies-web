@@ -1,0 +1,41 @@
+{
+  "scope": "Original leaf translation and Wasm execution only; not gameplay or a performance benchmark",
+  "gameExeSha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+  "toolHashes": {
+    "translator/x86toc.py": "3d42b5d26b9ac803375da2f888e959505490d99f4e5e1d8bbb09c87565fa4dea",
+    "runtime/cpu.h": "0ffb3dfda1c641a5341fcb01687893e00a002928bb338745881abb0cf3fcb36c"
+  },
+  "routines": [
+    {
+      "entry": "0x401240",
+      "endExclusive": "0x401251",
+      "nameInferredFromInstructions": "strlen_leaf",
+      "sha256": "10cf8dcb920a66d38b21acffe979afd9288ee60b916ab7dea7cbeb57d4e06a59",
+      "instructions": 8
+    },
+    {
+      "entry": "0x401270",
+      "endExclusive": "0x4012b1",
+      "nameInferredFromInstructions": "strcmp_leaf",
+      "sha256": "cb0e9f217a764eb2b5965f6bdc347ed5d343e969847cd2a8507e541b10a53add",
+      "instructions": 30
+    }
+  ],
+  "generatedCsha256": "361e60faf5bd28112af834d2400cb1d7b5d5c6931732ab2b2a32e35b60a24d3f",
+  "wasmSha256": "8fdd62d0f004c71c9005a9dd7c92b7d2724ec8d33a8e19909eb75fc8106b7bce",
+  "wasmBytes": 1469,
+  "compiler": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 5.0.7 (263db4cffa6f9fc2ec514a70abac81362ea41849)",
+  "tests": {
+    "passed": 1335,
+    "sampleCount": 267,
+    "coverage": [
+      "NUL termination",
+      "unsigned bytes",
+      "empty and long inputs",
+      "equal/prefix/different strings",
+      "seeded random inputs",
+      "callee-saved registers and guest stack"
+    ],
+    "performanceMeasured": false
+  }
+}

@@ -1,0 +1,2306 @@
+{
+  "scope": "Original Lionhead intro windows with nonzero draws; excludes clear-only and subsequent loading. Residual is not proven pure CPU time.",
+  "windows": 11,
+  "frames": 1320,
+  "elapsed_ms": 42593.14499999583,
+  "bridge_ms": 7333.804999753833,
+  "reports": [
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 121,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 2362.679999999702,
+          "max": 26.66499999910593
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 316.0349999666214,
+          "max": 8.090000003576279
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.615000046789646,
+          "max": 0.04500000178813934
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 121,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 2359.704999998212,
+          "max": 26.219999998807907
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 878.3249997645617,
+          "max": 11.880000002682209
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 12.420000024139881,
+          "max": 1.4299999997019768
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 84.03999997675419,
+          "max": 0.7000000029802322
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 57.35500010848045,
+          "max": 0.21000000089406967
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 153.7699999511242,
+          "max": 8.83500000089407
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 68.29999974370003,
+          "max": 0.3449999988079071
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 502.4399999603629,
+          "max": 11.880000002682209
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 121,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 2359.759999997914,
+            "max": 26.240000002086163
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 73.81499999761581,
+            "max": 3.8599999994039536
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 5.605000041425228,
+            "max": 0.14500000327825546
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 329.96000000089407,
+            "max": 8.195000000298023
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 85.20999999344349,
+            "max": 1.1749999970197678
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 241,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 3129.234999999404,
+          "max": 32.974999994039536
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 185.25499994307756,
+          "max": 9.144999995827675
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.390000008046627,
+          "max": 0.034999996423721313
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 241,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 3129.4500000029802,
+          "max": 33.41499999910593
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 694.7149997502565,
+          "max": 10.899999998509884
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 10.734999991953373,
+          "max": 0.24500000476837158
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 86.80500000715256,
+          "max": 0.7450000047683716
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 55.32499988377094,
+          "max": 0.6900000050663948
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 118.00999999791384,
+          "max": 1.0749999955296516
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 64.87499985098839,
+          "max": 1.0600000023841858
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 358.96500001847744,
+          "max": 10.899999998509884
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 241,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 3129.454999998212,
+            "max": 33.40999999642372
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 54.80000003427267,
+            "max": 2.6800000071525574
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.745000012218952,
+            "max": 0.08000000566244125
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 196.52500004321337,
+            "max": 9.234999999403954
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 95.04499997198582,
+            "max": 3.6999999955296516
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 361,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 4233.505000002682,
+          "max": 43.479999996721745
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 38.110000014305115,
+          "max": 7.615000002086163
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.325000010430813,
+          "max": 0.0299999937415123
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 361,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 4232.689999997616,
+          "max": 44.19500000029802
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 545.9649998620152,
+          "max": 9.259999997913837
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 11.47999994456768,
+          "max": 0.24499999731779099
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 89.50500002503395,
+          "max": 0.7999999970197678
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 56.30500005930662,
+          "max": 0.3500000014901161
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 123.13999983668327,
+          "max": 1.1050000041723251
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 63.530000023543835,
+          "max": 0.4349999949336052
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 202.0049999728799,
+          "max": 9.259999997913837
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 361,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 4232.70000000298,
+            "max": 44.185000002384186
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 68.54500004649162,
+            "max": 3.8049999997019768
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.915000081062317,
+            "max": 0.06000000238418579
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 49.8300000205636,
+            "max": 7.715000003576279
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 70.80999994277954,
+            "max": 3.185000002384186
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 481,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 5473.02499999851,
+          "max": 51.92000000178814
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 20.23499995470047,
+          "max": 2.5800000056624413
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.260000042617321,
+          "max": 0.030000001192092896
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 481,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 5473.10000000149,
+          "max": 51.5
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 488.4950001910329,
+          "max": 4.814999997615814
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 10.869999997317791,
+          "max": 0.5499999970197678
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 85.67500011622906,
+          "max": 0.3149999976158142
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 53.89000015705824,
+          "max": 0.2800000011920929
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 102.85499990731478,
+          "max": 1.1450000032782555
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 58.979999996721745,
+          "max": 0.6400000005960464
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 176.22500001639128,
+          "max": 4.814999997615814
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 481,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 5473.070000000298,
+            "max": 51.45000000298023
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 58.565000005066395,
+            "max": 3.130000002682209
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.88000001758337,
+            "max": 0.06499999761581421
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 30.854999966919422,
+            "max": 2.684999994933605
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 74.0549999922514,
+            "max": 3.4199999943375587
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 601,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 6568.420000001788,
+          "max": 64.67500000447035
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 33.40499994903803,
+          "max": 6.969999998807907
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.1900000274181366,
+          "max": 0.025000005960464478
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 601,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 6568.365000002086,
+          "max": 64.8449999988079
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 521.9000001251698,
+          "max": 8.285000003874302
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 11.370000027120113,
+          "max": 0.23000000417232513
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 90.82499992102385,
+          "max": 0.8599999994039536
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 55.88500012457371,
+          "max": 0.4350000023841858
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 119.73000011593103,
+          "max": 1.1699999943375587
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 62.4549999460578,
+          "max": 0.7699999958276749
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 181.63499999046326,
+          "max": 8.285000003874302
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 601,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 6568.394999995828,
+            "max": 64.82999999821186
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 54.644999995827675,
+            "max": 2.8450000062584877
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.904999956488609,
+            "max": 0.07499999552965164
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 43.88000003993511,
+            "max": 7.075000002980232
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 70.46500004827976,
+            "max": 3.459999993443489
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 721,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 6597.27499999851,
+          "max": 64.60999999940395
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 37.75500000268221,
+          "max": 8.17000000178814
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.164999909698963,
+          "max": 0.034999996423721313
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 721,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 6597.814999997616,
+          "max": 65.22999999672174
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 531.2450001388788,
+          "max": 12.384999997913837
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 12.495000012218952,
+          "max": 0.7750000059604645
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 89.49499996751547,
+          "max": 0.6450000032782555
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 55.82000006735325,
+          "max": 0.49000000208616257
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 115.28500006347895,
+          "max": 1.1400000005960464
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 62.025000020861626,
+          "max": 0.9199999943375587
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 196.12500000745058,
+          "max": 12.384999997913837
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 721,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 6597.830000005662,
+            "max": 65.25500000268221
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 54.0249999910593,
+            "max": 3.184999994933605
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.6699999794363976,
+            "max": 0.07499999552965164
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 55.37500001490116,
+            "max": 9.080000005662441
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 73.20999996364117,
+            "max": 2.8799999952316284
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 841,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 4596.75,
+          "max": 106.13499999791384
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 37.049999944865704,
+          "max": 7.980000004172325
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.130000002682209,
+          "max": 0.034999996423721313
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 841,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 4596.259999997914,
+          "max": 106.6600000038743
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 595.124999910593,
+          "max": 9.509999997913837
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44044800,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 11.635000005364418,
+          "max": 0.2800000011920929
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 104.09499997645617,
+          "max": 8.989999994635582
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 68.86499996483326,
+          "max": 5.850000001490116
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 134.8599999770522,
+          "max": 8.649999998509884
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 76.594999961555,
+          "max": 3.899999998509884
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 199.07500002533197,
+          "max": 9.509999997913837
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 841,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 4596.244999997318,
+            "max": 106.59500000625849
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 63.969999976456165,
+            "max": 2.980000004172325
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.529999949038029,
+            "max": 0.0650000050663948
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 47.850000001490116,
+            "max": 8.060000002384186
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 74.99500001221895,
+            "max": 4.355000004172325
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 961,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 3086.2999999970198,
+          "max": 33.75500000268221
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 262.79499999433756,
+          "max": 8.229999996721745
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.1549999713897705,
+          "max": 0.025000005960464478
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 961,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 3087.22500000149,
+          "max": 34.03499999642372
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 765.4149997159839,
+          "max": 9.505000002682209
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44057448,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 11.464999943971634,
+          "max": 0.8200000002980232
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 86.12999994307756,
+          "max": 0.5700000002980232
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 55.219999969005585,
+          "max": 0.21000000089406967
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 110.71500004082918,
+          "max": 1.1499999985098839
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 59.02999981492758,
+          "max": 0.9099999964237213
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 442.8550000041723,
+          "max": 9.505000002682209
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 961,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 3087.204999998212,
+            "max": 34
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 60.65500000119209,
+            "max": 4.3549999967217445
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.51000003516674,
+            "max": 0.07500000298023224
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 273.0000000372529,
+            "max": 8.299999997019768
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 97.12999998033047,
+            "max": 3.4200000017881393
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1081,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 2012.4950000047684,
+          "max": 25.729999996721745
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 303.3200000077486,
+          "max": 8.20499999821186
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.0150000527501106,
+          "max": 0.02499999850988388
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1081,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 2011.4900000020862,
+          "max": 25.09000000357628
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 773.5549998879433,
+          "max": 11.75
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44074560,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 11.044999957084656,
+          "max": 1.0249999985098839
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 83.40500000864267,
+          "max": 1.4750000014901161
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 55.05499979108572,
+          "max": 0.4349999949336052
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 93.57500006258488,
+          "max": 1.4199999943375587
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 56.680000096559525,
+          "max": 0.8299999982118607
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 473.7949999719858,
+          "max": 11.75
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1081,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 2011.5600000023842,
+            "max": 25.070000000298023
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 58.4349999576807,
+            "max": 4.1099999994039536
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.584999993443489,
+            "max": 0.4099999964237213
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 313.6599999666214,
+            "max": 8.29500000178814
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 88.83999998867512,
+            "max": 1.844999998807907
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1201,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1978.094999998808,
+          "max": 24.969999998807907
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 301.5950000062585,
+          "max": 10.814999997615814
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.155000001192093,
+          "max": 0.030000001192092896
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1201,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1978.609999999404,
+          "max": 24.470000006258488
+        },
+        "bridgeMs": {
+          "count": 3840,
+          "sum": 774.7800002321601,
+          "max": 12.285000003874302
+        },
+        "uploadBytes": {
+          "count": 1440,
+          "sum": 44074560,
+          "max": 165200
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 10.980000004172325,
+          "max": 0.625
+        },
+        "uploadVerticesMs": {
+          "count": 720,
+          "sum": 79.81499996036291,
+          "max": 0.6799999997019768
+        },
+        "uploadIndicesMs": {
+          "count": 720,
+          "sum": 56.185000114142895,
+          "max": 0.6649999991059303
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 720,
+          "sum": 93.1450001001358,
+          "max": 1.1299999952316284
+        },
+        "releaseMs": {
+          "count": 1440,
+          "sum": 57.37000009417534,
+          "max": 0.75
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 477.2849999591708,
+          "max": 12.285000003874302
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1201,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 1978.6049999967217,
+            "max": 24.46500000357628
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 59.524999998509884,
+            "max": 2.899999998509884
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.289999969303608,
+            "max": 0.0650000050663948
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 313.80500005185604,
+            "max": 10.890000000596046
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 89.13499998301268,
+            "max": 2.8250000029802322
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1321,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 2558.289999999106,
+          "max": 895.5649999976158
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 344.550000064075,
+          "max": 7.990000002086163
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 1.8949999436736107,
+          "max": 0.0299999937415123
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1321,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 2558.4349999949336,
+          "max": 895.5399999991059
+        },
+        "bridgeMs": {
+          "count": 2943,
+          "sum": 764.2850001752377,
+          "max": 9.629999995231628
+        },
+        "uploadBytes": {
+          "count": 1082,
+          "sum": 41444528,
+          "max": 4194304
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 10.060000009834766,
+          "max": 0.3050000071525574
+        },
+        "uploadVerticesMs": {
+          "count": 540,
+          "sum": 57.57500010728836,
+          "max": 0.26999999582767487
+        },
+        "uploadIndicesMs": {
+          "count": 540,
+          "sum": 40.41000001132488,
+          "max": 0.14500000327825546
+        },
+        "uploadTextureRGBAMs": {
+          "count": 2,
+          "sum": 3.744999997317791,
+          "max": 2.219999998807907
+        },
+        "drawIndexedMs": {
+          "count": 540,
+          "sum": 70.39999992400408,
+          "max": 1.1050000041723251
+        },
+        "releaseMs": {
+          "count": 1081,
+          "sum": 42.66000014543533,
+          "max": 0.8650000020861626
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 539.4349999800324,
+          "max": 9.629999995231628
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1321,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 2558.429999999702,
+            "max": 895.5300000011921
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 68.19499999284744,
+            "max": 3.844999998807907
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 4.21000000834465,
+            "max": 0.06499999761581421
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 355.3149999976158,
+            "max": 8.074999995529652
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 103.06000001728535,
+            "max": 3.3000000044703484
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1441,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1000.3299999982119,
+          "max": 11.010000005364418
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 610.7250000238419,
+          "max": 8.740000002086163
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 3.8699999675154686,
+          "max": 0.054999999701976776
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1441,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1000.4200000017881,
+          "max": 11.844999998807907
+        },
+        "bridgeMs": {
+          "count": 240,
+          "sum": 977.8700000271201,
+          "max": 11.564999997615814
+        },
+        "uploadBytes": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 17.09000001847744,
+          "max": 0.255000002682209
+        },
+        "uploadVerticesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadIndicesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "releaseMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 960.7800000086427,
+          "max": 11.564999997615814
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1441,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 1000.4149999991059,
+            "max": 11.810000002384186
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 158.34499997645617,
+            "max": 6
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 7.199999988079071,
+            "max": 0.21000000089406967
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 633.4549999982119,
+            "max": 8.880000002682209
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 148.68000004440546,
+            "max": 3.0250000059604645
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1561,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 999.0249999985099,
+          "max": 12.105000004172325
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 634.1099999919534,
+          "max": 8.910000003874302
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.9750000163912773,
+          "max": 0.06499999761581421
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1561,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1000.859999999404,
+          "max": 14.409999996423721
+        },
+        "bridgeMs": {
+          "count": 240,
+          "sum": 982.2999999895692,
+          "max": 14.189999997615814
+        },
+        "uploadBytes": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 14.51000002026558,
+          "max": 0.380000002682209
+        },
+        "uploadVerticesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadIndicesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "releaseMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 967.7899999693036,
+          "max": 14.189999997615814
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1561,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 1000.3550000041723,
+            "max": 14.42000000178814
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 135.7099999859929,
+            "max": 5.454999998211861
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 6.2199999541044235,
+            "max": 0.5700000002980232
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 663.0200000703335,
+            "max": 10.975000001490116
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 148.67500001192093,
+            "max": 5.03999999910593
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1681,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1850.7550000026822,
+          "max": 862.679999999702
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 625.1800000369549,
+          "max": 8.310000002384186
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 3.4249999672174454,
+          "max": 0.3049999997019768
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1681,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1848.4750000014901,
+          "max": 862.1700000017881
+        },
+        "bridgeMs": {
+          "count": 243,
+          "sum": 971.1050000041723,
+          "max": 14.009999997913837
+        },
+        "uploadBytes": {
+          "count": 2,
+          "sum": 8388608,
+          "max": 4194304
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 15.770000047981739,
+          "max": 1.4299999997019768
+        },
+        "uploadVerticesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadIndicesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadTextureRGBAMs": {
+          "count": 2,
+          "sum": 3.9600000008940697,
+          "max": 2.1099999994039536
+        },
+        "drawIndexedMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "releaseMs": {
+          "count": 1,
+          "sum": 0.07000000029802322,
+          "max": 0.07000000029802322
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 951.3049999549985,
+          "max": 14.009999997913837
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1681,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 1848.905000001192,
+            "max": 862.1049999967217
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 113.45500000566244,
+            "max": 3.530000001192093
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 7.714999936521053,
+            "max": 2.6450000032782555
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 663.5200000405312,
+            "max": 10.83500000089407
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 152.0699999704957,
+            "max": 4.829999998211861
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1801,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1008.2400000020862,
+          "max": 16.53499999642372
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 647.760000012815,
+          "max": 8.484999999403954
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 2.960000015795231,
+          "max": 0.07000000029802322
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1801,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1008.3800000026822,
+          "max": 14.33500000089407
+        },
+        "bridgeMs": {
+          "count": 240,
+          "sum": 989.5550000369549,
+          "max": 14.090000003576279
+        },
+        "uploadBytes": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 15.96000000089407,
+          "max": 0.6950000002980232
+        },
+        "uploadVerticesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadIndicesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "releaseMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 973.5950000360608,
+          "max": 14.090000003576279
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1801,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 1008.4249999970198,
+            "max": 14.344999998807907
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 138.23500002920628,
+            "max": 5.669999994337559
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 5.585000045597553,
+            "max": 0.21000000089406967
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 671.944999910891,
+            "max": 11.574999995529652
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 144.94500002264977,
+            "max": 3.980000004172325
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 1921,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1015.054999999702,
+          "max": 16.375
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 676.330000013113,
+          "max": 8.870000004768372
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 3.0249999836087227,
+          "max": 0.07999999821186066
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 1921,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 1015.5599999949336,
+          "max": 13.734999999403954
+        },
+        "bridgeMs": {
+          "count": 240,
+          "sum": 997.8449999541044,
+          "max": 13.589999996125698
+        },
+        "uploadBytes": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 14.224999941885471,
+          "max": 1.1449999958276749
+        },
+        "uploadVerticesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadIndicesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadTextureRGBAMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "drawIndexedMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "releaseMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 983.620000012219,
+          "max": 13.589999996125698
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 1921,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 1015.5649999976158,
+            "max": 13.75
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 119.39500001817942,
+            "max": 5.050000004470348
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 6.124999970197678,
+            "max": 1.4849999994039536
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 709.7500000447035,
+            "max": 11.42000000178814
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 137.69499997794628,
+            "max": 5.320000000298023
+          }
+        }
+      }
+    },
+    {
+      "source": "graphics-page",
+      "frames": 120,
+      "lastSerial": 2041,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 83578.66999999434,
+          "max": 39379.814999997616
+        },
+        "rafWaitMs": {
+          "count": 120,
+          "sum": 528.4200000017881,
+          "max": 8.455000005662441
+        },
+        "consumeMs": {
+          "count": 120,
+          "sum": 4.500000044703484,
+          "max": 0.2149999961256981
+        }
+      }
+    },
+    {
+      "source": "graphics-client",
+      "frames": 120,
+      "lastSerial": 2041,
+      "values": {
+        "frameMs": {
+          "count": 120,
+          "sum": 83577.87000000477,
+          "max": 39378.86999999732
+        },
+        "bridgeMs": {
+          "count": 593,
+          "sum": 952.4650000408292,
+          "max": 14.594999998807907
+        },
+        "uploadBytes": {
+          "count": 187,
+          "sum": 46707712,
+          "max": 4194304
+        },
+        "setRenderTargetFormatMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "clearMs": {
+          "count": 120,
+          "sum": 16.429999992251396,
+          "max": 0.9050000011920929
+        },
+        "uploadVerticesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadIndicesMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "uploadTextureRGBAMs": {
+          "count": 187,
+          "sum": 57.30500001460314,
+          "max": 1.9149999991059303
+        },
+        "drawIndexedMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "releaseMs": {
+          "count": 166,
+          "sum": 9.040000014007092,
+          "max": 0.48999999463558197
+        },
+        "readPixelsMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "presentMs": {
+          "count": 120,
+          "sum": 869.6900000199676,
+          "max": 14.594999998807907
+        },
+        "validateMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "batchMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        },
+        "disposeMs": {
+          "count": 0,
+          "sum": 0,
+          "max": 0
+        }
+      },
+      "worker": {
+        "frames": 120,
+        "lastSerial": 2041,
+        "values": {
+          "frameMs": {
+            "count": 120,
+            "sum": 83577.85500000417,
+            "max": 39378.84999999404
+          },
+          "preValidateMs": {
+            "count": 120,
+            "sum": 123.29500000923872,
+            "max": 3.7950000017881393
+          },
+          "bitmapMs": {
+            "count": 120,
+            "sum": 6.094999961555004,
+            "max": 0.36500000208616257
+          },
+          "ackMs": {
+            "count": 120,
+            "sum": 563.8700000047684,
+            "max": 13.33500000089407
+          },
+          "postValidateMs": {
+            "count": 120,
+            "sum": 163.56499999016523,
+            "max": 5.4799999967217445
+          }
+        }
+      }
+    }
+  ],
+  "presented_fps": 30.990902409299178,
+  "bridge_percent": 17.21827538153041
+}

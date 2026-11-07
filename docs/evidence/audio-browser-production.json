@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "productionProvider": true,
+  "workerSyncReset": true,
+  "playedCallbacks": 64,
+  "resetCallbacks": 8,
+  "consumedFrames": 8192,
+  "resetRequest": 1,
+  "resetAck": 1,
+  "contextClosed": true
+}

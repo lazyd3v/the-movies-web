@@ -1,0 +1,139 @@
+{
+  "status": "passed",
+  "label": "Synthetic native D3D9 ABI fixture, not game rendering",
+  "capabilities": {
+    "schemaVersion": 1,
+    "backend": "WebGPU",
+    "width": 190,
+    "height": 128,
+    "colorFormat": "bgra8unorm",
+    "depthFormat": "depth16unorm",
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    },
+    "limits": {
+      "maxTextureDimension2D": 8192,
+      "maxBufferSize": 268435456,
+      "maxVertexBufferArrayStride": 2048
+    },
+    "supported": [
+      "XYZ_DIFFUSE",
+      "XYZ_DIFFUSE_UV",
+      "triangle-list",
+      "uint16-indices",
+      "uint32-indices",
+      "world-view-projection",
+      "RGBA8-texture-nearest-clamp",
+      "clear",
+      "RGBA8-readback",
+      "ImageBitmap-present"
+    ],
+    "unsupported": [
+      "lighting",
+      "fog",
+      "clip-planes",
+      "vertex-blending",
+      "RHW",
+      "programmable-shaders",
+      "multitexture",
+      "blending",
+      "alpha-test",
+      "stencil",
+      "MSAA",
+      "mipmaps",
+      "compressed-textures",
+      "resize-reset"
+    ]
+  },
+  "checks": [
+    {
+      "label": "native indexed draw",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native BGRA texture upload 1",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        51,
+        34,
+        17,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    },
+    {
+      "label": "native BGRA texture upload 2",
+      "x": 95,
+      "y": 64,
+      "rgba": [
+        171,
+        205,
+        239,
+        255
+      ]
+    },
+    {
+      "label": "native clear",
+      "x": 0,
+      "y": 0,
+      "rgba": [
+        17,
+        34,
+        51,
+        255
+      ]
+    }
+  ],
+  "commands": {
+    "capabilities": 8,
+    "createDevice": 1,
+    "clear": 3,
+    "uploadVertices": 2,
+    "uploadIndices": 1,
+    "drawIndexed": 3,
+    "present": 1,
+    "uploadTextureRGBA": 3,
+    "release": 6,
+    "destroyDevice": 1
+  },
+  "logs": [
+    "[D3D9] factory caller=12345678 result=05002000 args=00000020",
+    "[D3D9] create_device caller=12345678 result=00000000 args=05002000,00000000,00000001,0000002a,00000020,00001000,00002000 pp=000000be,00000080,00000016,00000001,00000000,00000000,00000001,0000002a,00000001,00000001,00000050,00000000,00000000,00000000",
+    "[D3D9] get_caps caller=12345678 result=00000000 args=05002010,00003000",
+    "Native D3D9 ABI real GPU fixture passed"
+  ],
+  "transport": "C COM vtables→EM_JS→D3D host→synchronous guest client→dedicated WebGPU worker→RAF bitmap acknowledgement"
+}

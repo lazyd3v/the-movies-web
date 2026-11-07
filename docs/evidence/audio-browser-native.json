@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "compiledCWinMM": true,
+  "playedCallbacks": 64,
+  "resetCallbacks": 8,
+  "actualConsumedFrames": 8192,
+  "mapperDevice": 0,
+  "mapperPreferredOnly": true,
+  "contextClosed": true,
+  "limit": "Reset handshake driven asynchronously by fixture page; production guest worker bridge not installed"
+}

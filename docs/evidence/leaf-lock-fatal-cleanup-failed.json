@@ -1,0 +1,13 @@
+{
+  "passed": false,
+  "error": "Uncaught RuntimeError: unreachable",
+  "heartbeatBeforeFault": 5,
+  "parentBlocked": true,
+  "lockDepthAtBoundsTrap": 1,
+  "boundsTrapObserved": true,
+  "faultAddress": "0x5400105c",
+  "ownedWorkersBeforeStop": 2,
+  "ownedWorkersAfterStop": 0,
+  "heartbeatAtStop": 5,
+  "heartbeatAfterStop": 48
+}

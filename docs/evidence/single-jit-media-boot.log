@@ -1,0 +1,41 @@
+[The Movies] Original game mounted (719 files); 32 MiB read cache.
+Starting ...
+Command line arguments: "./boxedwine" "-root" "/root/key/the-movies-v1" "-zip" "media.zip" "-zip" "TinyCore15Wine11.0-web.zip" "-mount" "movies.zip" "/home/username/.wine/dosdevices/c:/files" "-mount_drive" "/d_drive/key/the-movies-v1" "d" "-resolution" "800x600" "-disableHideCursor" "-safe-memory" "-env" "WINEDLLOVERRIDES=qasf,wmvcore,wmasf,wmadmod,wmadmoe,wmvdmod,wmvdmoe2,wmsdmod,wmsdmoe2,wmspdmod,wmspdmoe,wmvadvd,wmvadve,wmnetmgr,laprxy=n,b" "-w" "/home/username/.wine/dosdevices/c:/files" "/bin/wine" "cmd" "/c" "reg" "add" "HKCU\Software\Wine" "/v" "Version" "/t" "REG_SZ" "/d" "winxp" "/f" "&&" "cmd" "/c" "c:/media-setup.bat"
+BoxedWine build timestamp: Nov  1 2026 12:20:59
+Using root directory: /root/key/the-movies-v1
+Using zip file system: media.zip
+Using zip file system: TinyCore15Wine11.0-web.zip
+Resolution set to: 800x600
+Loaded media.zip in 1 ms
+Loaded TinyCore15Wine11.0-web.zip in 36 ms
+Mounted movies.zip in 1636 ms
+Launching "/bin/wine" "cmd" "/c" "reg" "add" "HKCU\Software\Wine" "/v" "Version" "/t" "REG_SZ" "/d" "winxp" "/f" "&&" "cmd" "/c" "c:/media-setup.bat" 
+[WASM JIT] first JIT block executed, tableIdx: 13523
+00a8:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\winebth": c00000e5
+003c:fixme:service:scmdatabase_autostart_services Auto-start service L"winebth" failed to start: 1359
+[MIPS] count=10 raw=199 avg=180 min=0 max=466 warmAvg=180 warmSamples=0
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_SETUP_READY[?25h
+[?25lThe Movies: applying compatibility settings[?25h
+[?25lThe Movies: starting MoviesSE.exe[?25h
+Showing Window
+010c:err:vulkan:vulkan_init_once Wine was built without Vulkan support.
+WASM JIT simd enabled
+[MIPS] count=20 raw=115 avg=231 min=0 max=1305 warmAvg=115 warmSamples=1
+[MIPS] count=30 raw=76 avg=162 min=17 max=1305 warmAvg=49 warmSamples=11
+0104:fixme:dbghelp:elf_search_auxv can't find symbol in module
+0104:fixme:ntdll:NtQuerySystemInformation info_class SYSTEM_PERFORMANCE_INFORMATION
+Uncaught RuntimeError: null function at http://127.0.0.1:4173/runtime/single-jit/boxedwine.js:1:326
+RuntimeError: null function
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[12146]:0x38f4ee
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[7189]:0x235161
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[7176]:0x23413d
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[6289]:0x1e55da
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[6643]:0x201260
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[7230]:0x23754e
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[6645]:0x20172a
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[7055]:0x224fa8
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[1178]:0x7d4e3
+    at http://127.0.0.1:4173/runtime/single-jit/boxedwine.wasm:wasm-function[4371]:0x17211c
+
+Launch failed: null function

@@ -1,0 +1,66 @@
+--- a/runtime/runtime.c
++++ b/runtime/runtime.c
+@@ -93,6 +93,31 @@
+ static int g_log_imports = -1;
+ __thread uint32_t g_import_target;  /* which host slot the current import call came through */
+ 
++/* Post-import observation point: host handler has completed stdcall return.
++ * Strong overrides may pump deferred callbacks. Guest-memory side effects are
++ * retained, but the completed import CPU result and caller import identity are
++ * preserved. Recursive imports during pumping do not recursively pump again.
++ * Hooks must not retain this CPU pointer or unwind and resume through this frame. */
++__attribute__((weak)) int movies_import_needs_callback(uint32_t target) { (void)target; return 0; }
++__attribute__((weak)) void movies_after_import(CPU *c) { (void)c; }
++static __thread unsigned import_hook_active;
++static void dispatch_completed_import(CPU *c, GuestFn fn, uint32_t target) {
++    if(target<IMPORT_BASE){fn(c);return;}
++    uint32_t previous=g_import_target;
++    g_import_target=target;
++    fn(c);
++    g_import_target=target;
++    if(!import_hook_active && movies_import_needs_callback(target)){
++        CPU completed=*c;
++        import_hook_active=1;
++        movies_after_import(c);
++        import_hook_active=0;
++        *c=completed;
++        fpu_sync_rounding(c);
++    }
++    g_import_target=previous;
++}
++
+ static uint32_t g_trace_call = 1;   /* PORT_TRACE_CALL=addr: log indirect calls to that function */
+ 
+ void call_indirect(CPU *c, uint32_t target) {
+@@ -108,7 +133,7 @@
+     }
+     GuestFn fn = lookup_function(target);
+     if (traced_this && fn) {
+-        fn(c);
++        dispatch_completed_import(c,fn,target);
+         /* debugging the lighting instance: +0xc0 multipliers, +0x140 blend, config(+0x10) +0x70..+0x8c */
+         uint32_t o = traced_this, cfg = R32(o + 0x10);
+         float f[4], t, a[8];
+@@ -130,7 +155,6 @@
+         if (g_log_imports && name)
+             fprintf(stderr, "[import] %-40s from %08x  args %08x %08x %08x %08x\n", name, R32(c->esp),
+                     R32(c->esp + 4), R32(c->esp + 8), R32(c->esp + 12), R32(c->esp + 16));
+-        g_import_target = target;
+         if (fn == unimplemented_import) {
+             static char msg[160];
+             snprintf(msg, sizeof msg, "unimplemented Windows import %s (called from %08x)",
+@@ -138,10 +162,13 @@
+             guest_trap(c, target, msg);
+         }
+     }
+-    fn(c);
++    dispatch_completed_import(c,fn,target);
+ }
+ 
+ void jump_indirect(CPU *c, uint32_t target, uint32_t from) {
++    /* Import tail thunks already have the caller's return address/arguments.
++     * Reuse import dispatch without pushing another guest return frame. */
++    if(target>=IMPORT_BASE){call_indirect(c,target);return;}
+     /* An indirect jump that isn't a known switch case: treat as a tail call. */
+     GuestFn fn = lookup_function(target);
+     if (!fn) {

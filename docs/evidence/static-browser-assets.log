@@ -1,0 +1,23 @@
+Mounted 719 original files with one 32 MiB range cache.
+original entry=00ad2451 imports=330; strict bootstrap, 97 API handlers
+[file] FindFirstFileA path="c:\Games" result=0a000000 error=0
+[file] FindFirstFileA path="c:\Games\TheMovies" result=0a000001 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffc08 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\language.txt" result=ffffffff error=2
+[file] FindFirstFileA path="data\text\EN-UK\*.*" result=0a000002 error=0
+[file] FindFirstFileA path="data\text\EN-UK\stringdatabase.lhts" result=0a000003 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff5a0 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\text\EN-UK\stringdatabase.lhts" result=09000000 error=0
+[file] ReadFile handle=09000000 requested=2101248 actual=2101248 error=0
+[file] ReadFile handle=09000000 requested=4096 actual=3668 error=0
+[file] FindFirstFileA path="data\text\EN-UK\stringdatabase_addon1.lhts" result=0a000004 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff5a0 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\text\EN-UK\stringdatabase_addon1.lhts" result=09000001 error=0
+[file] ReadFile handle=09000001 requested=163840 actual=163840 error=0
+[file] ReadFile handle=09000001 requested=4096 actual=1504 error=0
+STOP: f0000cf0: unimplemented Windows import USER32.DLL!MessageBoxW (called from 00542e1b)
+eax=100466f0 ecx=100468f0 edx=100466b2 esp=002ffd40 ebp=002ffff8
+Game dialog title: The Movies(TM): Stunts & Effects.
+Game dialog text: This is the first time you are running The Movies(TM): Stunts & Effects. The game has chosen to start at a high graphics quality level. If you wish, you can change this setting in the game's video options screen. If you experience any frame rate problems you may want to lower the graphics quality level.
+Bootstrap execution: 4483.0 ms to diagnostic stop, including image loading and function registration (not a gameplay benchmark).
+Asset reads: 9 range requests, 2359296 bytes fetched, 3 cache hits, 2359296 bytes cached.

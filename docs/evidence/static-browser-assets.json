@@ -1,0 +1,52 @@
+{
+  "scope": "One original startup run to first-run MessageBoxW; not gameplay, excludes Wasm fetch/compile",
+  "gameExeSha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+  "hostSources": {
+    ".cache/recomp-full/bootstrap-wasm/native/atomic-api.c": "be9d1269dbdd95f85893b2633f73dee9a24500f384c19b1c6ce93bf901d5b3f8",
+    ".cache/recomp-full/bootstrap-wasm/native/bootstrap.c": "791693fcbc2e10a98d7a40eee683de6cd4563e0c0d8c0fe77d7556be8093b374",
+    ".cache/recomp-full/bootstrap-wasm/native/file-api.c": "6d2d033c7a87ce23eb334a8a133ebbc4cf5c9551b4e617ba450acae9154002dd",
+    ".cache/recomp-full/bootstrap-wasm/native/heap-api.c": "f74859faf7ae0a4382d726db738d3aff39091c022aa7c459e5069ab83e100de2",
+    ".cache/recomp-full/bootstrap-wasm/native/process-api.c": "aa92cfad0da7dcf7228332194ac1e4a0dedf5859d34f1c1979d349c402695142",
+    ".cache/recomp-full/bootstrap-wasm/native/registry-api.c": "dcdb11d41bb2c52c3984abd44ab8f29dd2b09ca0daac4396a861e45cfb7167dd",
+    ".cache/recomp-full/bootstrap-wasm/native/shell-api.c": "454908d3f7591a42d946a93195705b27717774b188bb88a618996eddb137d405",
+    ".cache/recomp-full/bootstrap-wasm/native/startup-api.c": "13fd674d95058a6858c1a78232aae6059873bb52b1a8dcc6da75ed8f17d99eb1",
+    ".cache/recomp-full/bootstrap-wasm/native/sync-api.c": "8dfbe14c1495c634116a5b340e9d64bb072d4ccb6d81c712e29a0ea8884e66b9",
+    ".cache/recomp-full/bootstrap-wasm/native/text-api.c": "5564921ef644504e1037c7ff44f0ab0e2a465861ca46c24f73bb43770f8d1900",
+    ".cache/recomp-full/bootstrap-wasm/native/thread-api.c": "7360409eb8c3b947488583fba272229e06bff37375cac5fda3295dc2bf7b7923",
+    ".cache/recomp-full/bootstrap-wasm/native/time-api.c": "d2529bad049d2c60b6797b90f4640a42b1f1ee3b850a0f5e52edfda897868898",
+    ".cache/recomp-full/bootstrap-wasm/native/atomic-api.h": "164e2bce292dd019849e35301f5fa3e51c9bd7c48f4b8aaebb326e41b9176516",
+    ".cache/recomp-full/bootstrap-wasm/native/file-api.h": "f35babc61ac442165cd205088311f739bbe4a2d9a341b4d9598a2376f8428578",
+    ".cache/recomp-full/bootstrap-wasm/native/heap-api.h": "849191e9d01bc1d18eef47cf01d43bf1ddb7c7c00a3cf53eeae0c9da5ea3a014",
+    ".cache/recomp-full/bootstrap-wasm/native/process-api.h": "b4918830cf01ba73ae8c1c414381071b434b3098de13334ac63ce13f9f19b52c",
+    ".cache/recomp-full/bootstrap-wasm/native/registry-api.h": "b522c63b37daac5212baf34b50dbea9117af50609e1c2fb865d28195029c5506",
+    ".cache/recomp-full/bootstrap-wasm/native/shell-api.h": "48003ce7a9f91261b9af065c39be105f8452a5b6f26f45fd2dd1d500a60c0967",
+    ".cache/recomp-full/bootstrap-wasm/native/startup-api.h": "d9969085947c9e2799776276f47680ca7534230ce3a6884827cb0cfb33db7ebc",
+    ".cache/recomp-full/bootstrap-wasm/native/sync-api.h": "7718106db4e761629220e30f50e6baa84997f31f8e9e86d5000a175b7a37ad37",
+    ".cache/recomp-full/bootstrap-wasm/native/text-api.h": "e456daca3c5dfb6cb58ad18adc30f6361d39f69128d754e3ab56b5c699d0fc2e",
+    ".cache/recomp-full/bootstrap-wasm/native/thread-api.h": "9d121bd4dfbfaa9877983c10e334cfa754f5fac40cdeef184fee606b07258289",
+    ".cache/recomp-full/bootstrap-wasm/native/time-api.h": "1f272e73cbc6e976c9d6e33cda9a64163eb105ed5afafd4309b5b7451b7cc392",
+    ".cache/recomp-full/bootstrap-wasm/native/cp1252-bestfit.inc": "21661325390d93223361767cd69d5069a48e8d1f8486227d83e8b56d03ae750d",
+    ".cache/recomp-full/bootstrap-wasm/runtime/runtime.c": "d8d268875816c5534ff2f1dc1cb9cb513c13480578487b9521f9a95a6fc68fbd",
+    ".cache/recomp-full/bootstrap-wasm/runtime/cpu.h": "0ffb3dfda1c641a5341fcb01687893e00a002928bb338745881abb0cf3fcb36c",
+    ".cache/recomp-full/bootstrap-wasm/runtime/runtime.h": "d72c72b8691b6fd6ec0df7bf610a7203ab41694f65fb7a3d573e849c0f68ad22",
+    ".cache/recomp-full/bootstrap-wasm/runtime/simd.h": "6482743d4944b51d117fa61ce18b9e28117bab95baeaa46e05b9ba2d78457de4"
+  },
+  "artifacts": {
+    "probe.wasm": {
+      "sha256": "0030bcb5c5e677207764d0ccf99cb08a54bd6431319955e2cb6d54b5ffb5c704",
+      "bytes": 150755844
+    },
+    "MoviesSE.exe": {
+      "sha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+      "bytes": 12230656
+    },
+    "probe.js": {
+      "sha256": "0b605808755bf2fa3e0164cbae6d869625ca0c71e5cde72706682672704b331a",
+      "bytes": 165278
+    }
+  },
+  "importTracing": false,
+  "bootstrapMilliseconds": 4483.0,
+  "rangeRequests": 9,
+  "assetBytesFetched": 2359296
+}

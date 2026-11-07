@@ -1,0 +1,21 @@
+{
+  "scope": "Single sequential startup run each, not gameplay or statistically established speedup",
+  "profiles": "../research/static-o1-o2-sampler-profiles.json",
+  "runs": [
+    {
+      "optimization": 1,
+      "milliseconds": 55131.4,
+      "stop": "0099526d: D3D9 SetRenderState unsupported state/value",
+      "registers": "eax=05002010 ecx=05000400 edx=002ffccc esp=002ffcac ebp=00000002",
+      "reads": "39 range requests, 10223616 bytes fetched, 24 cache hits, 10223616 bytes cached."
+    },
+    {
+      "optimization": 2,
+      "milliseconds": 54149.5,
+      "stop": "0099526d: D3D9 SetRenderState unsupported state/value",
+      "registers": "eax=05002010 ecx=05000400 edx=002ffccc esp=002ffcac ebp=00000002",
+      "reads": "39 range requests, 10223616 bytes fetched, 24 cache hits, 10223616 bytes cached."
+    }
+  ],
+  "elapsedReductionPercent": 1.781017714043176
+}

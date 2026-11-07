@@ -1,0 +1,107 @@
+--- a/source/io/fszipopennode.h
++++ b/source/io/fszipopennode.h
+@@ -20,6 +20,9 @@
+ #define __FSZIPOPENNODE_H__
+ 
+ #include "fsopennode.h"
++#ifdef __EMSCRIPTEN__
++#include "fsstoredreadcache.h"
++#endif
+ 
+ class FsZipNode;
+ 
+@@ -55,6 +58,9 @@
+     U64 dataOffset;
+     U32 compressionMethod;
+     U32 directHandle = 0xFFFFFFFF;
++#ifdef __EMSCRIPTEN__
++    FsStoredReadCache storedReadCache;
++#endif
+     bool open = true;
+ };
+ 
+--- a/source/io/fszipopennode.cpp
++++ b/source/io/fszipopennode.cpp
+@@ -63,6 +63,9 @@
+ }
+ 
+ void FsZipOpenNode::close() {
++#ifdef __EMSCRIPTEN__
++    storedReadCache.clear();
++#endif
+     open = false;
+     if (directHandle != 0xFFFFFFFF) {
+         ::close(directHandle);
+@@ -116,6 +119,18 @@
+     }
+     len = (U32)std::min<U64>(std::min<U32>(len, 0x7ffff000), length() - pos);
+     if (directHandle != 0xFFFFFFFF) {
++#ifdef __EMSCRIPTEN__
++        // Guest reads arrive one 4 KiB page at a time. Read-ahead avoids a
++        // synchronous worker-to-main seek/read pair for every guest page.
++        S64 read = storedReadCache.read((U64)this->pos, (U64)length(), buffer, len,
++            [this](uint64_t at, uint8_t* destination, uint32_t count) -> int64_t {
++                if (lseek64(directHandle, dataOffset + at, SEEK_SET) < 0) return -K_EIO;
++                S32 result = (S32)::read(directHandle, destination, count);
++                return result > 0 ? result : -K_EIO;
++            });
++        if (read > 0) this->pos += read;
++        return (U32)read;
++#else
+         if (lseek64(directHandle, dataOffset + this->pos, SEEK_SET) < 0) {
+             return -K_EIO;
+         }
+@@ -126,6 +141,7 @@
+         U32 result = (U32)read;
+         this->pos += result;
+         return result;
++#endif
+     }
+ 
+     std::shared_ptr<FsZip> fsZip = zipNode->fsZip;
+--- /dev/null
++++ b/source/io/fsstoredreadcache.h
+@@ -0,0 +1,43 @@
++#pragma once
++
++#include <algorithm>
++#include <cstdint>
++#include <cstring>
++#include <vector>
++
++// Per-open-file cache for immutable ZIP_STORED members. No browser FS calls
++// occur on hits. Allocate lazily so unopened/unread members cost no buffer.
++class FsStoredReadCache {
++public:
++    void clear() { bytes.clear(); start = 0; valid = 0; }
++
++    template<class Reader>
++    int64_t read(uint64_t position, uint64_t fileSize, uint8_t* output,
++                 uint32_t length, Reader&& reader) {
++        if (position >= fileSize || !length) return 0;
++        const uint32_t wanted = (uint32_t)std::min<uint64_t>(length, fileSize - position);
++        uint32_t copied = 0;
++        while (copied < wanted) {
++            const uint64_t at = position + copied;
++            if (!valid || at < start || at - start >= valid) {
++                const uint32_t count = (uint32_t)std::min<uint64_t>(256 * 1024, fileSize - at);
++                if (bytes.size() < count) bytes.resize(count);
++                valid = 0;
++                int64_t result = reader(at, bytes.data(), count);
++                if (result <= 0) return copied ? copied : result;
++                if ((uint64_t)result > count) return copied ? copied : -1;
++                start = at;
++                valid = (uint32_t)result;
++            }
++            const uint32_t inside = (uint32_t)(at - start);
++            const uint32_t count = std::min(wanted - copied, valid - inside);
++            std::memcpy(output + copied, bytes.data() + inside, count);
++            copied += count;
++        }
++        return copied;
++    }
++private:
++    std::vector<uint8_t> bytes;
++    uint64_t start = 0;
++    uint32_t valid = 0;
++};

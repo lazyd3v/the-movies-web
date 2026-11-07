@@ -1,0 +1,213 @@
+{
+  "scope": "One-run aligned completed windows; residual is not pure CPU. Child times overlap and are not subtracted. Native interval boundaries follow JS return and can differ slightly.",
+  "malformedReports": [],
+  "unpairedWaitSerials": [
+    2093
+  ],
+  "windows": [
+    {
+      "lastSerial": 121,
+      "frames": 120,
+      "frameMs": 2336.005000002682,
+      "bridgeMs": 832.5750003457069,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 4605.076,
+      "outsideBridgeAndMeasuredMainWaitMs": 1503.4299996569753
+    },
+    {
+      "lastSerial": 241,
+      "frames": 120,
+      "frameMs": 3123.994999997318,
+      "bridgeMs": 659.4549996778369,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 6217.6630000000005,
+      "outsideBridgeAndMeasuredMainWaitMs": 2464.540000319481
+    },
+    {
+      "lastSerial": 361,
+      "frames": 120,
+      "frameMs": 4251.39999999851,
+      "bridgeMs": 552.6700000837445,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 8570.243999999999,
+      "outsideBridgeAndMeasuredMainWaitMs": 3698.7299999147654
+    },
+    {
+      "lastSerial": 481,
+      "frames": 120,
+      "frameMs": 5555.25,
+      "bridgeMs": 505.0700001642108,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 11074.025,
+      "outsideBridgeAndMeasuredMainWaitMs": 5050.179999835789
+    },
+    {
+      "lastSerial": 601,
+      "frames": 120,
+      "frameMs": 6589.984999999404,
+      "bridgeMs": 505.2400001510978,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 13185.624,
+      "outsideBridgeAndMeasuredMainWaitMs": 6084.744999848306
+    },
+    {
+      "lastSerial": 721,
+      "frames": 120,
+      "frameMs": 6654.515000000596,
+      "bridgeMs": 548.0350002646446,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 13303.434000000001,
+      "outsideBridgeAndMeasuredMainWaitMs": 6106.479999735951
+    },
+    {
+      "lastSerial": 841,
+      "frames": 120,
+      "frameMs": 4569.72500000149,
+      "bridgeMs": 520.3700001761317,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 9138.447,
+      "outsideBridgeAndMeasuredMainWaitMs": 4049.3549998253584
+    },
+    {
+      "lastSerial": 961,
+      "frames": 120,
+      "frameMs": 3055.2150000035763,
+      "bridgeMs": 715.0099998265505,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 6083.769,
+      "outsideBridgeAndMeasuredMainWaitMs": 2340.205000177026
+    },
+    {
+      "lastSerial": 1081,
+      "frames": 120,
+      "frameMs": 2158.3499999940395,
+      "bridgeMs": 884.8650000616908,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 4340.554,
+      "outsideBridgeAndMeasuredMainWaitMs": 1273.4849999323487
+    },
+    {
+      "lastSerial": 1201,
+      "frames": 120,
+      "frameMs": 1957.5950000062585,
+      "bridgeMs": 741.5649998262525,
+      "draws": 720,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 3919.0159999999996,
+      "outsideBridgeAndMeasuredMainWaitMs": 1216.030000180006
+    },
+    {
+      "lastSerial": 1321,
+      "frames": 120,
+      "frameMs": 2611.4649999961257,
+      "bridgeMs": 812.7500001937151,
+      "draws": 540,
+      "waitReportPresent": true,
+      "mainWaitMs": 15.045,
+      "mainWaitCalls": 1,
+      "childWaitMsNotAdditive": 5219.823,
+      "outsideBridgeAndMeasuredMainWaitMs": 1783.6699998024105
+    },
+    {
+      "lastSerial": 1441,
+      "frames": 120,
+      "frameMs": 999.2100000008941,
+      "bridgeMs": 980.0499999821186,
+      "draws": 0,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 2004.029,
+      "outsideBridgeAndMeasuredMainWaitMs": 19.160000018775463
+    },
+    {
+      "lastSerial": 1561,
+      "frames": 120,
+      "frameMs": 999.7250000014901,
+      "bridgeMs": 981.429999999702,
+      "draws": 0,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 1965.195,
+      "outsideBridgeAndMeasuredMainWaitMs": 18.29500000178814
+    },
+    {
+      "lastSerial": 1681,
+      "frames": 120,
+      "frameMs": 1089.070000000298,
+      "bridgeMs": 1022.3100000545382,
+      "draws": 0,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 2143.19,
+      "outsideBridgeAndMeasuredMainWaitMs": 66.75999994575977
+    },
+    {
+      "lastSerial": 1801,
+      "frames": 120,
+      "frameMs": 1009.9099999964237,
+      "bridgeMs": 994.1949999183416,
+      "draws": 0,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 2122.685,
+      "outsideBridgeAndMeasuredMainWaitMs": 15.715000078082085
+    },
+    {
+      "lastSerial": 1921,
+      "frames": 120,
+      "frameMs": 998.3849999979138,
+      "bridgeMs": 981.0900000035763,
+      "draws": 0,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 1909.0520000000001,
+      "outsideBridgeAndMeasuredMainWaitMs": 17.29499999433756
+    },
+    {
+      "lastSerial": 2041,
+      "frames": 120,
+      "frameMs": 96405.79000000656,
+      "bridgeMs": 1101.3549999818206,
+      "draws": 0,
+      "waitReportPresent": true,
+      "mainWaitMs": 0,
+      "mainWaitCalls": 0,
+      "childWaitMsNotAdditive": 192794.874,
+      "outsideBridgeAndMeasuredMainWaitMs": 95304.43500002474
+    }
+  ]
+}

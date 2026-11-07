@@ -1,0 +1,418 @@
+Build optimization: O1; Wasm SHA-256: 99a58a7f213918189629bee32ee77da13ab9280e65acbc3bcb9a5d54e7e2415f
+[media] Real WMV2/WMAv2 ASF service ready; bounded 1-second encode jobs, no WMV3 encoder.
+[media-reader] Real WMAv2 stereo 44100 Hz PCM reader ready; bounded input and sample queues.
+[graphics] WebGPU 1024×768 ready; bounded D3D9 subset, animation-frame-paced presentation.
+Mounted 719 original files with one 32 MiB range cache.
+original entry=00ad2451 imports=330; strict bootstrap, 146 API handlers
+[file] FindFirstFileA path="c:\Games" result=0a000000 error=0
+[file] FindFirstFileA path="c:\Games\TheMovies" result=0a000001 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffc08 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\language.txt" result=ffffffff error=2
+[file] FindFirstFileA path="data\text\EN-UK\*.*" result=0a000002 error=0
+[file] FindFirstFileA path="data\text\EN-UK\stringdatabase.lhts" result=0a000003 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff5a0 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\text\EN-UK\stringdatabase.lhts" result=09000000 error=0
+[file] ReadFile handle=09000000 requested=2101248 actual=2101248 error=0
+[file] ReadFile handle=09000000 requested=4096 actual=3668 error=0
+[file] FindFirstFileA path="data\text\EN-UK\stringdatabase_addon1.lhts" result=0a000004 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff5a0 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\text\EN-UK\stringdatabase_addon1.lhts" result=09000001 error=0
+[file] ReadFile handle=09000001 requested=163840 actual=163840 error=0
+[file] ReadFile handle=09000001 requested=4096 actual=1504 error=0
+[dialog] The Movies(TM): Stunts & Effects.: This is the first time you are running The Movies(TM): Stunts & Effects. The game has chosen to start at a high graphics quality level. If you wish, you can change this setting in the game's video options screen. If you experience any frame rate problems you may want to lower the graphics quality level.
+[file] private logical storage quota=268435456 used=0 available=268435456 bytes
+[file] CreateFile parameters access=40000000 share=00000003 security=002ff7d8 disposition=2 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="C:\Users\Player\AppData\Roaming\Lionhead Studios\The Movies\osdetect.txt" result=09000002 error=0
+[file] GetTempFileNameA(created) path="C:\Users\Player\AppData\Local\Temp\mv9CBB.TMP" result=00009cbb error=0
+[file] DeleteFileA path="C:\Users\Player\AppData\Local\Temp\mv9CBB.TMP" result=00000001 error=0
+[file] FindFirstFileA path="C:\Users\Player\AppData\Local\Temp\The Movies\*.*" result=ffffffff error=2
+[file] FindFirstFileA path="data\Pak\*.*" result=0a000005 error=0
+[file] FindFirstFileA path="C:\ProgramData\Lionhead Studios\TheMovies\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\Pak\addon_2704_0000.pak" result=0a000006 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\addon_2704_0000.pak" result=09000003 error=0
+[file] ReadFile handle=09000003 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\addon_2704_0000.pak" result=09000004 error=0
+[file] ReadFile handle=09000004 requested=929792 actual=929792 error=0
+[file] ReadFile handle=09000004 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\addon_2704_0000.pak" result=09000005 error=0
+[file] FindFirstFileA path="data\Pak\addon_2704_0001.pak" result=0a000007 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\addon_2704_0001.pak" result=09000006 error=0
+[file] ReadFile handle=09000006 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\addon_2704_0001.pak" result=09000007 error=0
+[file] ReadFile handle=09000007 requested=487424 actual=487424 error=0
+[file] ReadFile handle=09000007 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\addon_2704_0001.pak" result=09000008 error=0
+[file] FindFirstFileA path="data\Pak\meshscene0000.pak" result=0a000008 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\meshscene0000.pak" result=09000009 error=0
+[file] ReadFile handle=09000009 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\meshscene0000.pak" result=0900000a error=0
+[file] ReadFile handle=0900000a requested=1314816 actual=1314816 error=0
+[file] ReadFile handle=0900000a requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\meshscene0000.pak" result=0900000b error=0
+[file] FindFirstFileA path="data\Pak\meshscene0001.pak" result=0a000009 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\meshscene0001.pak" result=0900000c error=0
+[file] ReadFile handle=0900000c requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\meshscene0001.pak" result=0900000d error=0
+[file] ReadFile handle=0900000d requested=536576 actual=536576 error=0
+[file] ReadFile handle=0900000d requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\meshscene0001.pak" result=0900000e error=0
+[file] FindFirstFileA path="data\Pak\misc0000.pak" result=0a00000a error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\misc0000.pak" result=0900000f error=0
+[file] ReadFile handle=0900000f requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\misc0000.pak" result=09000010 error=0
+[file] ReadFile handle=09000010 requested=221184 actual=221184 error=0
+[file] ReadFile handle=09000010 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\misc0000.pak" result=09000011 error=0
+[file] FindFirstFileA path="data\Pak\premium_costumes0000.pak" result=0a00000b error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\premium_costumes0000.pak" result=09000012 error=0
+[file] ReadFile handle=09000012 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\premium_costumes0000.pak" result=09000013 error=0
+[file] ReadFile handle=09000013 requested=4096 actual=4096 error=0
+[file] ReadFile handle=09000013 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\premium_costumes0000.pak" result=09000014 error=0
+[file] FindFirstFileA path="data\Pak\tex_all0000.pak" result=0a00000c error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_all0000.pak" result=09000015 error=0
+[file] ReadFile handle=09000015 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_all0000.pak" result=09000016 error=0
+[file] ReadFile handle=09000016 requested=253952 actual=253952 error=0
+[file] ReadFile handle=09000016 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_all0000.pak" result=09000017 error=0
+[file] FindFirstFileA path="data\Pak\tex_all0001.pak" result=0a00000d error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_all0001.pak" result=09000018 error=0
+[file] ReadFile handle=09000018 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_all0001.pak" result=09000019 error=0
+[file] ReadFile handle=09000019 requested=569344 actual=569344 error=0
+[file] ReadFile handle=09000019 requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_all0001.pak" result=0900001a error=0
+[file] FindFirstFileA path="data\Pak\tex_cos_0000.pak" result=0a00000e error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_cos_0000.pak" result=0900001b error=0
+[file] ReadFile handle=0900001b requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_cos_0000.pak" result=0900001c error=0
+[file] ReadFile handle=0900001c requested=172032 actual=172032 error=0
+[file] ReadFile handle=0900001c requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_cos_0000.pak" result=0900001d error=0
+[file] FindFirstFileA path="data\Pak\tex_cos_0001.pak" result=0a00000f error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa0c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_cos_0001.pak" result=0900001e error=0
+[file] ReadFile handle=0900001e requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffa48 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_cos_0001.pak" result=0900001f error=0
+[file] ReadFile handle=0900001f requested=102400 actual=102400 error=0
+[file] ReadFile handle=0900001f requested=4096 actual=4096 error=0
+[file] CreateFile parameters access=80000000 share=00000003 security=002ffb24 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data\Pak\tex_cos_0001.pak" result=09000020 error=0
+[file] FindFirstFileA path="data/filestructure.ini" result=ffffffff error=2
+[file] FindFirstFileA path="data\*.*" result=0a000010 error=0
+[file] FindFirstFileA path="data\2dpicker\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\advisor\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\animations\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\animations\facials\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\animations\fx\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\animations\high\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\animations\high\autoanimated\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\animations\sequences\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\audio\*.*" result=0a000011 error=0
+[file] FindFirstFileA path="data\audio\atmosphere\*.*" result=0a000012 error=0
+[file] FindFirstFileA path="data\audio\en-uk\*.*" result=0a000013 error=0
+[file] FindFirstFileA path="data\audio\lipssync\*.*" result=0a000014 error=0
+[file] FindFirstFileA path="data\audio\music\*.*" result=0a000015 error=0
+[file] FindFirstFileA path="data\audio\music\cues\*.*" result=0a000016 error=0
+[file] FindFirstFileA path="data\backdrops\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\cameras\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\cameras\scenes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\consoles\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\costume\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\costume\award\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\costume\datas\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\credits\*.*" result=0a000017 error=0
+[file] FindFirstFileA path="data\dlc\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\explainers\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\facility\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\floorplans\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\fonts\*.*" result=0a000018 error=0
+[file] FindFirstFileA path="data\fonts\en-uk\*.*" result=0a000019 error=0
+[file] FindFirstFileA path="data\fx\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\fx\final\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\fx\final\minspec\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\fx\minspec\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\genre\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\hairs\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\heads\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\intro\*.*" result=0a00001a error=0
+[file] FindFirstFileA path="data\landscape\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\lots\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\meshes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\meshes\extrainfo\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\meshes\fx\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\ornament\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\pak\*.*" result=0a00001b error=0
+[file] FindFirstFileA path="data\person\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\postproc\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\propblueprint\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\props\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\researchpacks\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\reviews\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\rule\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\sample movies\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\sandbox\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\savedefaults\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scenarios\*.*" result=0a00001c error=0
+[file] FindFirstFileA path="data\scene\*.*" result=0a00001d error=0
+[file] FindFirstFileA path="data\scene\001\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\002\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\003\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\004\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\005\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\006\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\007\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\008\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\009\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\010\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\011\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\012\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\013\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\014\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\015\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\016\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\017\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\018\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\019\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\020\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\021\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\022\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\023\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\025\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\027\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\028\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\029\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\030\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\031\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\032\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\033\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\034\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\035\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\036\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\037\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\038\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\040\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\041\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\042\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\044\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\045\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\046\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\047\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\000\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\001\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\002\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\003\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\004\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\005\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\006\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\007\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\008\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\009\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\010\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\011\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\012\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\013\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\014\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\015\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\016\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\017\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\018\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\019\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\020\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\021\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\022\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\023\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\025\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\026\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\027\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\028\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\029\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\030\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\031\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\032\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\033\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\034\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\035\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\036\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\037\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\038\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\040\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\041\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\042\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\043\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\044\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\045\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\046\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scene\interactions\047\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\blockbuster\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\bmovie\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\boundary\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\connoisuer\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\family\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\qmm\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\scripts\tutorial\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\serenitydata\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\set\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\setdressing\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\sittsets\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\slider\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\starmaker\*.*" result=0a00001e error=0
+[file] FindFirstFileA path="data\technology\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\text\*.*" result=0a00001f error=0
+[file] FindFirstFileA path="data\text\en-uk\*.*" result=0a000020 error=0
+[file] FindFirstFileA path="data\textures\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\accessories\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\backdrops\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\blueprint\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\bumps\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\costumes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\flash\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\fx\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\hair\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\legal\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\lightmap\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\makeup\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\miniatures\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\overlays\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\overlays\overlay_thumbnails\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\people\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\props\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\sm\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\specials\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\specials\lowresshad\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\backdrops\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\costumeoptions\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\costumes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\films\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\hair\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\heads\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\props\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\thumbs\sets\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\loadingscreens\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\logos\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\madewith\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\newspaper\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\postproc\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\postproc\backdrops\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\research\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\research\sets\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\sparkframes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\surroundframes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\textures\ui\woodenmen\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\tutorials\*.*" result=0a000021 error=0
+[file] FindFirstFileA path="data\ui\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\ui\english\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\ui\flash\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\ui\positions\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\ui\scripts\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\vehicle\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data\video\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="data/servicepack.ini" result=ffffffff error=2
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff998 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="data/servicepack.ini" result=ffffffff error=2
+[file] ReadFile handle=09000005 requested=4096 actual=4096 error=0
+[window] create hwnd=d000001 client=1024x768 visible=false cursor=none
+[window] show hwnd=d000001 client=1024x768 visible=true cursor=none
+[window] cursor hwnd=d000001 client=1024x768 visible=true cursor=none
+[file] FindFirstFileA path="C:\Windows\System32\wmvcore.dll" result=0a000022 error=0
+[file] FindFirstFileA path="C:\Windows\System32\dinput8.dll" result=0a000023 error=0
+[media-com] CoInitialize hr=00000000 arg0=00000000
+[media-com] CoCreateInstance hr=00000000 arg0=00db0abc arg1=00000000 arg2=00000001 arg3=00daf37c arg4=002ffb7c clsid=e436ebb3-524f-11ce-9f53-0020af0ba770 iid=56a868a9-0ad4-11ce-b03a-0020af0ba770
+[media-com] CoCreateInstance hr=00000000 arg0=00db0afc arg1=00000000 arg2=00000001 arg3=00daf34c arg4=002ffb84 clsid=bf87b6e1-8c27-11d0-b3f0-00aa003761c5 iid=93e5a4e0-2d50-11d2-abfa-00a0c9c6e38d
+[media-com] SetFiltergraph hr=00000000 arg0=04001010 arg1=04001000
+[media-com] CoCreateInstance hr=00000000 arg0=00db083c arg1=00000000 arg2=00000001 arg3=00daf4dc arg4=002ffb80 clsid=7c23220e-55bb-11d3-8b16-00c04fb6bd3d iid=56a86895-0ad4-11ce-b03a-0020af0ba770
+[media-com] AddFilter hr=00000000 arg0=04001000 arg1=04001020 arg2=00d76b68
+[media-com] CoInitialize hr=00000000 arg0=00000000
+[file] FindFirstFileA path="Data\Meshes\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Textures\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Animations\High\AutoAnimated\*.*" result=ffffffff error=3
+[D3D9] factory caller=009a7aeb result=05002000 args=00000020
+[D3D9] create_device caller=009a7bc1 result=8876086a args=05002000,00000000,00000001,0d000001,00000044,0105c8c0,0105ca44 pp=00000400,00000300,00000019,00000001,00000000,00000000,00000001,00000000,00000000,00000001,00000050,00000000,00000000,00000000
+[D3D9] create_device caller=009a7bf4 result=00000000 args=05002000,00000000,00000001,0d000001,00000024,0105c8c0,0105ca44 pp=00000400,00000300,00000019,00000001,00000000,00000000,00000001,00000000,00000000,00000001,00000050,00000000,00000000,00000000
+[D3D9] get_caps caller=009a7c11 result=00000000 args=05002010,0105c910
+[D3D9] check_format caller=009a51d6 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000032
+[D3D9] check_format caller=009a51fd result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000018
+[D3D9] check_format caller=009a5224 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000001a
+[D3D9] check_format caller=009a524b result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000033
+[D3D9] check_format caller=009a5272 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000003c
+[file] FindFirstFileA path="Data\Textures\Specials\LowResShad\*.*" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Textures\UI\Logos\logo_v00.dds" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Textures\UI\Logos\logo_v00.dds" result=ffffffff error=3
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff320 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="Data\Textures\UI\Logos\logo_v00.dds" result=ffffffff error=2
+[file] ReadFile handle=09000008 requested=4096 actual=4096 error=0
+[file] ReadFile handle=09000008 requested=4096 actual=4096 error=0
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002fec08
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000014
+[D3D9] check_format caller=00afbc04 result=00000000 args=05002000,00000000,00000001,00000016,00000000,00000003,00000015
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000016
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000017
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000018
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000028
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000029
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000019
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000001a
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000001b
+[D3D9] check_format caller=00afbc04 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000001c
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002fed80
+[file] FindFirstFileA path="Data\Textures\dummy.dds" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Textures\dummy.dds" result=ffffffff error=3
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff934 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="Data\Textures\dummy.dds" result=ffffffff error=2
+[file] ReadFile handle=09000017 requested=4096 actual=4096 error=0
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff21c
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff394
+[file] FindFirstFileA path="Data\Textures\thumbmask_128x128.dds" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Textures\thumbmask_128x128.dds" result=ffffffff error=3
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff920 disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="Data\Textures\thumbmask_128x128.dds" result=ffffffff error=2
+[file] ReadFile handle=09000017 requested=10240 actual=10240 error=0
+[file] ReadFile handle=09000017 requested=512 actual=512 error=0
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff208
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff380
+[file] FindFirstFileA path="Data\Textures\thumbmask_256x128.dds" result=ffffffff error=3
+[file] FindFirstFileA path="Data\Textures\thumbmask_256x128.dds" result=ffffffff error=3
+[file] CreateFile parameters access=80000000 share=00000003 security=002ff90c disposition=3 flags=00000080 template=00000000 inherit=1 security_error=0
+[file] CreateFileA path="Data\Textures\thumbmask_256x128.dds" result=ffffffff error=2
+[file] ReadFile handle=09000017 requested=22016 actual=22016 error=0
+[file] ReadFile handle=09000017 requested=512 actual=512 error=0
+[D3D9] get_caps caller=00afbb9e result=00000000 args=05002010,002ff1f4
+[D3D9] get_caps caller=00afc28f result=00000000 args=05002010,002ff36c
+STOP: 009cc666: IDirect3DDevice9::SetLight unsupported
+eax=05002010 ecx=05000400 edx=00000001 esp=002ffc28 ebp=0105c498
+Bootstrap execution: 53652.4 ms to diagnostic stop, including image loading and function registration, excluding dialog interaction (not a gameplay benchmark).
+Asset reads: 41 range requests, 10747904 bytes fetched, 27 cache hits, 10747904 bytes cached.

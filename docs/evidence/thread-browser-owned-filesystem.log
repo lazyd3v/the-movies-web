@@ -1,0 +1,57 @@
+{
+  "type": "result",
+  "passed": true,
+  "mode": 0,
+  "childStarted": 1,
+  "blockedBeforePump": 1,
+  "pumpCalls": 1466,
+  "bytes": 740,
+  "fnv": 129214825,
+  "error": 0,
+  "elapsedMs": 360.87,
+  "exitCode": 0,
+  "rangeStats": {
+    "hits": 1,
+    "requests": 1,
+    "bytes": 262144,
+    "cacheBytes": 262144
+  }
+}
+{
+  "type": "result",
+  "passed": true,
+  "mode": 1,
+  "childStarted": 1,
+  "blockedBeforePump": 0,
+  "pumpCalls": 479,
+  "bytes": 740,
+  "fnv": 129214825,
+  "error": 0,
+  "elapsedMs": 8.695,
+  "exitCode": 0,
+  "rangeStats": {
+    "hits": 1,
+    "requests": 1,
+    "bytes": 262144,
+    "cacheBytes": 262144
+  }
+}
+{
+  "type": "result",
+  "passed": true,
+  "mode": 2,
+  "childStarted": 1,
+  "blockedBeforePump": 0,
+  "pumpCalls": 0,
+  "bytes": 740,
+  "fnv": 129214825,
+  "error": 0,
+  "elapsedMs": 48.63,
+  "exitCode": 0,
+  "rangeStats": {
+    "hits": 1,
+    "requests": 1,
+    "bytes": 262144,
+    "cacheBytes": 262144
+  }
+}

@@ -1,0 +1,4 @@
+Running
+{"log":"guest child 258 failed: 00000000: isolated child trap"}
+{"log":"guest thread contexts/events/return/ExitThread/trap/TLS/close-before-exit PASS"}
+{"ok":true,"scope":"Actual runtime guest ABI child contexts and pthread synchronization; synthetic start, not original game thread"}

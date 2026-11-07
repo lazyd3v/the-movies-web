@@ -1,0 +1,57 @@
+[The Movies] Original game mounted (719 files); 32 MiB read cache.
+Starting ...
+Command line arguments: "./boxedwine" "-root" "/root/key/the-movies-v1" "-zip" "media.zip" "-zip" "TinyCore15Wine11.0-web.zip" "-mount" "movies.zip" "/home/username/.wine/dosdevices/c:/files" "-mount_drive" "/d_drive/key/the-movies-v1" "d" "-resolution" "800x600" "-disableHideCursor" "-safe-memory" "-env" "WINEDLLOVERRIDES=qasf,wmvcore,wmasf,wmadmod,wmadmoe,wmvdmod,wmvdmoe2,wmsdmod,wmsdmoe2,wmspdmod,wmspdmoe,wmvadvd,wmvadve,wmnetmgr,laprxy=n,b" "-w" "/home/username/.wine/dosdevices/c:/files" "/bin/wine" "cmd" "/c" "reg" "add" "HKCU\Software\Wine" "/v" "Version" "/t" "REG_SZ" "/d" "winxp" "/f" "&&" "cmd" "/c" "c:/media-setup.bat"
+WASM JIT MT safe-memory: on
+BoxedWine build timestamp: Nov  1 2026 12:21:23
+Using root directory: /root/key/the-movies-v1
+Using zip file system: media.zip
+Using zip file system: TinyCore15Wine11.0-web.zip
+Resolution set to: 800x600
+Loaded media.zip in 6 ms
+Loaded TinyCore15Wine11.0-web.zip in 591 ms
+Mounted movies.zip in 1492 ms
+Launching "/bin/wine" "cmd" "/c" "reg" "add" "HKCU\Software\Wine" "/v" "Version" "/t" "REG_SZ" "/d" "winxp" "/f" "&&" "cmd" "/c" "c:/media-setup.bat" 
+[WASM JIT] first JIT block executed, tableIdx: 13861
+00a4:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\winebth": c00000e5
+003c:fixme:service:scmdatabase_autostart_services Auto-start service L"winebth" failed to start: 1359
+[?25lreg: The operation completed successfully
+[?25h[?25lMEDIA_SETUP_READY[?25h
+[?25lThe Movies: applying compatibility settings[?25h
+[?25lThe Movies: starting MoviesSE.exe[?25h
+010c:err:vulkan:vulkan_init_once Wine was built without Vulkan support.
+WASM JIT simd enabled
+Showing Window
+0104:fixme:dbghelp:elf_search_auxv can't find symbol in module
+0104:fixme:ntdll:NtQuerySystemInformation info_class SYSTEM_PERFORMANCE_INFORMATION
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20f53c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20f53c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc798,0x00000010,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc798,0x00000020,0x7f20f43c) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2e8) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2e8) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x00000021,0x7fcfc6b0,0x00000010,0x7f20e2d0) stub
+0104:fixme:ntdll:NtQuerySystemInformation (0x0000002d,0x7fcfc6b0,0x00000020,0x7f20e2d0) stub

@@ -1,0 +1,294 @@
+--- a/runtime/runtime.c
++++ b/runtime/runtime.c
+@@ -90,7 +90,7 @@
+ }
+ 
+ static void unimplemented_import(CPU *c);
+-static int g_log_imports = -1;
++static __thread int g_log_imports = -1;
+ __thread uint32_t g_import_target;  /* which host slot the current import call came through */
+ 
+ /* Post-import observation point: host handler has completed stdcall return.
+@@ -118,13 +118,13 @@
+     g_import_target=previous;
+ }
+ 
+-static uint32_t g_trace_call = 1;   /* PORT_TRACE_CALL=addr: log indirect calls to that function */
++static __thread uint32_t g_trace_call = 1;   /* PORT_TRACE_CALL=addr: log indirect calls to that function */
+ 
+ void call_indirect(CPU *c, uint32_t target) {
+     if (g_trace_call == 1) g_trace_call = getenv("PORT_TRACE_CALL") ? (uint32_t)strtoul(getenv("PORT_TRACE_CALL"), NULL, 16) : 0;
+     uint32_t traced_this = 0;
+     if (g_trace_call && target == g_trace_call) {
+-        static int n;
++        static __thread int n;
+         if (n++ < 40) {
+             fprintf(stderr, "[call] %08x from %08x ecx=%08x args %08x %08x %08x %08x\n", target, R32(c->esp), c->ecx,
+                     R32(c->esp + 4), R32(c->esp + 8), R32(c->esp + 12), R32(c->esp + 16));
+@@ -145,7 +145,7 @@
+     }
+     if (!fn && dyncode_contains(target)) { interp_call(c, target); return; }
+     if (!fn) {
+-        static char msg[96];
++        char msg[96];
+         snprintf(msg, sizeof msg, "indirect call to unknown function (return address %08x)", R32(c->esp));
+         guest_trap(c, target, msg);
+     }
+@@ -156,7 +156,7 @@
+             fprintf(stderr, "[import] %-40s from %08x  args %08x %08x %08x %08x\n", name, R32(c->esp),
+                     R32(c->esp + 4), R32(c->esp + 8), R32(c->esp + 12), R32(c->esp + 16));
+         if (fn == unimplemented_import) {
+-            static char msg[160];
++            char msg[160];
+             snprintf(msg, sizeof msg, "unimplemented Windows import %s (called from %08x)",
+                      name ? name : "?", R32(c->esp));
+             guest_trap(c, target, msg);
+@@ -184,11 +184,17 @@
+ }
+ 
+ volatile uint8_t g_guest_lock;
+-
+-jmp_buf *g_trap_jmp;        /* when set (tests), traps longjmp here instead of aborting */
+-char g_trap_msg[256];
++#ifdef MOVIES_GUEST_THREADS
++__thread unsigned g_guest_lock_depth;
++#endif
++
++__thread jmp_buf *g_trap_jmp;        /* when set (tests), traps longjmp here instead of aborting */
++__thread char g_trap_msg[256];
+ 
+ void guest_trap(CPU *c, uint32_t addr, const char *why) {
++#ifdef MOVIES_GUEST_THREADS
++    while(g_guest_lock_depth)guest_unlock();
++#endif
+     if (g_trap_jmp) {
+         snprintf(g_trap_msg, sizeof g_trap_msg, "%08x: %s", addr, why);
+         longjmp(*g_trap_jmp, 1);
+@@ -220,8 +226,8 @@
+ 
+ /* ------------------------------------------------------------------ tracing (--trace builds) */
+ 
+-TraceRec *g_trace;
+-uint32_t g_trace_len, g_trace_cap;
++__thread TraceRec *g_trace;
++__thread uint32_t g_trace_len, g_trace_cap;
+ 
+ void trace_insn(CPU *c, uint32_t addr) {
+     if (!g_trace || g_trace_len >= g_trace_cap) return;
+@@ -327,6 +333,10 @@
+ typedef struct { char name[96]; GuestFn fn; } ImportSlot;
+ static ImportSlot g_imports[4096];  /* PE imports + GetProcAddress results + COM method slots */
+ static uint32_t g_nimports;
++static uint8_t import_lock;
++static void lock_imports(void){while(__atomic_test_and_set(&import_lock,__ATOMIC_ACQUIRE)) { }}
++static void unlock_imports(void){__atomic_clear(&import_lock,__ATOMIC_RELEASE);}
++
+ 
+ static void unimplemented_import(CPU *c) {
+     /* The return address on the stack identifies the caller; the slot is found from the IAT
+@@ -337,29 +347,30 @@
+ static ImportHandler *g_import_handlers;
+ static uint32_t g_nhandlers;
+ 
+-void set_import_handlers(ImportHandler *h, uint32_t n) { g_import_handlers = h; g_nhandlers = n; }
++void set_import_handlers(ImportHandler *h, uint32_t n) { lock_imports();g_import_handlers = h; g_nhandlers = n;unlock_imports(); }
+ 
+ static GuestFn find_handler(const char *name) {
+-    for (uint32_t i = 0; i < g_nhandlers; i++)
+-        if (!strcmp(g_import_handlers[i].name, name)) return g_import_handlers[i].fn;
+-    return NULL;
+-}
+-
++    GuestFn found=NULL;lock_imports();
++    for(uint32_t i=0;i<g_nhandlers;i++)if(!strcmp(g_import_handlers[i].name,name)){found=g_import_handlers[i].fn;break;}
++    unlock_imports();return found;
++}
+ uint32_t add_dynamic_import(const char *name, GuestFn fn) {
+-    ImportSlot *sl = &g_imports[g_nimports];
+-    snprintf(sl->name, sizeof sl->name, "%s", name);
+-    sl->fn = fn;
+-    uint32_t magic = IMPORT_BASE + g_nimports * 16;
+-    register_function(magic, fn);
+-    g_nimports++;
+-    return magic;
+-}
+-
++    if(!name||!fn||strlen(name)>=sizeof g_imports[0].name)return 0;
++    lock_imports();
++    if(g_nimports>=sizeof g_imports/sizeof*g_imports){unlock_imports();return 0;}
++    ImportSlot *sl=&g_imports[g_nimports];strcpy(sl->name,name);sl->fn=fn;
++    uint32_t magic=IMPORT_BASE+g_nimports*16;
++    register_function(magic,fn);
++    __atomic_store_n(&g_nimports,g_nimports+1,__ATOMIC_RELEASE);
++    unlock_imports();return magic;
++}
+ GuestFn find_import_handler(const char *name) { return find_handler(name); }
+-
+ const char *import_name(uint32_t addr) {
+-    if (addr < IMPORT_BASE || addr >= IMPORT_BASE + g_nimports * 16) return NULL;
+-    return g_imports[(addr - IMPORT_BASE) / 16].name;
++    uint32_t n=__atomic_load_n(&g_nimports,__ATOMIC_ACQUIRE);
++    if(addr<IMPORT_BASE||(addr-IMPORT_BASE)%16||addr>=IMPORT_BASE+n*16)return NULL;
++    /* Published slots are immutable and never freed, so the returned name
++     * remains valid after concurrent append. No unlocked mutable pointer. */
++    return g_imports[(addr-IMPORT_BASE)/16].name;
+ }
+ 
+ /* ------------------------------------------------------------------ PE loading */
+@@ -414,7 +425,7 @@
+         for (uint32_t k = 0;; k++) {
+             uint32_t thunk = R32(image_base + ilt + 4 * k);
+             if (!thunk) break;
+-            ImportSlot *s = &g_imports[g_nimports];
++            ImportSlot slot; ImportSlot *s = &slot;
+             if (thunk & 0x80000000u)
+                 snprintf(s->name, sizeof s->name, "%s!#%u", dll, thunk & 0xffff);
+             else
+@@ -422,16 +433,15 @@
+             for (char *p = s->name; *p && *p != '!'; p++) *p = (char)toupper((unsigned char)*p);
+             GuestFn fn = find_handler(s->name);
+             s->fn = fn ? fn : unimplemented_import;
+-            uint32_t magic = IMPORT_BASE + g_nimports * 16;
++            uint32_t magic = add_dynamic_import(s->name,s->fn);
++            if(!magic){free(file);return -1;}
+             W32(image_base + iat + 4 * k, magic);
+-            register_function(magic, s->fn);
+-            g_nimports++;
+         }
+     }
+     free(file);
+     out->image_base = image_base;
+     out->entry = image_base + entry;
+-    out->num_imports = g_nimports;
++    out->num_imports = __atomic_load_n(&g_nimports,__ATOMIC_ACQUIRE);
+     return 0;
+ }
+ 
+@@ -461,9 +471,14 @@
+ uint32_t g_heap_next = GUEST_HEAP_BASE;
+ 
+ uint32_t guest_alloc(uint32_t size) {
+-    uint32_t a = (g_heap_next + 15) & ~15u;
+-    g_heap_next = a + size;
+-    return a;
++    uint32_t old=__atomic_load_n(&g_heap_next,__ATOMIC_RELAXED);
++    do {
++        uint64_t aligned=((uint64_t)old+15)&~15ull;
++        uint64_t end=aligned+(size?size:1);
++        if(end>GUEST_HEAP_HI||end>UINT32_MAX)return 0;
++        uint32_t next=(uint32_t)end;
++        if(__atomic_compare_exchange_n(&g_heap_next,&old,next,0,__ATOMIC_RELAXED,__ATOMIC_RELAXED))return (uint32_t)aligned;
++    } while(1);
+ }
+ 
+ /* Calls a recompiled function the way the original would be called: arguments are pushed
+--- a/runtime/runtime.h
++++ b/runtime/runtime.h
+@@ -5,8 +5,8 @@
+ #include <ctype.h>
+ #include <setjmp.h>
+ 
+-extern jmp_buf *g_trap_jmp;
+-extern char g_trap_msg[256];
++extern __thread jmp_buf *g_trap_jmp;
++extern __thread char g_trap_msg[256];
+ 
+ /* Guest address-space layout (the image normally sits at 0x00400000 and up). */
+ #define GUEST_TIB              0x00010000u
+@@ -33,6 +33,20 @@
+ typedef struct { uint32_t image_base, entry, num_imports; } LoadedImage;
+ /* Filled by load_image: the executable sections (code) and the writable sections (the game's global data,
+    hashed by the determinism checks). */
++#ifdef MOVIES_GUEST_THREADS
++/* Generated SIMD/REP fast paths and native bounded memory copies use HP()
++ * directly. Serialize guest-facing copies with scalar accesses and LOCK groups.
++ * Host-only copies avoid the guest lock. Blocking I/O is deliberately not held
++ * under this lock; those buffers remain governed by the Windows caller contract. */
++static inline int guest_host_pointer(const void *p) {uintptr_t v=(uintptr_t)p,b=(uintptr_t)g_mem;return g_mem&&v>=b&&v-b<GUEST_SPACE;}
++static inline void *movies_guest_memcpy(void *d,const void *s,size_t n){int lock=guest_host_pointer(d)||guest_host_pointer(s);if(lock)guest_lock();void*r=__builtin_memcpy(d,s,n);if(lock)guest_unlock();return r;}
++static inline void *movies_guest_memmove(void *d,const void *s,size_t n){int lock=guest_host_pointer(d)||guest_host_pointer(s);if(lock)guest_lock();void*r=__builtin_memmove(d,s,n);if(lock)guest_unlock();return r;}
++static inline void *movies_guest_memset(void *d,int value,size_t n){int lock=guest_host_pointer(d);if(lock)guest_lock();void*r=__builtin_memset(d,value,n);if(lock)guest_unlock();return r;}
++#define memcpy movies_guest_memcpy
++#define memmove movies_guest_memmove
++#define memset movies_guest_memset
++#endif
++
+ extern uint32_t g_code_lo, g_code_hi, g_data_lo, g_data_hi;
+ static inline int looks_like_code(uint32_t v) { return v >= g_code_lo && v < g_code_hi; }
+ 
+@@ -54,7 +68,7 @@
+ void interp_call(CPU *c, uint32_t eip);   /* return address already pushed */
+ 
+ typedef struct { uint32_t addr; uint32_t regs[8]; double st0; uint32_t top; } TraceRec;
+-extern TraceRec *g_trace;          /* set by a test harness to record every instruction */
+-extern uint32_t g_trace_len, g_trace_cap;
++extern __thread TraceRec *g_trace;          /* set by a test harness to record every instruction */
++extern __thread uint32_t g_trace_len, g_trace_cap;
+ 
+ #endif
+--- a/runtime/cpu.h
++++ b/runtime/cpu.h
+@@ -43,12 +43,24 @@
+ 
+ static inline uint8_t *HP(uint32_t a) { return g_mem + a; }
+ 
+-static inline uint8_t R8(uint32_t a) { return g_mem[a]; }
+-static inline uint16_t R16(uint32_t a) { uint16_t v; memcpy(&v, g_mem + a, 2); return v; }
+-static inline uint32_t R32(uint32_t a) { uint32_t v; memcpy(&v, g_mem + a, 4); return v; }
+-static inline uint64_t R64(uint32_t a) { uint64_t v; memcpy(&v, g_mem + a, 8); return v; }
+-static inline float RF32(uint32_t a) { float v; memcpy(&v, g_mem + a, 4); return v; }
+-static inline double RF64(uint32_t a) { double v; memcpy(&v, g_mem + a, 8); return v; }
++/* Correctness-first shared guest mode. One reentrant lock covers ordinary
++ * accesses and whole translated LOCK/XCHG groups. No hardware-atomic claim for
++ * unaligned fields; memcpy under the same lock supports their exact bytes. */
++#ifdef MOVIES_GUEST_THREADS
++static inline void guest_lock(void);
++static inline void guest_unlock(void);
++#define GUEST_READ_BODY(type,n) type v;guest_lock();memcpy(&v,g_mem+a,n);guest_unlock();return v;
++#define GUEST_WRITE_BODY(n) guest_lock();memcpy(g_mem+a,&v,n);guest_unlock();
++#else
++#define GUEST_READ_BODY(type,n) type v;memcpy(&v,g_mem+a,n);return v;
++#define GUEST_WRITE_BODY(n) memcpy(g_mem+a,&v,n);
++#endif
++static inline uint8_t R8(uint32_t a) { GUEST_READ_BODY(uint8_t,1) }
++static inline uint16_t R16(uint32_t a) { GUEST_READ_BODY(uint16_t,2) }
++static inline uint32_t R32(uint32_t a) { GUEST_READ_BODY(uint32_t,4) }
++static inline uint64_t R64(uint32_t a) { GUEST_READ_BODY(uint64_t,8) }
++static inline float RF32(uint32_t a) { GUEST_READ_BODY(float,4) }
++static inline double RF64(uint32_t a) { GUEST_READ_BODY(double,8) }
+ /* PORT_BOUNDS (debug builds for wasm): writes outside the compact guest window would corrupt the host's
+    own memory instead of faulting, so check them. */
+ #ifdef PORT_BOUNDS
+@@ -57,17 +69,24 @@
+ #else
+ #define BCHK(a, n) do { } while (0)
+ #endif
+-static inline void W8(uint32_t a, uint8_t v) { BCHK(a, 1); g_mem[a] = v; }
+-static inline void W16(uint32_t a, uint16_t v) { BCHK(a, 2); memcpy(g_mem + a, &v, 2); }
+-static inline void W32(uint32_t a, uint32_t v) { BCHK(a, 4); memcpy(g_mem + a, &v, 4); }
+-static inline void W64(uint32_t a, uint64_t v) { BCHK(a, 8); memcpy(g_mem + a, &v, 8); }
+-static inline void WF32(uint32_t a, float v) { BCHK(a, 4); memcpy(g_mem + a, &v, 4); }
+-static inline void WF64(uint32_t a, double v) { BCHK(a, 8); memcpy(g_mem + a, &v, 8); }
++static inline void W8(uint32_t a, uint8_t v) { BCHK(a,1); GUEST_WRITE_BODY(1) }
++static inline void W16(uint32_t a, uint16_t v) { BCHK(a,2); GUEST_WRITE_BODY(2) }
++static inline void W32(uint32_t a, uint32_t v) { BCHK(a,4); GUEST_WRITE_BODY(4) }
++static inline void W64(uint32_t a, uint64_t v) { BCHK(a,8); GUEST_WRITE_BODY(8) }
++static inline void WF32(uint32_t a, float v) { BCHK(a,4); GUEST_WRITE_BODY(4) }
++static inline void WF64(uint32_t a, double v) { BCHK(a,8); GUEST_WRITE_BODY(8) }
+ 
+ /* Global lock for x86 atomic instructions (lock prefix, xchg with memory) and the Interlocked* imports. */
+ extern volatile uint8_t g_guest_lock;
+-static inline void guest_lock(void) { while (__atomic_test_and_set(&g_guest_lock, __ATOMIC_ACQUIRE)) { } }
+-static inline void guest_unlock(void) { __atomic_clear(&g_guest_lock, __ATOMIC_RELEASE); }
++#ifdef MOVIES_GUEST_THREADS
++extern __thread unsigned g_guest_lock_depth;
++static inline void guest_lock(void) {if(g_guest_lock_depth++==0)while(__atomic_test_and_set(&g_guest_lock,__ATOMIC_ACQUIRE)) { }}
++static inline void guest_unlock(void) {if(--g_guest_lock_depth==0)__atomic_clear(&g_guest_lock,__ATOMIC_RELEASE);}
++#else
++static inline void guest_lock(void) {while(__atomic_test_and_set(&g_guest_lock,__ATOMIC_ACQUIRE)) { }}
++static inline void guest_unlock(void) {__atomic_clear(&g_guest_lock,__ATOMIC_RELEASE);}
++#endif
++
+ 
+ static inline void PUSH32(CPU *c, uint32_t v) { c->esp -= 4; W32(c->esp, v); }
+ static inline uint32_t POP32(CPU *c) { uint32_t v = R32(c->esp); c->esp += 4; return v; }

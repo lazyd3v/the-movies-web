@@ -1,0 +1,6 @@
+public/game/
+public/runtime/
+.cache/
+__pycache__/
+.DS_Store
+public/media/

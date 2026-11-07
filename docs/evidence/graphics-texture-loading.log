@@ -1,0 +1,155 @@
+map_desc 7F20F808, box (0, 124, 0)-(128, 128, 1), flags 0x80000800.
+0104:trace:d3d:wined3d_resource_get_sub_resource_desc resource 03ED1008, sub_resource_idx 0, desc 7F20F734.
+0104:trace:d3d:wined3d_texture_get_sub_resource_desc texture 03ED1008, sub_resource_idx 0, desc 7F20F734.
+0104:trace:d3d:wined3d_resource_get_sub_resource_desc resource 03ED1008, sub_resource_idx 0, desc 7F20F694.
+0104:trace:d3d:wined3d_texture_get_sub_resource_desc texture 03ED1008, sub_resource_idx 0, desc 7F20F694.
+0104:trace:d3d:texture_resource_sub_resource_map resource 03ED1008, sub_resource_idx 0, map_ptr 7F20F810, box (0, 124, 0)-(128, 128, 1), flags 0x80000800.
+0104:trace:d3d:wined3d_texture_get_sub_resource texture 03ED1008, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_load_location texture 03ED1008, sub_resource_idx 0, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Location WINED3D_LOCATION_SYSMEM is already up to date.
+0104:trace:d3d:wined3d_texture_load_location texture 03ED1008, sub_resource_idx 1, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Location WINED3D_LOCATION_SYSMEM is already up to date.
+0104:trace:d3d:wined3d_texture_load_location texture 03ED1008, sub_resource_idx 2, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Location WINED3D_LOCATION_SYSMEM is already up to date.
+0104:trace:d3d:wined3d_texture_load_location texture 03ED1008, sub_resource_idx 3, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Location WINED3D_LOCATION_SYSMEM is already up to date.
+0104:trace:d3d:texture_resource_sub_resource_map Base memory pointer 03EEAB90.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_format_calculate_pitch Returning row pitch 256, slice pitch 8192.
+0104:trace:d3d:texture_resource_sub_resource_map Returning memory 03EECA90.
+0104:trace:d3d:wined3d_format_calculate_pitch Returning row pitch 256, slice pitch 8192.
+0104:trace:d3d:wined3d_texture_get_sub_resource_desc texture 03EC7620, sub_resource_idx 0, desc 7F20F71C.
+0104:trace:d3d:wined3d_texture_get_resource texture 03EC7620.
+0104:trace:d3d:wined3d_resource_map resource 03EC7620, sub_resource_idx 0, map_desc 7F20F708, box (null), flags 0xc0000800.
+0104:trace:d3d:wined3d_device_context_map context 05880020, resource 03EC7620, sub_resource_idx 0, map_desc 7F20F708, box (null), flags 0xc0000800.
+0104:trace:d3d:wined3d_resource_get_sub_resource_desc resource 03EC7620, sub_resource_idx 0, desc 7F20F634.
+0104:trace:d3d:wined3d_texture_get_sub_resource_desc texture 03EC7620, sub_resource_idx 0, desc 7F20F634.
+0104:trace:d3d:texture_resource_sub_resource_map resource 03EC7620, sub_resource_idx 0, map_ptr 7F20F710, box (0, 0, 0)-(8, 8, 1), flags 0xc0000800.
+0104:trace:d3d:wined3d_texture_get_sub_resource texture 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_load_location texture 03EC7620, sub_resource_idx 0, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Location WINED3D_LOCATION_SYSMEM is already up to date.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7620, sub_resource_idx 0, location ~(WINED3D_LOCATION_SYSMEM).
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:texture_resource_sub_resource_map Base memory pointer 7FC7C9A0.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_format_calculate_pitch Returning row pitch 32, slice pitch 256.
+0104:trace:d3d:texture_resource_sub_resource_map Returning memory 7FC7C9A0.
+0104:trace:d3d:wined3d_format_calculate_pitch Returning row pitch 32, slice pitch 256.
+0104:trace:d3d:wined3d_texture_get_resource texture 03EC7620.
+0104:trace:d3d:wined3d_resource_unmap resource 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_device_context_unmap context 05880020, resource 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:texture_resource_sub_resource_unmap resource 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_texture_get_sub_resource texture 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_get_resource texture 03ED1008.
+0104:trace:d3d:wined3d_resource_unmap resource 03ED1008, sub_resource_idx 0.
+0104:trace:d3d:wined3d_device_context_unmap context 05880020, resource 03ED1008, sub_resource_idx 0.
+0104:trace:d3d:texture_resource_sub_resource_unmap resource 03ED1008, sub_resource_idx 0.
+0104:trace:d3d:wined3d_texture_get_sub_resource texture 03ED1008, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_get_sub_resource_parent texture 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_texture_get_resource texture 03EC7620.
+0104:trace:d3d:wined3d_resource_map resource 03EC7620, sub_resource_idx 0, map_desc 7F20F984, box (null), flags 0xc0000800.
+0104:trace:d3d:wined3d_device_context_map context 05880020, resource 03EC7620, sub_resource_idx 0, map_desc 7F20F984, box (null), flags 0xc0000800.
+0104:trace:d3d:wined3d_resource_get_sub_resource_desc resource 03EC7620, sub_resource_idx 0, desc 7F20F8B0.
+0104:trace:d3d:wined3d_texture_get_sub_resource_desc texture 03EC7620, sub_resource_idx 0, desc 7F20F8B0.
+0104:trace:d3d:texture_resource_sub_resource_map resource 03EC7620, sub_resource_idx 0, map_ptr 7F20F98C, box (0, 0, 0)-(8, 8, 1), flags 0xc0000800.
+0104:trace:d3d:wined3d_texture_get_sub_resource texture 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_load_location texture 03EC7620, sub_resource_idx 0, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Location WINED3D_LOCATION_SYSMEM is already up to date.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7620, sub_resource_idx 0, location ~(WINED3D_LOCATION_SYSMEM).
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:texture_resource_sub_resource_map Base memory pointer 7FC7C9A0.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_format_calculate_pitch Returning row pitch 32, slice pitch 256.
+0104:trace:d3d:texture_resource_sub_resource_map Returning memory 7FC7C9A0.
+0104:trace:d3d:wined3d_format_calculate_pitch Returning row pitch 32, slice pitch 256.
+0104:trace:d3d:wined3d_texture_get_sub_resource_parent texture 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_texture_get_resource texture 03EC7620.
+0104:trace:d3d:wined3d_resource_unmap resource 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_device_context_unmap context 05880020, resource 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:texture_resource_sub_resource_unmap resource 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_texture_get_sub_resource texture 03EC7620, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_decref texture 03EC7830, swapchain 00000000.
+0104:trace:d3d:wined3d_texture_decref 03EC7830 decreasing refcount to 0.
+0104:trace:d3d:adapter_gl_destroy_texture texture_gl 03EC7830.
+0104:trace:d3d:wined3d_device_incref 7FD183C0 increasing refcount to 2.
+0104:trace:d3d:wined3d_texture_decref texture 03EC7620, swapchain 00000000.
+0104:trace:d3d:wined3d_texture_decref 03EC7620 decreasing refcount to 0.
+0104:trace:d3d:adapter_gl_destroy_texture texture_gl 03EC7620.
+0104:trace:d3d:wined3d_device_incref 7FD183C0 increasing refcount to 3.
+0104:trace:d3d:wined3d_texture_sub_resources_destroyed sub-resource 0.
+0104:trace:d3d:wined3d_texture_destroy_object texture 03EC7620.
+0104:trace:d3d:wined3d_texture_validate_location texture 03EC7620, sub_resource_idx 0, location WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:wined3d_texture_validate_location New locations flags are WINED3D_LOCATION_DISCARDED | WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7620, sub_resource_idx 0, location ~(WINED3D_LOCATION_DISCARDED).
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:texture_resource_unload resource 03EC7620.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_load_location texture 03EC7620, sub_resource_idx 0, context 7FD0BCF0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_load_location Current resource location WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:wined3d_texture_load_location Sub-resource previously discarded, nothing to do.
+0104:trace:d3d:wined3d_texture_validate_location texture 03EC7620, sub_resource_idx 0, location WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_validate_location New locations flags are WINED3D_LOCATION_DISCARDED | WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7620, sub_resource_idx 0, location WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7620, sub_resource_idx 0, location ~(WINED3D_LOCATION_SYSMEM).
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7620, context 7FD0BCF0, location WINED3D_LOCATION_BUFFER.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7620, context 7FD0BCF0, location WINED3D_LOCATION_TEXTURE_RGB.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7620, context 7FD0BCF0, location WINED3D_LOCATION_TEXTURE_SRGB.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7620, context 7FD0BCF0, location WINED3D_LOCATION_RB_MULTISAMPLE.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7620, context 7FD0BCF0, location WINED3D_LOCATION_RB_RESOLVED.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7620, sub_resource_idx 0, location WINED3D_LOCATION_TEXTURE_RGB | WINED3D_LOCATION_TEXTURE_SRGB.
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_SYSMEM.
+0104:trace:d3d:resource_cleanup Cleaning up resource 03EC7620.
+0104:trace:d3d:device_resource_released device 7FD183C0, resource 03EC7620, type WINED3D_RTYPE_TEXTURE_2D.
+0104:trace:d3d:device_resource_remove device 7FD183C0, resource 03EC7620.
+0104:trace:d3d:device_resource_released Resource released.
+0104:trace:d3d:wined3d_resource_destroy_object resource 03EC7620.
+0104:trace:d3d:wined3d_device_decref 7FD183C0 decreasing refcount to 2.
+0104:trace:d3d:wined3d_texture_destroy_object texture 03EC7830.
+0104:trace:d3d:texture_resource_unload resource 03EC7830.
+0104:trace:d3d:wined3d_context_gl_acquire device 7FD183C0, texture 00000000, sub_resource_idx 0.
+0104:trace:d3d:wined3d_context_gl_enter Entering context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_validate_location texture 03EC7830, sub_resource_idx 0, location WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:wined3d_texture_validate_location New locations flags are WINED3D_LOCATION_DISCARDED | WINED3D_LOCATION_CLEARED.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7830, sub_resource_idx 0, location ~(WINED3D_LOCATION_DISCARDED).
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7830, context 7FD0BCF0, location WINED3D_LOCATION_BUFFER.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7830, context 7FD0BCF0, location WINED3D_LOCATION_TEXTURE_RGB.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7830, context 7FD0BCF0, location WINED3D_LOCATION_TEXTURE_SRGB.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7830, context 7FD0BCF0, location WINED3D_LOCATION_RB_MULTISAMPLE.
+0104:trace:d3d:wined3d_texture_gl_unload_location texture 03EC7830, context 7FD0BCF0, location WINED3D_LOCATION_RB_RESOLVED.
+0104:trace:d3d:wined3d_context_gl_release Releasing context 7FD0BCF0, level 1.
+0104:trace:d3d:wined3d_texture_invalidate_location texture 03EC7830, sub_resource_idx 0, location WINED3D_LOCATION_TEXTURE_RGB | WINED3D_LOCATION_TEXTURE_SRGB.
+0104:trace:d3d:wined3d_texture_invalidate_location New locations flags are WINED3D_LOCATION_DISCARDED.
+0104:trace:d3d:resource_cleanup Cleaning up resource 03EC7830.
+0104:trace:d3d:resource_cleanup Decrementing device memory pool by 256.
+0104:trace:d3d:adapter_adjust_memory Adjusted used adapter memory by 0xffffffffffffff00 to 0x2d72e90.
+0104:trace:d3d:device_resource_released device 7FD183C0, resource 03EC7830, type WINED3D_RTYPE_TEXTURE_2D.
+0104:trace:d3d:device_resource_remove device 7FD183C0, resource 03EC7830.
+0104:trace:d3d:device_resource_released Resource released.
+0104:trace:d3d:wined3d_resource_destroy_object resource 03EC7830.
+0104:trace:d3d:wined3d_device_decref 7FD183C0 decreasing refcount to 1.

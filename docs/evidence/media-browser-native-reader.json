@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "pcmBytes": 1900544,
+  "pcmFNV1a": 2572747834,
+  "rangeBytes": 88200,
+  "originalIStreamReadCalls": 2,
+  "label": "Native IStream/IWMSyncReader fixture, not game playback",
+  "sourceBytes": 97317,
+  "sourceSha256": "c222252cc5d39ed7844a2fb95fab951ef88c99c63b23845d7211030f3a2200c7",
+  "logs": [
+    "[media-com] CoInitialize hr=00000000 arg0=00000000"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "flags": [
+    "-O1",
+    "-frounding-math",
+    "-ffp-contract=off",
+    "-fno-strict-aliasing",
+    "-fwrapv",
+    "-pthread",
+    "-DMOVIES_GUEST_THREADS=1"
+  ],
+  "scope": "Isolated accessor attribute change only; no published changes",
+  "variants": {
+    "baseline": {
+      "wasmBytes": 46599,
+      "runs": [
+        {
+          "scalarSeconds": 0.120504379,
+          "contendedSeconds": 0.356603384,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.120501518,
+          "contendedSeconds": 0.404985428,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.120482922,
+          "contendedSeconds": 0.350150824,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.120465755,
+          "contendedSeconds": 0.371170282,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.120848894,
+          "contendedSeconds": 0.300494671,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        }
+      ],
+      "medianScalarSeconds": 0.120501518,
+      "medianContendedSeconds": 0.356603384
+    },
+    "candidate": {
+      "wasmBytes": 48561,
+      "runs": [
+        {
+          "scalarSeconds": 0.679925919,
+          "contendedSeconds": 0.335337877,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.674167871,
+          "contendedSeconds": 0.346786737,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.675158262,
+          "contendedSeconds": 0.342781782,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.675632,
+          "contendedSeconds": 0.358516455,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        },
+        {
+          "scalarSeconds": 0.674860716,
+          "contendedSeconds": 0.285499334,
+          "checksum": 8000508000000,
+          "increments": 2000000
+        }
+      ],
+      "medianScalarSeconds": 0.675158262,
+      "medianContendedSeconds": 0.342781782
+    }
+  },
+  "unit200": {
+    "candidateCompileSeconds": 35.8662290420034,
+    "candidateObjectBytes": 3632235,
+    "baselineObjectBytes": 4551771,
+    "baselineCompileSeconds": 39.402821707997646,
+    "baselineTimingNote": "Earlier isolated local-SIMD study, not simultaneous controlled timing",
+    "sourceSha256": "71c8dac91b19a20269437e0787a7ad0e6bc10f979459f6b5320983ec127b312a"
+  }
+}

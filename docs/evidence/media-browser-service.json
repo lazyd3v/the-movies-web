@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "finished": true,
+  "outputBytes": 45591,
+  "container": "asf",
+  "videoCodec": "wmv2",
+  "audioCodec": "wmav2",
+  "requestedSeconds": 1,
+  "note": "Real synchronous SAB service requests from fixture worker; no bootstrap callbacks installed.",
+  "sha256": "b0afae751c3a2da0b3e2d454f560ae6dd28054d9460711c6553870c43a4feb56",
+  "matchesLocalWasm": true,
+  "readChunks": 12,
+  "missingCodecRejected": true,
+  "wmv3ProfileRejected": true,
+  "duplicateReleaseRejected": true,
+  "totalMilliseconds": 307.7449999973178
+}

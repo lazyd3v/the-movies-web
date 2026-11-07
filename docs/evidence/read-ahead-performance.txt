@@ -1,0 +1,4 @@
+Game archive: 422 requests · 105.3 MiB read · 2,767 cache hits · 31.8 MiB cached
+Browser refresh 120.0 Hz (not game FPS) · visible · last frame 5 ms ago · elapsed 152.0 s
+JIT {"translated":44467,"pending":755,"failures":0,"oomBlocks":0,"groupCompiles":5765,"groupHits":1502,"localCompiles":789,"brokerHits":183,"workers":"9/56","missingReplies":47} · Wasm heap 1287.7 MiB
+Browser GPU: Google Inc. (Apple) · ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)

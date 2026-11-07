@@ -1,0 +1,19 @@
+{
+  "scope": "Original animated Lionhead intro only; not menu/studio gameplay",
+  "wasmSha256": "df1a327a2282d73e86734426d9fea19ca00adad946e91cebfd49c931892d4793",
+  "originalExeSha256": "48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a",
+  "apiHandlers": 173,
+  "presentedFrames": 1291,
+  "observedPresentationInterval": {
+    "frameCount": 485,
+    "framesPerSecond": 20.0,
+    "source": "Visible DOM frame-stats text; single interval, not full-run average"
+  },
+  "stop": {
+    "api": "WINMM.DLL!timeGetTime",
+    "caller": "00c8b92d"
+  },
+  "executionMillisecondsExcludingDialog": 102302.4,
+  "originalGameBytesModified": false,
+  "wineUsed": false
+}
