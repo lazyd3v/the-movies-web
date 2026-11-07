@@ -3,8 +3,13 @@ let control,payload,assetBase,warm=null,initialized=false,totalInput=0,nextToken
 const MAX_INPUT=32*1024*1024,MAX_TOTAL=64*1024*1024;
 function signal(d){for(const wake of d.waiters)wake();}
 function waitFor(d,predicate,timeout=60000){return new Promise((resolve,reject)=>{let timer;const check=()=>{if(d.error){cleanup();reject(Error(d.error));}else if(predicate()){cleanup();resolve();}};function cleanup(){clearTimeout(timer);d.waiters.delete(check);}d.waiters.add(check);timer=setTimeout(()=>{cleanup();reject(Error('Reader decoder deadline'));},timeout);check();});}
+/* Some embedded Chromium builds reject URL-backed workers created inside a worker
+ * (error event with no message) while blob-backed nested workers load. A blob
+ * bootstrap that imports the same-origin decoder by absolute URL works in both. */
+const DECODER_BASE=new URL('./',location.href).href;
+const DECODER_BOOT=URL.createObjectURL(new Blob([`self.MOVIES_DECODER_BASE=${JSON.stringify(DECODER_BASE)};importScripts(${JSON.stringify(new URL('media-reader-decoder.js',DECODER_BASE).href)});`],{type:'text/javascript'}));
 function spawn(){
- const d={worker:new Worker('media-reader-decoder.js'),waiters:new Set(),ready:false,metadata:null,pending:null,eos:false,error:null,control:new Int32Array(new SharedArrayBuffer(4)),slot:new Uint8Array(new SharedArrayBuffer(8192))};
+ const d={worker:new Worker(DECODER_BOOT),waiters:new Set(),ready:false,metadata:null,pending:null,eos:false,error:null,control:new Int32Array(new SharedArrayBuffer(4)),slot:new Uint8Array(new SharedArrayBuffer(8192))};
  d.worker.onmessage=({data})=>{if(d.closed)return;if(data.type==='ready')d.ready=true;else if(data.type==='opened')d.metadata=data.metadata;else if(data.type==='sample'){if(d.pending)d.error='PCM queue overflow';else d.pending={length:data.length,timing:data.timing,offset:0};}else if(data.type==='eos'){d.eos=true;d.stats=data.stats;d.wasmHeapBytes=data.wasmHeapBytes;}else if(data.type==='error')d.error=data.error;signal(d);};
  d.worker.onerror=e=>{d.error=e.message||'Decoder worker error';signal(d);};d.worker.postMessage({op:'initialize',assetBase});return d;
 }

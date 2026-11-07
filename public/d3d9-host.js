@@ -45,19 +45,23 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
       sync('dispose', {}); device = null; closed = true;
       return true;
     }
-    if (!['clear', 'present', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'drawIndexed', 'release'].includes(command)) throw new Error(`Unsupported D3D bridge command ${command}`);
+    if (!['clear', 'present', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'createRenderTarget', 'setRenderTarget', 'readRenderTarget', 'writeRenderTarget', 'drawIndexed', 'release'].includes(command)) throw new Error(`Unsupported D3D bridge command ${command}`);
     validateCommand(command, args);
     if (command === 'uploadVertices' && !['XYZ_DIFFUSE', 'XYZ_DIFFUSE_UV', 'XYZRHW_DIFFUSE_UV'].includes(args.format)) throw new Error('Native vertex format unsupported');
     if (command.startsWith('upload') && args.bytes.byteLength > maxBufferBytes) throw new RangeError('Upload exceeds implemented device limit');
-    if (command === 'uploadTextureRGBA' && (args.width > capabilities.maxTextureDimension || args.height > capabilities.maxTextureDimension)) throw new RangeError('Texture exceeds actual device limit');
+    if ((command === 'uploadTextureRGBA' || command === 'createRenderTarget') && (args.width > capabilities.maxTextureDimension || args.height > capabilities.maxTextureDimension)) throw new RangeError('Texture exceeds actual device limit');
+    if (command === 'setRenderTarget' && args.texture !== null && handles.get(args.texture) !== 'createRenderTarget') throw new Error('Render target does not belong to this device');
+    if ((command === 'readRenderTarget' || command === 'writeRenderTarget') && handles.get(args.texture) !== 'createRenderTarget') throw new Error('Render target does not belong to this device');
+    if (command === 'writeRenderTarget' && args.bytes.byteLength > maxBufferBytes) throw new RangeError('Upload exceeds implemented device limit');
     if (command === 'release' && !handles.has(args.handle)) throw new Error('Resource does not belong to this device');
-    if (command === 'drawIndexed' && (handles.get(args.vertices) !== 'uploadVertices' || handles.get(args.indices) !== 'uploadIndices' || (args.texture != null && handles.get(args.texture) !== 'uploadTextureRGBA'))) throw new Error('Invalid native draw resources');
+    if (command === 'drawIndexed' && (handles.get(args.vertices) !== 'uploadVertices' || handles.get(args.indices) !== 'uploadIndices' || (args.texture != null && !['uploadTextureRGBA', 'createRenderTarget'].includes(handles.get(args.texture))))) throw new Error('Invalid native draw resources');
     const result = sync(command, args);
-    if (command.startsWith('upload')) {
+    if (command.startsWith('upload') || command === 'createRenderTarget') {
       if (!Number.isInteger(result) || result < 1 || result > 0x7fffffff || handles.has(result)) throw new Error('Invalid GPU resource handle');
       handles.set(result, command);
     }
     if (command === 'release') handles.delete(args.handle);
+    if (command === 'setRenderTarget' && !(Number.isInteger(result?.width) && Number.isInteger(result?.height))) throw new Error('Render target switch was not acknowledged');
     if (command === 'present' && (result?.acknowledged !== true || !Number.isInteger(result.serial) || result.serial < 1)) throw new Error('GPU presentation was not acknowledged');
     return result;
   }

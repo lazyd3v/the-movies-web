@@ -4,7 +4,7 @@ import {samplerDescriptor, validateAlphaTest, validateScissor} from './d3d9-gpu.
  * through Atomics: payload/header fields are written before nonzero STATUS. */
 export const GRAPHICS_LIMITS = Object.freeze({headerBytes: 64, maxResponseBytes: 64 * 1024 * 1024, maxUploadBytes: 32 * 1024 * 1024, maxBatchCommands: 32, maxDimension: 4096, maxTimeoutMs: 60000});
 export const HEADER = Object.freeze({status: 0, serial: 1, kind: 2, length: 3, width: 4, height: 5, transportFailure: 6});
-export const COMMANDS = new Set(['setRenderTargetFormat', 'clear', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'drawIndexed', 'release', 'readPixels', 'present', 'validate', 'batch', 'dispose']);
+export const COMMANDS = new Set(['setRenderTargetFormat', 'createRenderTarget', 'setRenderTarget', 'readRenderTarget', 'writeRenderTarget', 'clear', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'drawIndexed', 'release', 'readPixels', 'present', 'validate', 'batch', 'dispose']);
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 function fields(value, allowed) { if (!object(value) || Object.keys(value).some(k => !allowed.includes(k))) throw new TypeError('Invalid graphics command fields'); }
 function integer(value, min, max, name) { if (!Number.isSafeInteger(value) || value < min || value > max) throw new RangeError(`Invalid ${name}`); }
@@ -19,7 +19,7 @@ export function validateCommand(command, args = {}, inBatch = false) {
     integer(args.commands.length, 1, GRAPHICS_LIMITS.maxBatchCommands, 'batch size');
     for (const entry of args.commands) {
       fields(entry, ['command', 'args']);
-      if (['init', 'dispose', 'present', 'readPixels', 'validate'].includes(entry.command)) throw new Error(`Command ${entry.command} not allowed in batch`);
+      if (['init', 'dispose', 'present', 'readPixels', 'readRenderTarget', 'validate'].includes(entry.command)) throw new Error(`Command ${entry.command} not allowed in batch`);
       uploadBytes += validateCommand(entry.command, entry.args ?? {}, true);
     }
   } else if (command.startsWith('upload')) {
@@ -56,10 +56,22 @@ export function validateCommand(command, args = {}, inBatch = false) {
       fields(args.viewport, ['x', 'y', 'width', 'height', 'minDepth', 'maxDepth']);
       for (const key of ['x', 'y', 'width', 'height']) if (!Number.isFinite(args.viewport[key])) throw new TypeError('Invalid viewport');
     }
+  } else if (command === 'createRenderTarget') {
+    fields(args, ['width', 'height']); integer(args.width, 1, GRAPHICS_LIMITS.maxDimension, 'render target width'); integer(args.height, 1, GRAPHICS_LIMITS.maxDimension, 'render target height');
+  } else if (command === 'readRenderTarget') {
+    fields(args, ['texture']); integer(args.texture, 1, 0x7fffffff, 'render target texture');
+  } else if (command === 'writeRenderTarget') {
+    fields(args, ['texture', 'width', 'height', 'bytes']); integer(args.texture, 1, 0x7fffffff, 'render target texture');
+    integer(args.width, 1, GRAPHICS_LIMITS.maxDimension, 'render target width'); integer(args.height, 1, GRAPHICS_LIMITS.maxDimension, 'render target height');
+    if (!(args.bytes instanceof ArrayBuffer)) throw new TypeError('Upload requires owned ArrayBuffer');
+    uploadBytes = args.bytes.byteLength; if (uploadBytes !== args.width * args.height * 4) throw new RangeError('Render target bytes do not match dimensions');
+  } else if (command === 'setRenderTarget') {
+    fields(args, ['texture']); if (args.texture !== null) integer(args.texture, 1, 0x7fffffff, 'render target texture');
   } else if (command === 'setRenderTargetFormat') {
     fields(args, ['format']); if (![22,25].includes(args.format)) throw new RangeError('Unsupported logical target format');
   } else if (command === 'clear') {
-    fields(args, ['color', 'depth', 'scissor']);
+    fields(args, ['color', 'depth', 'scissor', 'zbuffer']);
+    if (args.zbuffer !== undefined && typeof args.zbuffer !== 'boolean') throw new TypeError('Invalid clear zbuffer flag');
     if(args.scissor!==undefined)validateScissor(args.scissor,GRAPHICS_LIMITS.maxDimension,GRAPHICS_LIMITS.maxDimension);
     if (args.color !== undefined) integer(args.color, 0, 0xffffffff, 'clear color');
     if (args.depth !== undefined && (!Number.isFinite(args.depth) || args.depth < 0 || args.depth > 1)) throw new RangeError('Invalid clear depth');

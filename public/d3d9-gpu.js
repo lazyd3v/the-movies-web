@@ -114,8 +114,8 @@ struct VertexOutput { @builtin(position) position: vec4<f32>, @location(0) ${rhw
 }`;
 }
 export class MoviesD3D9GPU {
-  #logicalFormat = 22; #device; #context; #canvas; #color; #alternate; #resolvePipeline; #clearPipeline; #clearUniform; #clearBinding; #resolveBindings = new Map(); #depth; #matrices; #pipelines = new PipelineCache(64,key=>{for(const r of this.#resources.values())if(r.bindGroups)for(const binding of r.bindGroups.keys())if(binding.startsWith(key+'/'))r.bindGroups.delete(binding);});
-  #resources = new Map(); #nextResource = 1; #fatal = null; #disposed = false; #serial = 0; #depthInitialized = false; #colorInitialized = false;
+  #logicalFormat = 22; #device; #context; #canvas; #color; #alternate; #resolvePipeline; #clearPipeline; #clearColorPipeline; #clearColorBinding; #clearUniform; #clearBinding; #resolveBindings = new Map(); #depth; #matrices; #pipelines = new PipelineCache(64,key=>{for(const r of this.#resources.values())if(r.bindGroups)for(const binding of r.bindGroups.keys())if(binding.startsWith(key+'/'))r.bindGroups.delete(binding);});
+  #resources = new Map(); #backbuffer; #active; #nextResource = 1; #fatal = null; #disposed = false; #serial = 0; #depthInitialized = false; #colorInitialized = false;
   static async create({canvas, width = 256, height = 256, gpu = globalThis.navigator?.gpu} = {}) {
     if (!gpu || !canvas?.getContext || !canvas.transferToImageBitmap) throw new GraphicsUnsupportedError('Worker WebGPU and OffscreenCanvas required');
     checkedInteger(width, 1, 16384, 'width'); checkedInteger(height, 1, 16384, 'height');
@@ -152,6 +152,7 @@ export class MoviesD3D9GPU {
       const depth = device.createTexture({label: 'D3D9 depth16 probe', size: [width, height], format: 'depth16unorm', usage: GPUTextureUsage.RENDER_ATTACHMENT});
       const depthError = await device.popErrorScope();
       if (depthError) depth.destroy(); else backend.#depth = depth;
+      backend.#backbuffer = backend.#active = {width, height, backbuffer: true};
       backend.#clearUniform=device.createBuffer({size:32,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
       const clearModule=device.createShaderModule({code:`
 struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> value:Clear;
@@ -160,6 +161,12 @@ struct Result {@location(0) color:vec4<f32>,${backend.#depth?'@builtin(frag_dept
 @fragment fn fs()->Result {var result:Result;result.color=value.color;${backend.#depth?'result.depth=value.depth;':''}return result;}`});
       backend.#clearPipeline=await device.createRenderPipelineAsync({layout:'auto',vertex:{module:clearModule,entryPoint:'vs'},fragment:{module:clearModule,entryPoint:'fs',targets:[{format}]},primitive:{topology:'triangle-list'},...(backend.#depth?{depthStencil:{format:'depth16unorm',depthWriteEnabled:true,depthCompare:'always'}}:{})});
       backend.#clearBinding=device.createBindGroup({layout:backend.#clearPipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:backend.#clearUniform}}]});
+      const clearColorModule=device.createShaderModule({code:`
+struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> value:Clear;
+@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4<f32>{let x=f32((i<<1u)&2u);let y=f32(i&2u);return vec4<f32>(x*2.0-1.0,1.0-y*2.0,0.0,1.0);}
+@fragment fn fs()->@location(0) vec4<f32>{return value.color;}`});
+      backend.#clearColorPipeline=await device.createRenderPipelineAsync({layout:'auto',vertex:{module:clearColorModule,entryPoint:'vs'},fragment:{module:clearColorModule,entryPoint:'fs',targets:[{format}]},primitive:{topology:'triangle-list'}});
+      backend.#clearColorBinding=device.createBindGroup({layout:backend.#clearColorPipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:backend.#clearUniform}}]});
       backend.#matrices = device.createBuffer({size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST});
       const info = adapter.info;
       backend.capabilities = Object.freeze({schemaVersion: 1, backend: 'WebGPU', width, height, colorFormat: format,
@@ -218,15 +225,77 @@ struct Result {@location(0) color:vec4<f32>,${backend.#depth?'@builtin(frag_dept
     this.#device.queue.writeTexture({texture}, bytes, {bytesPerRow: width * 4, rowsPerImage: height}, [width, height]);
     return this.#store('texture', {texture, bindGroups: new Map()});
   }
+  /* D3D9 render-target textures (D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT): a GPU
+   * color target in the presentation format that is also sampleable. Depth is
+   * per-target because WebGPU attachments must match in size, whereas D3D9 shares
+   * one larger depth surface; contents of the shared depth across targets are not
+   * modelled. Initial color is zero (D3D9 leaves it undefined); depth must be
+   * cleared before depth-tested draws. */
+  createRenderTarget(width, height) {
+    this.#check(); const max = this.capabilities.limits.maxTextureDimension2D;
+    checkedInteger(width, 1, max, 'render target width'); checkedInteger(height, 1, max, 'render target height');
+    const texture = this.#device.createTexture({label: `D3D9 render target ${width}x${height}`, size: [width, height], format: this.capabilities.colorFormat,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST});
+    const depth = this.#depthFor(this.#backbuffer) ? this.#device.createTexture({label: `D3D9 render target depth ${width}x${height}`, size: [width, height], format: 'depth16unorm', usage: GPUTextureUsage.RENDER_ATTACHMENT}) : null;
+    const target = {width, height, color: texture, alternate: null, depth, colorInitialized: true, depthInitialized: false, logicalFormat: 22};
+    return this.#store('texture', {texture, bindGroups: new Map(), target});
+  }
+  #renderTarget(handle) { const r = this.#resource(handle, 'texture'); if (!r.target) throw new GraphicsUnsupportedError('Texture is not a render target'); return r; }
+  /* GetRenderTargetData: whole render-target texture as RGBA8 rows. */
+  async readRenderTarget(handle) {
+    const r = this.#renderTarget(handle), {width, height} = r.target, stride = Math.ceil(width * 4 / 256) * 256;
+    const buffer = this.#device.createBuffer({size: stride * height, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
+    try {
+      const encoder = this.#device.createCommandEncoder();
+      encoder.copyTextureToBuffer({texture: r.texture}, {buffer, bytesPerRow: stride, rowsPerImage: height}, [width, height]);
+      this.#device.queue.submit([encoder.finish()]); await buffer.mapAsync(GPUMapMode.READ); this.#check();
+      const mapped = new Uint8Array(buffer.getMappedRange()), rgba = new Uint8Array(width * height * 4);
+      for (let y = 0; y < height; y++) rgba.set(mapped.subarray(y * stride, y * stride + width * 4), y * width * 4);
+      if (this.capabilities.colorFormat === 'bgra8unorm') for (let i = 0; i < rgba.length; i += 4) { const red = rgba[i + 2]; rgba[i + 2] = rgba[i]; rgba[i] = red; }
+      buffer.unmap(); return {width, height, rgba};
+    } finally { buffer.destroy(); }
+  }
+  /* UpdateSurface (SYSTEMMEM -> render target): whole-texture RGBA8 replacement. */
+  writeRenderTarget(handle, width, height, input) {
+    const r = this.#renderTarget(handle);
+    if (width !== r.target.width || height !== r.target.height) throw new RangeError('Render target write must cover the whole texture');
+    const source = bytesOf(input); if (source.length !== width * height * 4) throw new RangeError('Render target byte count mismatch');
+    let bytes = source;
+    if (this.capabilities.colorFormat === 'bgra8unorm') { bytes = new Uint8Array(source); for (let i = 0; i < bytes.length; i += 4) { const red = bytes[i]; bytes[i] = bytes[i + 2]; bytes[i + 2] = red; } }
+    this.#device.queue.writeTexture({texture: r.texture}, bytes, {bytesPerRow: width * 4, rowsPerImage: height}, [width, height]);
+    r.target.colorInitialized = true; if (r.target === this.#active) this.#colorInitialized = true;
+  }
+  #depthFor(record) { return record === this.#active ? this.#depth : record.depth; }
+  #saveTarget() { const t = this.#active; t.color = this.#color; t.alternate = this.#alternate; t.depth = this.#depth; t.colorInitialized = this.#colorInitialized; t.depthInitialized = this.#depthInitialized; t.logicalFormat = this.#logicalFormat; }
+  #loadTarget(t) { this.#active = t; this.#color = t.color; this.#alternate = t.alternate; this.#depth = t.depth; this.#colorInitialized = t.colorInitialized; this.#depthInitialized = t.depthInitialized; this.#logicalFormat = t.logicalFormat; }
+  setRenderTarget(handle = null) {
+    this.#check();
+    const target = handle === null ? this.#backbuffer : this.#resource(handle, 'texture').target;
+    if (!target) throw new GraphicsUnsupportedError('Texture is not a render target');
+    if (target !== this.#active) { this.#saveTarget(); this.#loadTarget(target); }
+    return {width: target.width, height: target.height};
+  }
+  #backbufferState() { if (this.#active !== this.#backbuffer) return this.#backbuffer; this.#saveTarget(); return this.#backbuffer; }
   setRenderTargetFormat(format) {
     this.#check();
     if (![22, 25].includes(format)) throw new GraphicsUnsupportedError(`Unsupported logical target format ${format}`);
+    if (this.#active !== this.#backbuffer) throw new Error('Backbuffer format changes require the backbuffer target');
     this.#logicalFormat = format; this.#colorInitialized = false; this.#depthInitialized = false; return format;
   }
-  clear({color = 0xff000000, depth = 1, scissor = null} = {}) {
+  clear({color = 0xff000000, depth = 1, scissor = null, zbuffer = true} = {}) {
     this.#check(); const source = rgbaFromD3DColor(color), rgba = this.#logicalFormat === 25 ? quantizeA1R5G5B5(source) : source;
     if (!Number.isFinite(depth) || depth < 0 || depth > 1) throw new RangeError('Invalid clear depth');
-    const clip=validateScissor(scissor,this.capabilities.width,this.capabilities.height);
+    if (typeof zbuffer !== 'boolean') throw new TypeError('Clear zbuffer flag must be boolean');
+    const clip=validateScissor(scissor,this.#active.width,this.#active.height);
+    // D3DCLEAR_TARGET alone leaves depth untouched (no depth attachment in the pass).
+    if(!zbuffer||!this.#depth){
+      const values=new Float32Array(8);values.set(rgba);this.#device.queue.writeBuffer(this.#clearUniform,0,values);
+      const encoder=this.#device.createCommandEncoder();
+      const full=!clip||(clip.x===0&&clip.y===0&&clip.width===this.#active.width&&clip.height===this.#active.height);
+      const pass=encoder.beginRenderPass({colorAttachments:[{view:this.#color.createView(),loadOp:full?'clear':(this.#colorInitialized?'load':'clear'),clearValue:full?rgba:[0,0,0,0],storeOp:'store'}]});
+      if(!full){pass.setPipeline(this.#clearColorPipeline);pass.setBindGroup(0,this.#clearColorBinding);pass.setScissorRect(clip.x,clip.y,clip.width,clip.height);pass.draw(3);}
+      pass.end();this.#device.queue.submit([encoder.finish()]);this.#colorInitialized=true;return;
+    }
     if(clip){
       const values=new Float32Array(8);values.set(rgba);values[4]=depth;this.#device.queue.writeBuffer(this.#clearUniform,0,values);
       const encoder=this.#device.createCommandEncoder(),pass=encoder.beginRenderPass({colorAttachments:[{view:this.#color.createView(),loadOp:this.#colorInitialized?'load':'clear',clearValue:[0,0,0,0],storeOp:'store'}],
@@ -250,6 +319,7 @@ struct Result {@location(0) color:vec4<f32>,${backend.#depth?'@builtin(frag_dept
     const rhw=vb.format==='XYZRHW_DIFFUSE_UV',uv=vb.format!=='XYZ_DIFFUSE';
     if (textureEquation!=='diffuse' && uv !== !!texture) throw new GraphicsUnsupportedError('UV format requires exactly one texture; untextured format forbids textures');
     const tex = texture ? this.#resource(texture, 'texture') : null;
+    if (tex?.target && tex.target === this.#active) throw new GraphicsUnsupportedError('Sampling the active render target is undefined in D3D9');
     if(!['modulate','factor-rgb-texture-alpha','diffuse','diffuse-rgb-texture-alpha'].includes(textureEquation)||(textureEquation==='factor-rgb-texture-alpha'&&!tex))throw new GraphicsUnsupportedError('Unsupported texture equation');
     const blendState=resolveBlend({blend,blendMode,blendFactors});
     if(textureEquation==='diffuse'&&tex)throw new GraphicsUnsupportedError('Diffuse equation requires no texture');
@@ -258,7 +328,7 @@ struct Result {@location(0) color:vec4<f32>,${backend.#depth?'@builtin(frag_dept
     indexCount ??= ib.count - firstIndex; validateIndexedRange(vb, ib, firstIndex, indexCount, baseVertex);
     const sampling=samplerDescriptor(sampler);
     const matrices = new Float32Array(64); matrices[48]=sampling.state.lodBias; const alpha=validateAlphaTest(alphaTest);matrices[49]=alpha.enabled?1:0;matrices[50]=alpha.func;matrices[51]=alpha.reference/255; matrices.set(matrixBytes(world)); matrices.set(matrixBytes(view), 16); matrices.set(matrixBytes(projection), 32);
-    const {width, height} = this.capabilities;
+    const {width, height} = this.#active;
     const vp = viewport ?? {x: 0, y: 0, width, height, minDepth: 0, maxDepth: 1};
     const {x, y, width: w, height: h, minDepth = 0, maxDepth = 1} = vp;
     if (![x, y, w, h, minDepth, maxDepth].every(Number.isFinite) || x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > width || y + h > height || minDepth < 0 || maxDepth > 1 || minDepth > maxDepth) throw new RangeError('Invalid viewport');
@@ -299,12 +369,12 @@ struct Result {@location(0) color:vec4<f32>,${backend.#depth?'@builtin(frag_dept
     if(this.#logicalFormat===25)[this.#color,this.#alternate]=[this.#alternate,this.#color];
   }
   async readPixels() {
-    this.#check(); if (!this.#colorInitialized) throw new Error('Readback before clear');
+    this.#check(); const bb = this.#backbufferState(); if (!bb.colorInitialized) throw new Error('Readback before clear');
     const {width, height, colorFormat} = this.capabilities, stride = Math.ceil(width * 4 / 256) * 256;
     const buffer = this.#device.createBuffer({size: stride * height, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
     try {
       const encoder = this.#device.createCommandEncoder();
-      encoder.copyTextureToBuffer({texture: this.#color}, {buffer, bytesPerRow: stride, rowsPerImage: height}, [width, height]);
+      encoder.copyTextureToBuffer({texture: bb.color}, {buffer, bytesPerRow: stride, rowsPerImage: height}, [width, height]);
       this.#device.queue.submit([encoder.finish()]); await buffer.mapAsync(GPUMapMode.READ); this.#check();
       const mapped = new Uint8Array(buffer.getMappedRange()), rgba = new Uint8Array(width * height * 4);
       for (let y = 0; y < height; y++) rgba.set(mapped.subarray(y * stride, y * stride + width * 4), y * width * 4);
@@ -313,19 +383,20 @@ struct Result {@location(0) color:vec4<f32>,${backend.#depth?'@builtin(frag_dept
     } finally { buffer.destroy(); }
   }
   present(onBitmap) {
-    this.#check(); if (!this.#colorInitialized) throw new Error('Present before clear');
+    this.#check(); const bb = this.#backbufferState(); if (!bb.colorInitialized) throw new Error('Present before clear');
     if (typeof onBitmap !== 'function') throw new TypeError('Present requires an explicit ImageBitmap consumer');
     const encoder = this.#device.createCommandEncoder();
-    encoder.copyTextureToTexture({texture: this.#color}, {texture: this.#context.getCurrentTexture()}, [this.capabilities.width, this.capabilities.height]);
+    encoder.copyTextureToTexture({texture: bb.color}, {texture: this.#context.getCurrentTexture()}, [this.capabilities.width, this.capabilities.height]);
     this.#device.queue.submit([encoder.finish()]);
     const bitmap = this.#canvas.transferToImageBitmap(), serial = ++this.#serial;
     try { return onBitmap(bitmap, serial); } catch (error) { bitmap.close(); throw error; }
   }
   async validate() { this.#check(); await this.#device.queue.onSubmittedWorkDone(); await new Promise(resolve => setTimeout(resolve, 0)); this.#check(); }
-  release(handle) { this.#check(); const r = this.#resources.get(handle); if (!r) throw new TypeError('Invalid resource handle'); r.buffer?.destroy(); r.texture?.destroy(); this.#resources.delete(handle); }
+  release(handle) { this.#check(); const r = this.#resources.get(handle); if (!r) throw new TypeError('Invalid resource handle'); if (r.target && r.target === this.#active) throw new Error('Cannot release the active render target'); r.buffer?.destroy(); r.texture?.destroy(); r.target?.depth?.destroy(); this.#resources.delete(handle); }
   dispose() {
     if (this.#disposed) return; this.#disposed = true;
-    for (const resource of this.#resources.values()) { resource.buffer?.destroy(); resource.texture?.destroy(); }
+    if (this.#backbuffer && this.#active !== this.#backbuffer) { this.#saveTarget(); this.#loadTarget(this.#backbuffer); }
+    for (const resource of this.#resources.values()) { resource.buffer?.destroy(); resource.texture?.destroy(); resource.target?.depth?.destroy(); }
     this.#pipelines.clear(); this.#resources.clear(); this.#matrices?.destroy(); this.#clearUniform?.destroy(); this.#color?.destroy(); this.#alternate?.destroy(); this.#resolveBindings.clear(); this.#depth?.destroy(); this.#context?.unconfigure(); this.#device?.destroy();
   }
 }

@@ -31,7 +31,7 @@ typedef struct LightState {uint32_t index,used,enabled;uint32_t words[26];} Ligh
 typedef struct Object {
  uint32_t type,address,refs,internal,parent,format,usage,pool,size,mem,gpu,version,uploaded,offset,upload_size,index_bias;
  uint32_t width,height,depth,hwnd,flags,interval,windowed,rt,ds,vb,ib,stride,stream_offset,fvf,scene,locked;
- uint32_t draw_ack_logged,draw_reject_logged,draw104_logged;uint32_t diag_draws,diag_draw_ok,diag_clears,diag_clear_ok,diag_clear_caller,diag_present,diag_parent,diag_logs,diag_table_seen,diag_table_state,diag_lock_attempt,diag_lock_ok,diag_cooperative,diag_cooperative_failed;uint32_t viewport[6],scissor[4],rs[256],tss[8][33],sampler[16][14],texture,container,surface,lockflags,color_mask,lost;float matrices[48],material[17];uint32_t material_set;LightState lights[16];
+ uint32_t draw_ack_logged,draw_reject_logged,draw104_logged;uint32_t diag_draws,diag_draw_ok,diag_clears,diag_clear_ok,diag_clear_caller,diag_present,diag_parent,diag_logs,diag_table_seen,diag_table_state,diag_lock_attempt,diag_lock_ok,diag_cooperative,diag_cooperative_failed;uint32_t viewport[6],scissor[4],rs[256],tss[8][33],sampler[16][14],texture,container,surface,lockflags,color_mask,lost,target;float matrices[48],material[17];uint32_t material_set;LightState lights[16];
 } Object;
 #define OBJECT_CAPACITY 4096u
 static Object *objects[OBJECT_CAPACITY];static uint32_t live_device;
@@ -69,17 +69,23 @@ EM_JS(int,graphics_bridge,(uint32_t cmd, const uint32_t *a, const void *data, ui
   let command,args={},result;const scissor=v[26]?{x:v[27],y:v[28],width:v[29]-v[27],height:v[30]-v[28]}:null;
   if(cmd===1){command='capabilities';}
   else if(cmd===2){command='createDevice';args={width:v[0],height:v[1],hwnd:v[2],depth16:!!v[3],windowed:!!v[4],presentationInterval:v[5],backBufferFormat:v[6]};}
-  else if(cmd===3){command='clear';const f=new Float32Array(new Uint32Array([v[1]]).buffer)[0];args={color:v[0],depth:f,scissor};}
+  else if(cmd===3){command='clear';const f=new Float32Array(new Uint32Array([v[1]]).buffer)[0];args={color:v[0],depth:f,scissor,zbuffer:(v[2]&2)!==0};}
   else if(cmd===4){command='present';}
   else if(cmd===5||cmd===6){command=cmd===5?'uploadVertices':'uploadIndices';args={bytes:HEAPU8.slice(data,data+bytes).buffer,format:cmd===5?(v[0]===0x144?'XYZRHW_DIFFUSE_UV':v[0]===0x142?'XYZ_DIFFUSE_UV':'XYZ_DIFFUSE'):v[0]===101?'uint16':'uint32'};}
   else if(cmd===7){command='drawIndexed';const f=new Float32Array(new Uint32Array([v[10],v[11]]).buffer);args={vertices:v[0],indices:v[1],firstIndex:v[2],indexCount:v[3],baseVertex:v[4]|0,depthTest:!!v[5],depthCompare:v[23]===8?'always':'less-equal',depthWrite:!!v[24],blend:!!v[25],...(v[25]&256?{blendFactors:{source:(v[25]>>>4)&15,destination:v[25]&15}}:{}),blendMode:v[25]===3?'destination-times-source':v[25]===2?'source-color':'source-alpha',textureEquation:v[31]===3?'diffuse-rgb-texture-alpha':v[31]===2?'diffuse':v[31]?'factor-rgb-texture-alpha':'modulate',textureFactor:v[32],scissor,texture:v[12]||null,alphaTest:{enabled:!!v[20],func:v[21],reference:v[22]},sampler:{addressU:v[13],addressV:v[14],addressW:v[15],minFilter:v[16],magFilter:v[17],mipFilter:v[18],lodBias:new Float32Array(new Uint32Array([v[19]]).buffer)[0]},viewport:{x:v[6],y:v[7],width:v[8],height:v[9],minDepth:f[0],maxDepth:f[1]},world:Array.from(HEAPF32.subarray(m>>>2,(m>>>2)+16)),view:Array.from(HEAPF32.subarray((m>>>2)+16,(m>>>2)+32)),projection:Array.from(HEAPF32.subarray((m>>>2)+32,(m>>>2)+48))};}
   else if(cmd===8){command='release';args={handle:v[0]};}
   else if(cmd===9){command='destroyDevice';}
-  else if(cmd===10){command='uploadTextureRGBA';args={width:v[0],height:v[1],bytes:HEAPU8.slice(data,data+bytes).buffer};}else return 0;
+  else if(cmd===10){command='uploadTextureRGBA';args={width:v[0],height:v[1],bytes:HEAPU8.slice(data,data+bytes).buffer};}
+  else if(cmd===11){command='createRenderTarget';args={width:v[0],height:v[1]};}
+  else if(cmd===12){command='setRenderTarget';args={texture:v[0]||null};}
+  else if(cmd===13){command='readRenderTarget';args={texture:v[0]};}
+  else if(cmd===14){command='writeRenderTarget';args={texture:v[0],width:v[1],height:v[2],bytes:HEAPU8.slice(data,data+bytes).buffer};}else return 0;
   result=call(command,args);
   if(result&&typeof result.then==='function')throw Error('D3D9 graphics hook must be synchronous');
   if(cmd===1){if(!result||result.backend!=='WebGPU')return 0;const values=[result.width,result.height,result.depthFormat==='depth16unorm'?1:0,result.maxBufferBytes,result.presentationIntervalMask,result.maxTextureDimension,(result.renderTargetFormats?.includes(22)?1:0)|(result.renderTargetFormats?.includes(25)?2:0)];if(values.some(x=>!Number.isInteger(x)||x<0||x>4294967295))return 0;HEAPU32.set(values,out>>>2);}
-  else if(cmd===5||cmd===6||cmd===10){if(!Number.isInteger(result)||result<1||result>2147483647)return 0;HEAPU32[out>>>2]=result;}
+  else if(cmd===12){if(!result||result.width!==v[1]||result.height!==v[2])return 0;}
+  else if(cmd===13){if(!result||result.width!==v[1]||result.height!==v[2]||!(result.rgba instanceof Uint8Array)||result.rgba.length!==bytes)return 0;const s=result.rgba;for(let i=0;i<bytes;i+=4){HEAPU8[data+i]=s[i+2];HEAPU8[data+i+1]=s[i+1];HEAPU8[data+i+2]=s[i];HEAPU8[data+i+3]=s[i+3];}}
+  else if(cmd===5||cmd===6||cmd===10||cmd===11){if(!Number.isInteger(result)||result<1||result>2147483647)return 0;HEAPU32[out>>>2]=result;}
   else if(cmd===2&&result!==true)return 0;
   return 1;
  }catch(error){Module.moviesGraphicsLastError=String(error?.stack||error);return 0;}
@@ -104,10 +110,10 @@ static Object *allocate(uint32_t type){for(unsigned i=0;i<OBJECT_CAPACITY;i++)if
  }
  allocation_failure(type,0,"COM object table exhausted");return NULL;}
 static void add(Object*o){if(o->type>=SURFACE&&!o->refs&&o->parent){Object*p=find(o->container?o->container:o->parent);if(p)add(p);}o->refs++;}
-static void drop(Object*o);
+static void drop(Object*o);static void bind_target(Object*d,Object*s);
 static void destroy(Object*o){
  uint32_t parent=o->parent;
- if(o->type==DEVICE){uint32_t children[]={o->vb,o->ib,o->rt,o->ds,o->texture};for(unsigned i=0;i<5;i++){Object*k=find(children[i]);if(k&&k->internal){k->internal--;if(!k->refs&&!k->internal)destroy(k);}}MoviesD3D9Request q={.command=MOVIES_D3D9_DESTROY};MoviesD3D9Reply r;(void)invoke(&q,&r);live_device=0;}
+ if(o->type==DEVICE){bind_target(o,NULL);uint32_t children[]={o->vb,o->ib,o->rt,o->ds,o->texture};for(unsigned i=0;i<5;i++){Object*k=find(children[i]);if(k&&k->internal){k->internal--;if(!k->refs&&!k->internal)destroy(k);}}MoviesD3D9Request q={.command=MOVIES_D3D9_DESTROY};MoviesD3D9Reply r;(void)invoke(&q,&r);live_device=0;}
  if(o->type==TEXTURE&&o->surface){Object*s=find(o->surface);if(s&&s->internal){s->internal--;if(!s->refs&&!s->internal)destroy(s);}}
  if(o->gpu){MoviesD3D9Request q={.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={o->gpu}};MoviesD3D9Reply r;(void)invoke(&q,&r);}
  if(o->mem&&!movies_backend_free(o->mem))abort();
@@ -116,6 +122,13 @@ static void destroy(Object*o){
 }
 static void drop(Object*o){if(!o->refs)abort();o->refs--;uint32_t parent=(o->type>=SURFACE&&!o->refs)?(o->container?o->container:o->parent):0;if(!o->refs&&!o->internal)destroy(o);Object*p=find(parent);if(p)drop(p);}
 static void bind(Object*d,uint32_t*slot,Object*o){Object*old=find(*slot);if(old==o)return;if(o)o->internal++;*slot=o?o->address:0;if(old&&old->internal){old->internal--;if(!old->refs&&!old->internal)destroy(old);} (void)d;}
+/* The device references its current render-target surface and, through it, the
+ * container texture (D3D9 keeps both alive while bound). NULL selects the
+ * implicit backbuffer, which the device already owns. */
+static void release_internal(Object*o){if(o&&o->internal){o->internal--;if(!o->refs&&!o->internal)destroy(o);}}
+static void bind_target(Object*d,Object*s){Object*old=find(d->target);if(old==s)return;if(s){s->internal++;Object*t=find(s->container);if(t)t->internal++;}d->target=s?s->address:0;
+ if(old){Object*t=find(old->container);release_internal(old);release_internal(t);}}
+static void target_size(Object*d,uint32_t*w,uint32_t*h){Object*s=find(d->target);*w=s?s->width:d->width;*h=s?s->height:d->height;}
 static void query(CPU*c){Object*o=self(c,0);uint32_t out=ARG(2);if(!range(out,4)){ret(c,3,0x80070057);return;}W32(out,0);if(!iid(ARG(1),ids[0])&&!iid(ARG(1),ids[o->type])&&!(o->type>=SURFACE&&iid(ARG(1),resource_id))&&!(o->type==TEXTURE&&iid(ARG(1),base_texture_id))){ret(c,3,0x80004002);return;}add(o);W32(out,o->address);ret(c,3,0);}
 static void addref(CPU*c){Object*o=self(c,0);add(o);ret(c,1,o->refs+o->internal);}
 static void release(CPU*c){Object*o=self(c,0);if(!o->refs){unsupported(c,"D3D9 Release without external reference");return;}uint32_t refs=o->refs-1+o->internal;drop(o);ret(c,1,refs);}
@@ -174,7 +187,7 @@ static void get_direct3d(CPU*c){Object*d=self(c,DEVICE);if(!range(ARG(1),4)){ret
 static void creation_parameters(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);if(!range(p,16)){ret(c,2,INVALID);return;}W32(p,0);W32(p+4,1);W32(p+8,d->hwnd);W32(p+12,d->flags);ret(c,2,0);}
 static void device_mode(CPU*c){Object*d=self(c,DEVICE);if(ARG(1)||!range(ARG(2),16)){ret(c,3,INVALID);return;}MoviesD3D9Reply r={.values={d->width,d->height}};mode_out(ARG(2),&r);ret(c,3,0);}
 static void return_surface(CPU*c,Object*d,uint32_t surface,uint32_t out,unsigned argc){if(!range(out,4)){ret(c,argc,INVALID);return;}W32(out,0);Object*s=find(surface);if(!s){ret(c,argc,0x88760866u);return;}add(s);W32(out,s->address);ret(c,argc,0);(void)d;}
-static void get_rt(CPU*c){Object*d=self(c,DEVICE);if(ARG(1)){ret(c,3,INVALID);return;}return_surface(c,d,d->rt,ARG(2),3);}
+static void get_rt(CPU*c){Object*d=self(c,DEVICE);if(ARG(1)){ret(c,3,INVALID);return;}return_surface(c,d,d->target?d->target:d->rt,ARG(2),3);}
 static void get_ds(CPU*c){Object*d=self(c,DEVICE);return_surface(c,d,d->ds,ARG(1),2);}
 static void get_backbuffer(CPU*c){Object*d=self(c,DEVICE);if(ARG(1)||ARG(2)||ARG(3)){ret(c,5,INVALID);return;}return_surface(c,d,d->rt,ARG(4),5);}
 static void surface_desc(CPU*c){Object*s=self(c,SURFACE);uint32_t p=ARG(1);if(!range(p,32)){ret(c,2,INVALID);return;}W32(p,s->format);W32(p+4,1);W32(p+8,s->usage);W32(p+12,s->pool);W32(p+16,0);W32(p+20,0);W32(p+24,s->width);W32(p+28,s->height);ret(c,2,0);}
@@ -222,14 +235,25 @@ static void present_diagnostic(CPU*c,Object*d,int ok){
  }d->diag_draws=d->diag_draw_ok=d->diag_clears=d->diag_clear_ok=0;d->diag_lock_attempt=d->diag_lock_ok=d->diag_cooperative=d->diag_cooperative_failed=0;
 }
 static void clear_target(CPU*c){Object*d=self(c,DEVICE);d->diag_clears++;d->diag_clear_caller=R32(c->esp);float z;uint32_t bits=ARG(5);memcpy(&z,&bits,4);
- if(ARG(1)||ARG(2)||ARG(3)!=(d->depth?3u:1u)||!isfinite(z)||z<0||z>1||ARG(6)){unsupported(c,"D3D9 Clear unsupported rectangle/flags/depth/stencil combination");return;}
- MoviesD3D9Request q={.command=MOVIES_D3D9_CLEAR,.args={ARG(4),bits}};q.args[26]=d->rs[174];memcpy(q.args+27,d->scissor,16);MoviesD3D9Reply r;int ok=invoke(&q,&r);if(ok)d->diag_clear_ok++;ret(c,7,ok?0:LOST);
+ /* TARGET, or TARGET|ZBUFFER with a depth surface (observed 9A56D7 wrapper 9A56B0
+  * clears TARGET alone when the pass disables Z). Clear covers the viewport,
+  * intersected with the scissor rect when scissor test is enabled.
+  * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-clear */
+ uint32_t flags=ARG(3);
+ if(ARG(1)||ARG(2)||(flags!=1u&&!(flags==3u&&d->depth))||!isfinite(z)||z<0||z>1||ARG(6)){unsupported(c,"D3D9 Clear unsupported rectangle/flags/depth/stencil combination");return;}
+ uint32_t tw,th;target_size(d,&tw,&th);int64_t l=d->viewport[0],t=d->viewport[1],r_=l+(int64_t)d->viewport[2],b=t+(int64_t)d->viewport[3];
+ if(d->rs[174]){l=l>(int32_t)d->scissor[0]?l:(int32_t)d->scissor[0];t=t>(int32_t)d->scissor[1]?t:(int32_t)d->scissor[1];r_=r_<(int32_t)d->scissor[2]?r_:(int32_t)d->scissor[2];b=b<(int32_t)d->scissor[3]?b:(int32_t)d->scissor[3];}
+ if(r_>tw)r_=tw;if(b>th)b=th;if(l<0)l=0;if(t<0)t=0;
+ if(l>=r_||t>=b){d->diag_clear_ok++;ret(c,7,0);return;} /*empty area: nothing to clear*/
+ MoviesD3D9Request q={.command=MOVIES_D3D9_CLEAR,.args={ARG(4),bits,flags}};
+ if(l||t||r_!=tw||b!=th){q.args[26]=1;q.args[27]=(uint32_t)l;q.args[28]=(uint32_t)t;q.args[29]=(uint32_t)r_;q.args[30]=(uint32_t)b;}
+ MoviesD3D9Reply r;int ok=invoke(&q,&r);if(ok)d->diag_clear_ok++;ret(c,7,ok?0:LOST);
 }
 static void present(CPU*c){Object*d=self(c,DEVICE);if(d->scene||ARG(1)||ARG(2)||ARG(3)||ARG(4)){ret(c,5,INVALID);return;}MoviesD3D9Request q={.command=MOVIES_D3D9_PRESENT};MoviesD3D9Reply r;int ok=invoke(&q,&r);if(ok)movies_wait_profile_present();present_diagnostic(c,d,ok);ret(c,5,ok?0:LOST);}
 static int transform_index(uint32_t value){return value==256?0:value==2?16:value==3?32:-1;}
 static void set_transform(CPU*c){Object*d=self(c,DEVICE);int index=transform_index(ARG(1));if(index<0){unsupported(c,"D3D9 SetTransform unsupported state");return;}if(!range(ARG(2),64)){ret(c,3,INVALID);return;}float values[16];memcpy(values,HP(ARG(2)),64);for(unsigned i=0;i<16;i++)if(!isfinite(values[i])){ret(c,3,INVALID);return;}memcpy(d->matrices+index,values,64);ret(c,3,0);}
 static void get_transform(CPU*c){Object*d=self(c,DEVICE);int index=transform_index(ARG(1));if(index<0||!range(ARG(2),64)){ret(c,3,INVALID);return;}memcpy(HP(ARG(2)),d->matrices+index,64);ret(c,3,0);}
-static void set_viewport(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);if(!range(p,24)){ret(c,2,INVALID);return;}uint32_t v[6];memcpy(v,HP(p),24);float min,max;memcpy(&min,v+4,4);memcpy(&max,v+5,4);if(!v[2]||!v[3]||(uint64_t)v[0]+v[2]>d->width||(uint64_t)v[1]+v[3]>d->height||!isfinite(min)||!isfinite(max)||min<0||max>1||min>max){ret(c,2,INVALID);return;}memcpy(d->viewport,v,24);ret(c,2,0);}
+static void set_viewport(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);if(!range(p,24)){ret(c,2,INVALID);return;}uint32_t v[6];memcpy(v,HP(p),24);float min,max;memcpy(&min,v+4,4);memcpy(&max,v+5,4);uint32_t tw,th;target_size(d,&tw,&th);if(!v[2]||!v[3]||(uint64_t)v[0]+v[2]>tw||(uint64_t)v[1]+v[3]>th||!isfinite(min)||!isfinite(max)||min<0||max>1||min>max){ret(c,2,INVALID);return;}memcpy(d->viewport,v,24);ret(c,2,0);}
 static void get_viewport(CPU*c){Object*d=self(c,DEVICE);if(!range(ARG(1),24)){ret(c,2,INVALID);return;}memcpy(HP(ARG(1)),d->viewport,24);ret(c,2,0);}
 static int known_state(uint32_t state){switch(state){case 7:case 8:case 9:case 14:case 15:case 16:case 19:case 20:case 22:case 23:case 24:case 25:case 26:case 27:case 28:case 29:case 34:case 35:case 36:case 37:case 38:case 48:case 52:case 53:case 54:case 55:case 56:case 57:case 58:case 59:case 60:case 128:case 129:case 130:case 131:case 132:case 133:case 134:case 135:case 136:case 137:case 139:case 140:case 141:case 142:case 143:case 145:case 146:case 147:case 148:case 151:case 152:case 154:case 155:case 156:case 157:case 158:case 159:case 160:case 161:case 162:case 163:case 166:case 167:case 168:case 170:case 171:case 172:case 173:case 174:case 175:case 176:case 178:case 179:case 180:case 181:case 182:case 183:case 184:case 185:case 186:case 187:case 188:case 189:case 190:case 191:case 192:case 193:case 194:case 195:case 198:case 199:case 200:case 201:case 202:case 203:case 204:case 205:case 206:case 207:case 208:case 209:return 1;default:return 0;}}
 /* At88804A: return/device/state/value/savedESI/parent, so parent isESP+20. */
@@ -338,6 +362,7 @@ static void draw_indexed(CPU*c){Object*d=self(c,DEVICE);d->diag_draws++;if(!draw
  for(uint32_t i=0;i<count;i++){uint32_t p=ib->mem+(first+i)*index_stride,idx=index_stride==2?R16(p):R32(p);int64_t actual=(int64_t)idx+base;
  if(idx<minimum||(uint64_t)idx>=(uint64_t)minimum+vertices||actual<0||(uint64_t)actual>=(vb->size-d->stream_offset)/d->stride){indexed_reject(c,d,vb,ib,idx<minimum||(uint64_t)idx>=(uint64_t)minimum+vertices?"index outside declared vertex range":"index/base outside vertex buffer",i,idx);return;}if(idx<min_index)min_index=idx;if(idx>max_index)max_index=idx;}
  Object*t=find(d->texture);uint32_t mask=0;
+ if(t&&d->target&&find(d->target)&&find(d->target)->container==t->address){unsupported(c,"D3D9 draw samples the active render target");return;}
  if(!diffuse_equation(d)&&(d->fvf==0x142||d->fvf==0x144||d->fvf==0x104)!=!!t){unsupported(c,"D3D9 textured draw requires UV format and bound texture");return;}
  if(t){if(t->locked){indexed_reject(c,d,vb,ib,"locked texture",UINT32_MAX,0);return;}if(!texture_mask(c,d,&mask))return;}
  uint64_t vertex_offset=(uint64_t)d->stream_offset+(uint64_t)((int64_t)min_index+base)*d->stride,vertex_bytes=((uint64_t)max_index-min_index+1)*d->stride;
@@ -361,7 +386,8 @@ static void draw_indexed_up(CPU*c){
   if(!isfinite(v[0])||!isfinite(v[1])||!isfinite(v[2])||!isfinite(v[3])||!isfinite(v[5])||!isfinite(v[6])||v[2]<0||v[2]>1||v[3]<=0||!isfinite(1.f/v[3])){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}}
  /* XYZRHW bypasses lighting, but unrelated unsupported culling remains explicit. */
  if(d->rs[22]!=1){unsupported(c,"D3D9 UP draw requires implemented no-culling mode");return;}
- Object*t=find(d->texture);if(!t&&!diffuse_equation(d)){unsupported(c,"D3D9 XYZRHW textured draw requires bound texture");return;}if(t&&t->locked){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}
+ Object*t=find(d->texture);if(!t&&!diffuse_equation(d)){unsupported(c,"D3D9 XYZRHW textured draw requires bound texture");return;}
+ if(t&&d->target&&find(d->target)&&find(d->target)->container==t->address){unsupported(c,"D3D9 draw samples the active render target");return;}if(t&&t->locked){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}
  uint32_t mask=0;if(t&&!texture_mask(c,d,&mask))return;
  uint8_t*vb=malloc((size_t)vertex_bytes);uint16_t*ib=malloc((size_t)index_bytes);if(!vb||!ib){free(vb);free(ib);draw_ret(c,d,9,OOM,"DrawIndexedPrimitiveUP");return;}
  memcpy(vb,HP((uint32_t)vertex_start),(size_t)vertex_bytes);
@@ -417,6 +443,20 @@ static void texture_create_failure(CPU*c,uint32_t hr){static uint32_t seen[16][4
 static void create_texture(CPU*c){Object*d=self(c,DEVICE);uint32_t w=ARG(1),h=ARG(2),out=ARG(7);MoviesD3D9Reply cap;
  if(!range(out,4)){ret(c,9,INVALID);return;}W32(out,0);
  if(!w||!h||ARG(8)){ret(c,9,INVALID);return;}
+ /* Observed 99B26D: 512x512, one level, D3DUSAGE_RENDERTARGET, A8R8G8B8, DEFAULT.
+  * GPU-only and not lockable (no D3DUSAGE_DYNAMIC); no guest copy exists.
+  * https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dusage */
+ if(ARG(4)&1u){
+  if(ARG(4)!=1||ARG(6)!=0||ARG(3)!=1||(ARG(5)!=21&&ARG(5)!=22)){texture_create_failure(c,UNAVAILABLE);return;}
+  if(!caps(&cap)||w>cap.values[5]||h>cap.values[5]){texture_create_failure(c,UNAVAILABLE);return;}
+  Object*t=allocate(TEXTURE);if(!t){ret(c,9,OOM);return;}
+  t->parent=d->address;t->width=w;t->height=h;t->format=ARG(5);t->pool=0;t->usage=1;t->version=1;
+  MoviesD3D9Request q={.command=MOVIES_D3D9_CREATE_TARGET,.args={w,h}};MoviesD3D9Reply r;
+  if(!invoke(&q,&r)||!r.values[0]){W32(t->address,0);memset(t,0,sizeof*t);texture_create_failure(c,OOM);return;}
+  t->gpu=r.values[0];t->uploaded=t->version;
+  static unsigned created;if(created++<8)fprintf(stderr,"[D3D9] render-target texture created caller=%08x size=%ux%u format=%u texture=%08x\n",R32(c->esp),w,h,ARG(5),t->address);
+  add(t);W32(out,t->address);ret(c,9,0);return;
+ }
  int systemmem=ARG(6)==2;
  if(ARG(3)!=1||(ARG(5)!=21&&(systemmem||(ARG(5)!=26&&!block_format(ARG(5)))))||(!systemmem&&(ARG(4)||ARG(6)!=1))||(systemmem&&(ARG(4)&~0x200u))){texture_create_failure(c,UNAVAILABLE);return;}
  uint64_t decoded=(uint64_t)w*h*4;
@@ -438,7 +478,7 @@ static void texture_surface(CPU*c){Object*t=self(c,TEXTURE);uint32_t p=ARG(2);if
  add(s);W32(p,s->address);ret(c,3,0);
 }
 static int texture_lock(Object*t,uint32_t locked,uint32_t rect,uint32_t flags){
- if(t->locked||!range(locked,8)||(flags&~0x2810u)||((flags&0x2000u)&&(!(t->usage&0x200u)||rect||(flags&0x10u))))return 0;
+ if(!t->mem||t->locked||!range(locked,8)||(flags&~0x2810u)||((flags&0x2000u)&&(!(t->usage&0x200u)||rect||(flags&0x10u))))return 0;
  uint32_t left=0,top=0,right=t->width,bottom=t->height;
  if(rect){if(!range(rect,16))return 0;left=R32(rect);top=R32(rect+4);right=R32(rect+8);bottom=R32(rect+12);}
  if(left>=right||top>=bottom||right>t->width||bottom>t->height)return 0;
@@ -492,14 +532,50 @@ static void unsupported_1_24(CPU*c){unsupported(c,"IDirect3DDevice9::CreateVolum
 static void unsupported_1_25(CPU*c){unsupported(c,"IDirect3DDevice9::CreateCubeTexture unsupported");}
 static void unsupported_1_28(CPU*c){unsupported(c,"IDirect3DDevice9::CreateRenderTarget unsupported");}
 static void unsupported_1_29(CPU*c){unsupported(c,"IDirect3DDevice9::CreateDepthStencilSurface unsupported");}
-static void unsupported_1_30(CPU*c){unsupported(c,"IDirect3DDevice9::UpdateSurface unsupported");}
+static Object*surface_texture(Object*s){return s&&s->type==SURFACE?find(s->container):NULL;}
+/* Observed 9A5335: UpdateSurface(SYSTEMMEM A8R8G8B8 level0 0x105ca64, NULL, RT level0
+ * 0x105ca60, NULL) after CPU edits. Whole-surface copies into render-target textures only.
+ * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-updatesurface */
+static void update_surface(CPU*c){Object*d=self(c,DEVICE);Object*src=find(ARG(1)),*dst=find(ARG(3)),*st=surface_texture(src),*dt=surface_texture(dst);
+ if(!src||!dst||src->type!=SURFACE||dst->type!=SURFACE||src->parent!=d->address||dst->parent!=d->address){ret(c,5,INVALID);return;}
+ if(ARG(2)||ARG(4)){unsupported(c,"D3D9 UpdateSurface sub-rectangles unsupported");return;}
+ if(!st||st->pool!=2||!dt||dt->pool!=0||st->locked){ret(c,5,INVALID);return;}
+ if(!(dt->usage&1u)||!dt->gpu){unsupported(c,"D3D9 UpdateSurface destination must be a render-target texture");return;}
+ if(st->width!=dt->width||st->height!=dt->height||st->format!=21||(dt->format!=21&&dt->format!=22)){ret(c,5,INVALID);return;}
+ uint32_t bytes=st->width*st->height*4;uint8_t*rgba=malloc(bytes);if(!rgba){ret(c,5,OOM);return;}texture_rgba(st,rgba);
+ MoviesD3D9Request q={.command=MOVIES_D3D9_WRITE_TARGET,.args={dt->gpu,dt->width,dt->height},.data=rgba,.bytes=bytes};MoviesD3D9Reply r;int ok=invoke(&q,&r);free(rgba);ret(c,5,ok?0:LOST);}
 static void unsupported_1_31(CPU*c){unsupported(c,"IDirect3DDevice9::UpdateTexture unsupported");}
-static void unsupported_1_32(CPU*c){unsupported(c,"IDirect3DDevice9::GetRenderTargetData unsupported");}
+/* Observed 9A52D9: GetRenderTargetData(RT level0 -> same-size SYSTEMMEM A8R8G8B8), then
+ * LockRect. Backbuffer sources are not claimed.
+ * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-getrendertargetdata */
+static void render_target_data(CPU*c){Object*d=self(c,DEVICE);Object*src=find(ARG(1)),*dst=find(ARG(2)),*st=surface_texture(src),*dt=surface_texture(dst);
+ if(!src||!dst||src->type!=SURFACE||dst->type!=SURFACE||src->parent!=d->address||dst->parent!=d->address){ret(c,3,INVALID);return;}
+ if(!st||!(st->usage&1u)||!st->gpu){unsupported(c,"D3D9 GetRenderTargetData source must be a render-target texture");return;}
+ if(!dt||dt->pool!=2||dt->locked||dt->width!=st->width||dt->height!=st->height||dt->format!=21){ret(c,3,INVALID);return;}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_READ_TARGET,.args={st->gpu,st->width,st->height},.data=HP(dt->mem),.bytes=dt->size};MoviesD3D9Reply r;
+ if(!invoke(&q,&r)){ret(c,3,LOST);return;}dt->version++;
+ static unsigned logs;if(logs++<4)fprintf(stderr,"[D3D9] GetRenderTargetData caller=%08x %ux%u\n",R32(c->esp),st->width,st->height);
+ ret(c,3,0);}
 static void unsupported_1_33(CPU*c){unsupported(c,"IDirect3DDevice9::GetFrontBufferData unsupported");}
 static void unsupported_1_34(CPU*c){unsupported(c,"IDirect3DDevice9::StretchRect unsupported");}
 static void unsupported_1_35(CPU*c){unsupported(c,"IDirect3DDevice9::ColorFill unsupported");}
 static void unsupported_1_36(CPU*c){unsupported(c,"IDirect3DDevice9::CreateOffscreenPlainSurface unsupported");}
-static void unsupported_1_37(CPU*c){unsupported(c,"IDirect3DDevice9::SetRenderTarget unsupported");}
+/* One simultaneous target (NumSimultaneousRTs=1). Index0 rejects NULL. Accepts the
+ * implicit backbuffer or level0 of this device's RENDERTARGET texture. Setting a
+ * target resets viewport and scissor to the full target (as Wine's wined3d does).
+ * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-setrendertarget */
+static void set_render_target(CPU*c){Object*d=self(c,DEVICE);uint32_t index=ARG(1);Object*s=find(ARG(2));
+ if(index||!s||s->type!=SURFACE||s->parent!=d->address){ret(c,3,INVALID);return;}
+ Object*t=find(s->container);int backbuffer=s->address==d->rt;
+ if(!backbuffer&&(!t||!(t->usage&1u)||!t->gpu)){ret(c,3,INVALID);return;}
+ if(t&&t->address==d->texture){unsupported(c,"D3D9 SetRenderTarget on the bound texture");return;}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_SET_TARGET,.args={backbuffer?0:t->gpu,s->width,s->height}};MoviesD3D9Reply r;
+ if(!invoke(&q,&r)){ret(c,3,LOST);return;}
+ bind_target(d,backbuffer?NULL:s);
+ uint32_t one=0x3f800000u,vp[6]={0,0,s->width,s->height,0,one};memcpy(d->viewport,vp,24);
+ int32_t rect[4]={0,0,(int32_t)s->width,(int32_t)s->height};memcpy(d->scissor,rect,16);
+ static unsigned logs;if(logs++<16)fprintf(stderr,"[D3D9] SetRenderTarget caller=%08x surface=%08x target=%s %ux%u\n",R32(c->esp),s->address,backbuffer?"backbuffer":"texture",s->width,s->height);
+ ret(c,3,0);}
 static void unsupported_1_39(CPU*c){unsupported(c,"IDirect3DDevice9::SetDepthStencilSurface unsupported");}
 static void unsupported_1_46(CPU*c){unsupported(c,"IDirect3DDevice9::MultiplyTransform unsupported");}
 static void set_material(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);if(!range(p,68)){ret(c,2,INVALID);return;}float values[17];memcpy(values,HP(p),68);for(unsigned i=0;i<17;i++)if(!isfinite(values[i])){ret(c,2,INVALID);return;}if(values[16]<0){ret(c,2,INVALID);return;}memcpy(d->material,values,68);d->material_set=1;ret(c,2,0);}
@@ -529,8 +605,8 @@ static void unsupported_1_73(CPU*c){unsupported(c,"IDirect3DDevice9::SetCurrentT
 static void unsupported_1_74(CPU*c){unsupported(c,"IDirect3DDevice9::GetCurrentTexturePalette unsupported");}
 /* RECT is target-relative and right/bottom exclusive, independent of viewport.
  * https://learn.microsoft.com/en-us/windows/win32/direct3d9/scissor-test */
-static void set_scissor(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);int32_t rect[4];if(!range(p,16)){ret(c,2,INVALID);return;}memcpy(rect,HP(p),16);
- if(rect[0]<0||rect[1]<0||rect[2]<rect[0]||rect[3]<rect[1]||(uint32_t)rect[2]>d->width||(uint32_t)rect[3]>d->height){ret(c,2,INVALID);return;}memcpy(d->scissor,rect,16);ret(c,2,0);}
+static void set_scissor(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);int32_t rect[4];if(!range(p,16)){ret(c,2,INVALID);return;}memcpy(rect,HP(p),16);uint32_t tw,th;target_size(d,&tw,&th);
+ if(rect[0]<0||rect[1]<0||rect[2]<rect[0]||rect[3]<rect[1]||(uint32_t)rect[2]>tw||(uint32_t)rect[3]>th){ret(c,2,INVALID);return;}memcpy(d->scissor,rect,16);ret(c,2,0);}
 static void get_scissor(CPU*c){Object*d=self(c,DEVICE);if(!range(ARG(1),16)){ret(c,2,INVALID);return;}memcpy(HP(ARG(1)),d->scissor,16);ret(c,2,0);}
 static void unsupported_1_77(CPU*c){unsupported(c,"IDirect3DDevice9::SetSoftwareVertexProcessing unsupported");}
 static void unsupported_1_78(CPU*c){unsupported(c,"IDirect3DDevice9::GetSoftwareVertexProcessing unsupported");}
@@ -571,7 +647,7 @@ static void unsupported_1_115(CPU*c){unsupported(c,"IDirect3DDevice9::DrawRectPa
 static void unsupported_1_116(CPU*c){unsupported(c,"IDirect3DDevice9::DrawTriPatch unsupported");}
 static void unsupported_1_117(CPU*c){unsupported(c,"IDirect3DDevice9::DeletePatch unsupported");}
 static void unsupported_1_118(CPU*c){unsupported(c,"IDirect3DDevice9::CreateQuery unsupported");}
-static GuestFn table_1[]={query,addref,release,cooperative,available_texture_memory,unsupported_1_5,get_direct3d,get_caps,device_mode,creation_parameters,unsupported_1_10,unsupported_1_11,unsupported_1_12,unsupported_1_13,unsupported_1_14,unsupported_1_15,unsupported_1_16,present,get_backbuffer,unsupported_1_19,unsupported_1_20,unsupported_1_21,unsupported_1_22,create_texture,unsupported_1_24,unsupported_1_25,create_vb,create_ib,unsupported_1_28,unsupported_1_29,unsupported_1_30,unsupported_1_31,unsupported_1_32,unsupported_1_33,unsupported_1_34,unsupported_1_35,unsupported_1_36,unsupported_1_37,get_rt,unsupported_1_39,get_ds,begin_scene,end_scene,clear_target,set_transform,get_transform,unsupported_1_46,set_viewport,get_viewport,set_material,get_material,set_light,get_light,light_enable,get_light_enable,unsupported_1_55,unsupported_1_56,set_state,get_state,unsupported_1_59,unsupported_1_60,unsupported_1_61,unsupported_1_62,unsupported_1_63,get_texture,set_texture,get_texture_stage,set_texture_stage,get_sampler,set_sampler,unsupported_1_70,unsupported_1_71,unsupported_1_72,unsupported_1_73,unsupported_1_74,set_scissor,get_scissor,unsupported_1_77,unsupported_1_78,unsupported_1_79,unsupported_1_80,unsupported_1_81,draw_indexed,unsupported_1_83,draw_indexed_up,unsupported_1_85,unsupported_1_86,unsupported_1_87,unsupported_1_88,set_fvf,get_fvf,unsupported_1_91,set_vertex_shader,get_vertex_shader,unsupported_1_94,unsupported_1_95,unsupported_1_96,unsupported_1_97,unsupported_1_98,unsupported_1_99,stream_source,get_stream_source,unsupported_1_102,unsupported_1_103,set_indices,get_indices,unsupported_1_106,set_pixel_shader,get_pixel_shader,unsupported_1_109,unsupported_1_110,unsupported_1_111,unsupported_1_112,unsupported_1_113,unsupported_1_114,unsupported_1_115,unsupported_1_116,unsupported_1_117,unsupported_1_118};
+static GuestFn table_1[]={query,addref,release,cooperative,available_texture_memory,unsupported_1_5,get_direct3d,get_caps,device_mode,creation_parameters,unsupported_1_10,unsupported_1_11,unsupported_1_12,unsupported_1_13,unsupported_1_14,unsupported_1_15,unsupported_1_16,present,get_backbuffer,unsupported_1_19,unsupported_1_20,unsupported_1_21,unsupported_1_22,create_texture,unsupported_1_24,unsupported_1_25,create_vb,create_ib,unsupported_1_28,unsupported_1_29,update_surface,unsupported_1_31,render_target_data,unsupported_1_33,unsupported_1_34,unsupported_1_35,unsupported_1_36,set_render_target,get_rt,unsupported_1_39,get_ds,begin_scene,end_scene,clear_target,set_transform,get_transform,unsupported_1_46,set_viewport,get_viewport,set_material,get_material,set_light,get_light,light_enable,get_light_enable,unsupported_1_55,unsupported_1_56,set_state,get_state,unsupported_1_59,unsupported_1_60,unsupported_1_61,unsupported_1_62,unsupported_1_63,get_texture,set_texture,get_texture_stage,set_texture_stage,get_sampler,set_sampler,unsupported_1_70,unsupported_1_71,unsupported_1_72,unsupported_1_73,unsupported_1_74,set_scissor,get_scissor,unsupported_1_77,unsupported_1_78,unsupported_1_79,unsupported_1_80,unsupported_1_81,draw_indexed,unsupported_1_83,draw_indexed_up,unsupported_1_85,unsupported_1_86,unsupported_1_87,unsupported_1_88,set_fvf,get_fvf,unsupported_1_91,set_vertex_shader,get_vertex_shader,unsupported_1_94,unsupported_1_95,unsupported_1_96,unsupported_1_97,unsupported_1_98,unsupported_1_99,stream_source,get_stream_source,unsupported_1_102,unsupported_1_103,set_indices,get_indices,unsupported_1_106,set_pixel_shader,get_pixel_shader,unsupported_1_109,unsupported_1_110,unsupported_1_111,unsupported_1_112,unsupported_1_113,unsupported_1_114,unsupported_1_115,unsupported_1_116,unsupported_1_117,unsupported_1_118};
 static void unsupported_2_4(CPU*c){unsupported(c,"IDirect3DSurface9::SetPrivateData unsupported");}
 static void unsupported_2_5(CPU*c){unsupported(c,"IDirect3DSurface9::GetPrivateData unsupported");}
 static void unsupported_2_6(CPU*c){unsupported(c,"IDirect3DSurface9::FreePrivateData unsupported");}

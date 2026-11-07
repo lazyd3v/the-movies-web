@@ -6,7 +6,57 @@ in-app Chromium browser. There is no Wine or Boxedwine in these executions.
 No original game bytes were modified. The executable SHA-256 remains
 `48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a`.
 
-## Latest threaded browser checkpoint
+## Latest threaded browser checkpoint (branch `static-port/playable`)
+
+**DefWindowProcA input messages.** The previous stop at `0x0054262a` was the
+original WndProc `0x00542380` forwarding host-injected input to DefWindowProcA.
+Its switch table (`0x54263c`/index `0x54265c`) handles only 7, 8, 0xF, 0x10,
+0x12, 0x20 and 0x100/0x101/0x104/0x105. Client mouse messages, WM_CHAR and
+similar fall through unless UI hook `0x00a097f0` claims them. DefWindowProcA now
+returns 0 for client mouse (0x200–0x20B, 0x20E) and plain key/char messages, as
+Windows does for a parentless window. WM_XBUTTONUP and WM_SYS* menu semantics
+still trap. Covered by a native regression test.
+
+**Nested media decoder worker.** In the Claude desktop browser pane, a
+URL-backed Worker created *inside* another worker fails with a message-less
+error event, while blob-backed nested workers load. The media reader service
+now starts its decoder through a blob bootstrap that imports the same-origin
+script by absolute URL.
+
+**Render-target texture stop.** With both fixes, O1-threads reached past the
+loading screen (2,186 presentations, 260 s) and stopped at `0x00a24ee7`: a
+textured draw with a NULL texture. Shortly before, CreateTexture at `0x0099b270`
+(512×512, D3DUSAGE_RENDERTARGET, A8R8G8B8, DEFAULT) had been rejected; the game
+ignores the HRESULT. [Trace](../evidence/static-browser-rendertarget-texture-stop.log).
+Static analysis shows this is the shared offscreen compositing target
+`0x105ca58` (thumbnails, skin blending, cinema sign, post-production UI, fog),
+not a shadow map. No RENDERTARGET capability gate exists, and several
+GetSurfaceLevel sites are unguarded, so it must be supported.
+
+Implemented (native + protocol + WebGPU, with native/JS contract tests; the
+real-GPU fixture pages have not yet been extended):
+
+- RENDERTARGET textures (one level, DEFAULT, A8R8G8B8/X8R8G8B8): GPU-only,
+  not lockable, sampleable by later draws.
+- SetRenderTarget/GetRenderTarget (index 0) for the backbuffer or a render-target
+  texture's level 0. The device holds references while bound. Viewport and
+  scissor reset to the full target.
+- Per-target depth16, because WebGPU attachments must match in size. The shared
+  D3D9 depth contents across targets are not modelled.
+- Clear with TARGET alone (observed `0x009a56d7`), and Clear now covers the
+  viewport ∩ scissor instead of ignoring the viewport.
+- GetRenderTargetData (render target → same-size SYSTEMMEM A8R8G8B8) and
+  whole-surface UpdateSurface (SYSTEMMEM → render target), observed at
+  `0x009a52d9`/`0x009a5335`.
+- Still trapping: StretchRect (`0x00a2b3b4`; the game has a software fallback if
+  it *fails*), D3DX surface copy internals at `0x00afe117`, sampling the active
+  target, and sub-rectangle copies.
+
+The run with render-target creation reached SetRenderTarget and stopped at the
+TARGET-only Clear, which is now implemented. The next full run is pending. A
+hidden page throttles presentation to about 1 frame/s, so keep the window visible.
+
+## Previous threaded browser checkpoint
 
 Checkpoint: classic ADD blend factors 1–11 are now independent of the supported
 source equations. A 64-entry lazy pipeline cache replaces eager variant creation.

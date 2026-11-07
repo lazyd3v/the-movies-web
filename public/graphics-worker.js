@@ -17,6 +17,10 @@ async function execute(command, args) {
     case 'uploadVertices': reserve(args.bytes.byteLength); return save(graphics.uploadVertices(args.bytes, args.format), args.bytes.byteLength);
     case 'uploadIndices': reserve(args.bytes.byteLength); return save(graphics.uploadIndices(args.bytes, args.format), args.bytes.byteLength);
     case 'uploadTextureRGBA': reserve(args.bytes.byteLength); return save(graphics.uploadTextureRGBA(args.width, args.height, args.bytes), args.bytes.byteLength);
+    case 'createRenderTarget': reserve(args.width * args.height * 6); return save(graphics.createRenderTarget(args.width, args.height), args.width * args.height * 6);
+    case 'readRenderTarget': return await graphics.readRenderTarget(resource(args.texture));
+    case 'writeRenderTarget': graphics.writeRenderTarget(resource(args.texture), args.width, args.height, args.bytes); return null;
+    case 'setRenderTarget': return graphics.setRenderTarget(args.texture ? resource(args.texture) : null);
     case 'drawIndexed': await graphics.drawIndexed({...args, vertices: resource(args.vertices), indices: resource(args.indices), texture: args.texture ? resource(args.texture) : null}); return null;
     case 'release': { const r = resources.get(args.handle); if (!r) throw new Error('Unknown released resource'); graphics.release(r.value); resourceBytes -= r.bytes; resources.delete(args.handle); return null; }
     case 'readPixels': return await graphics.readPixels();

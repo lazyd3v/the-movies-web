@@ -251,7 +251,7 @@ static void default_proc(CPU *c) {
     if(!w) { movies_set_last_error(1400);ret(c,4,0);return; }
     switch(message) {
     case 0x112: /*WM_SYSCOMMAND: low four bits reserved by Windows.*/
-        if((wp&0xfff0u)!=0xf120u) { guest_trap(c,R32(c->esp),"unsupported WM_SYSCOMMAND action");return; }
+        if((wp&0xfff0u)!=0xf120u) { fprintf(stderr,"[window] unsupported DefWindowProcA caller=%08x hwnd=%08x message=%08x wParam=%08x lParam=%08x\n",R32(c->esp),w->handle,message,wp,lp);guest_trap(c,R32(c->esp),"unsupported WM_SYSCOMMAND action");return; }
         (void)apply_show(c,w,9); /*SC_RESTORE; host rejection preserves previous state.*/
         break;
     case 0x81:result=1;break; /*WM_NCCREATE accepts the real created surface*/
@@ -266,7 +266,20 @@ static void default_proc(CPU *c) {
     case 0x24: /*WM_GETMINMAXINFO initialized with virtual desktop constraints*/
     case 0:case 1:case 2:case 3:case 5:case 6:case 7:case 8:case 0x18:case 0x1c:case 0x82:
         break; /*Defined notifications need no further default action in this subset.*/
-    default:guest_trap(c,R32(c->esp),"unsupported DefWindowProcA message");return;
+    /* Original WndProc 0x00542380 switches only on 7,8,0xF,0x10,0x12,0x20 and
+     * 0x100/0x101/0x104/0x105 (table 0x54263c/index 0x54265c); everything else,
+     * including host-injected client mouse input, reaches DefWindowProcA at
+     * 0x0054262a unless the UI hook 0x00a097f0 claims it. For a top-level window
+     * without a parent, DefWindowProc performs no action for client-area mouse
+     * messages (WM_MOUSEWHEEL/HWHEEL forward only to a parent) and plain
+     * character/key messages; all return 0. WM_XBUTTONUP's WM_APPCOMMAND and
+     * WM_SYSKEYDOWN/WM_SYSKEYUP/WM_SYSCHAR menu semantics are not claimed and keep trapping.
+     * https://learn.microsoft.com/en-us/windows/win32/inputdev/mouse-input-notifications */
+    case 0x100:case 0x101:case 0x102:case 0x103:case 0x109:
+    case 0x200:case 0x201:case 0x202:case 0x203:case 0x204:case 0x205:case 0x206:
+    case 0x207:case 0x208:case 0x209:case 0x20a:case 0x20b:case 0x20e:
+        break;
+    default:fprintf(stderr,"[window] unsupported DefWindowProcA caller=%08x hwnd=%08x message=%08x wParam=%08x lParam=%08x\n",R32(c->esp),w->handle,message,wp,lp);guest_trap(c,R32(c->esp),"unsupported DefWindowProcA message");return;
     }
     ret(c,4,result);
 }

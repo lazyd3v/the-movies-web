@@ -180,6 +180,13 @@ int main(void) {
     assert(movies_window_get(hwnd,&failed_restore) && !failed_restore.minimized && failed_restore.visible);
     assert(failed_restore.x==12 && failed_restore.client_width==800 && failed_restore.client_height==600);
     if(!setjmp(trapped)) { CALL("DefWindowProcA",hwnd,0x112,0xf060,0);assert(0); }
+    /* Original WndProc 0x00542380 forwards client mouse/char input to DefWindowProcA. */
+    message_count=0;
+    {static const uint32_t passive[]={0x100,0x101,0x102,0x103,0x109,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x20a,0x20b,0x20e};
+     for(unsigned i=0;i<sizeof passive/sizeof *passive;i++)assert(!CALL("DefWindowProcA",hwnd,passive[i],1,(20u<<16)|10));}
+    assert(message_count==0);
+    if(!setjmp(trapped)) { CALL("DefWindowProcA",hwnd,0x20c,0x10001,0);assert(0); } /*WM_XBUTTONUP/WM_APPCOMMAND unclaimed*/
+    if(!setjmp(trapped)) { CALL("DefWindowProcA",hwnd,0x106,'x',0);assert(0); } /*WM_SYSCHAR menu semantics unclaimed*/
     message_count=0;
     assert(CALL("ShowWindow",hwnd,0)==1 && !last_event.visible);assert(!CALL("GetForegroundWindow"));
     message_count=0;

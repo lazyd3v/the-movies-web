@@ -60,3 +60,28 @@ test('D3D texture draw preserves typed resource ownership', () => {
   call('release', {handle:texture});
   assert.throws(() => call('drawIndexed', {vertices,indices,texture,indexCount:3}), /Invalid native draw/);
 });
+test('D3D render-target textures are typed, switchable and sampleable only through host ownership', () => {
+  let handle = 0;
+  const {host, calls, device} = fixture({call(command, args) {
+    calls.push({command, args});
+    if (command.startsWith('upload') || command === 'createRenderTarget') return ++handle;
+    if (command === 'setRenderTargetFormat') return args.format;
+    if (command === 'setRenderTarget') return args.texture === null ? {width:1024, height:768} : {width:512, height:512};
+    return null;
+  }});
+  const call = host.moviesGraphicsCall;
+  call('createDevice', device);
+  assert.throws(() => call('createRenderTarget', {width:9000, height:512}), /exceeds actual device limit|Invalid render target/);
+  const target = call('createRenderTarget', {width:512, height:512});
+  const texture = call('uploadTextureRGBA', {bytes:new ArrayBuffer(16),width:2,height:2});
+  assert.throws(() => call('setRenderTarget', {texture}), /does not belong/);
+  assert.throws(() => call('setRenderTarget', {texture:999}), /does not belong/);
+  assert.deepEqual(call('setRenderTarget', {texture:target}), {width:512, height:512});
+  assert.deepEqual(call('setRenderTarget', {texture:null}), {width:1024, height:768});
+  const vertices = call('uploadVertices', {bytes:new ArrayBuffer(72),format:'XYZ_DIFFUSE_UV'});
+  const indices = call('uploadIndices', {bytes:new ArrayBuffer(6),format:'uint16'});
+  call('drawIndexed', {vertices,indices,texture:target,indexCount:3});
+  call('release', {handle:target});
+  assert.throws(() => call('setRenderTarget', {texture:target}), /does not belong/);
+  assert.ok(calls.some(c => c.command === 'createRenderTarget' && c.args.width === 512));
+});

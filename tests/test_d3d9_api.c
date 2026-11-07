@@ -23,17 +23,22 @@ EM_JS(int,js_called,(void),{return Module.fixtureCalls.includes('createDevice')&
 uint8_t*g_mem;static GuestFn table[6][119];static _Thread_local jmp_buf trap;
 static int check_finite_vertices;static unsigned last_vertex_bytes,last_index_bytes,last_vertex_fvf;static uint8_t last_vertices[256],last_indices[128];
 static uint8_t uploaded[128];static unsigned uploaded_bytes;
-static unsigned calls[11],next_handle=1;static int ready=1;static uint32_t drawargs[33];
+static unsigned calls[15],next_handle=1;static uint32_t last_target[3],clearargs[33];static int ready=1;static uint32_t drawargs[33];
 void movies_set_last_error(uint32_t e){(void)e;}
 void register_function(uint32_t a,GuestFn f){assert(a>=0x0e020000&&a<0x0e026000);unsigned t=(a-0x0e020000)/0x1000,slot=((a-0x0e020000)%0x1000)/16;assert(slot<119);table[t][slot]=f;}
 void guest_trap(CPU*c,uint32_t p,const char*s){(void)c;(void)p;(void)s;longjmp(trap,1);}
 int movies_window_get(uint32_t hwnd,MoviesWindowEvent*out){if(hwnd!=42)return 0;memset(out,0,sizeof*out);out->hwnd=42;out->client_width=640;out->client_height=480;return 1;}
-static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)ctx;if(!ready)return 0;assert(q->command>=1&&q->command<=10);calls[q->command]++;
+static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)ctx;if(!ready)return 0;assert(q->command>=1&&q->command<=14);calls[q->command]++;
  if(q->command==MOVIES_D3D9_CAPS){r->values[0]=640;r->values[1]=480;r->values[2]=1;r->values[3]=4<<20;r->values[4]=1;r->values[5]=4096;r->values[6]=3;}
  if(q->command==MOVIES_D3D9_CREATE)assert(q->args[0]==640&&q->args[1]==480&&q->args[2]==42&&q->args[3]==1);
  if(q->command==MOVIES_D3D9_UPLOAD_VERTEX||q->command==MOVIES_D3D9_UPLOAD_INDEX||q->command==MOVIES_D3D9_UPLOAD_TEXTURE){assert(q->data&&q->bytes);r->values[0]=next_handle++;uploaded_bytes=q->bytes;memcpy(uploaded,q->data,q->bytes<128?q->bytes:128);}
  if(q->command==MOVIES_D3D9_UPLOAD_VERTEX){last_vertex_bytes=q->bytes;last_vertex_fvf=q->args[0];memcpy(last_vertices,q->data,q->bytes<256?q->bytes:256);if(check_finite_vertices){unsigned stride=q->args[0]==0x142?24:16;for(unsigned at=0;at<q->bytes;at+=stride)for(unsigned k=0;k<3;k++){float v;memcpy(&v,(const uint8_t*)q->data+at+k*4,4);if(!isfinite(v))return 0;}}}
  if(q->command==MOVIES_D3D9_UPLOAD_INDEX){last_index_bytes=q->bytes;memcpy(last_indices,q->data,q->bytes<128?q->bytes:128);}
+ if(q->command==MOVIES_D3D9_CREATE_TARGET){assert(q->args[0]&&q->args[1]&&!q->data);r->values[0]=next_handle++;}
+ if(q->command==MOVIES_D3D9_CLEAR)memcpy(clearargs,q->args,sizeof clearargs);
+ if(q->command==MOVIES_D3D9_SET_TARGET)memcpy(last_target,q->args,sizeof last_target);
+ if(q->command==MOVIES_D3D9_READ_TARGET){assert(q->bytes==q->args[1]*q->args[2]*4);uint8_t*out=(uint8_t*)q->data;for(uint32_t i=0;i<q->bytes;i+=4){out[i]=0x11;out[i+1]=0x22;out[i+2]=0x33;out[i+3]=0x44;}}
+ if(q->command==MOVIES_D3D9_WRITE_TARGET){assert(q->bytes==q->args[1]*q->args[2]*4);uploaded_bytes=q->bytes;memcpy(uploaded,q->data,q->bytes<128?q->bytes:128);}
  if(q->command==MOVIES_D3D9_DRAW){memcpy(drawargs,q->args,sizeof drawargs);assert(q->matrices[0]==1&&q->matrices[16]==1&&q->matrices[32]==1);}
  return 1;
 }
@@ -265,6 +270,46 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  const uint32_t invalidFactors[]={0,16,17,18,0x7fffffff,0xffffffff};
  for(unsigned state=19;state<=20;state++)for(unsigned i=0;i<sizeof invalidFactors/sizeof invalidFactors[0];i++){assert(method(d,57,3,state,invalidFactors[i])==0x8876086c);assert(!method(d,58,3,state,0x4100u)&&R32(0x4100)==15);}
  assert(!method(d,57,3,19u,1u)&&!method(d,57,3,20u,2u)&&!method(d,57,3,27u,1u));assert(!method(d,57,3,19u,12u));unsigned blendRejected=calls[MOVIES_D3D9_DRAW];if(!setjmp(trap)){method(d,82,7,4u,0u,0u,3u,0u,1u);assert(0);}assert(calls[MOVIES_D3D9_DRAW]==blendRejected);assert(!method(d,57,3,27u,0u));
+ /* Render-target textures (observed 99B26D): GPU-only, one level, DEFAULT pool. */
+ assert(!method(d,65,3,0u,0u));unsigned targets=calls[MOVIES_D3D9_CREATE_TARGET];
+ assert(method(d,23,9,512u,256u,0u,1u,21u,0u,0x2030u,0u)==0x8876086a&&!R32(0x2030)); /*autogen chains not claimed*/
+ assert(method(d,23,9,512u,256u,1u,1u,21u,1u,0x2030u,0u)==0x8876086a&&method(d,23,9,512u,256u,1u,0x201u,21u,0u,0x2030u,0u)==0x8876086a);
+ assert(calls[MOVIES_D3D9_CREATE_TARGET]==targets);
+ assert(!method(d,23,9,512u,256u,1u,1u,21u,0u,0x2030u,0u));uint32_t rtt=R32(0x2030);assert(rtt&&calls[MOVIES_D3D9_CREATE_TARGET]==targets+1);uint32_t rtgpu=next_handle-1;
+ assert(method(rtt,19,5,0u,0x2040u,0u,0u)==0x8876086c); /*not lockable*/
+ assert(!method(rtt,17,3,0u,0x4000u)&&R32(0x4000)==21&&R32(0x4008)==1&&R32(0x400c)==0&&R32(0x4018)==512&&R32(0x401c)==256);
+ assert(!method(rtt,18,3,0u,0x2044u));uint32_t rts=R32(0x2044);assert(rts&&rts!=rt);
+ assert(method(d,37,3,1u,rts)==0x8876086c&&method(d,37,3,0u,0u)==0x8876086c&&method(d,37,3,0u,ds)==0x8876086c);
+ assert(!method(d,65,3,0u,rtt));unsigned sets=calls[MOVIES_D3D9_SET_TARGET];if(!setjmp(trap)){method(d,37,3,0u,rts);assert(0);}assert(calls[MOVIES_D3D9_SET_TARGET]==sets);assert(!method(d,65,3,0u,0u));
+ assert(!method(d,37,3,0u,rts));assert(calls[MOVIES_D3D9_SET_TARGET]==sets+1&&last_target[0]==rtgpu&&last_target[1]==512&&last_target[2]==256);
+ assert(!method(d,48,2,0x4100u)&&R32(0x4100)==0&&R32(0x4104)==0&&R32(0x4108)==512&&R32(0x410c)==256&&R32(0x4114)==0x3f800000u);
+ assert(!method(d,76,2,0x4700u)&&R32(0x4700)==0&&R32(0x4708)==512&&R32(0x470c)==256);
+ W32(0x4108,640);W32(0x410c,480);assert(method(d,47,2,0x4100u)==0x8876086c);W32(0x4108,512);W32(0x410c,256);assert(!method(d,47,2,0x4100u));
+ const int32_t full[4]={0,0,512,256},over[4]={0,0,640,480};memcpy(HP(0x4700),over,16);assert(method(d,75,2,0x4700u)==0x8876086c);memcpy(HP(0x4700),full,16);assert(!method(d,75,2,0x4700u));
+ /* Clear: TARGET alone keeps depth; area is viewport (∩ scissor when enabled). */
+ unsigned clears=calls[MOVIES_D3D9_CLEAR];assert(!method(d,43,7,0u,0u,1u,0u,0x3f800000u,0u));assert(calls[MOVIES_D3D9_CLEAR]==clears+1&&clearargs[2]==1&&!clearargs[26]);
+ assert(!method(d,43,7,0u,0u,3u,0u,0x3f800000u,0u)&&clearargs[2]==3);if(!setjmp(trap)){method(d,43,7,0u,0u,2u,0u,0x3f800000u,0u);assert(0);} /*depth-only clear not claimed*/
+ W32(0x4100,10);W32(0x4104,20);W32(0x4108,100);W32(0x410c,50);assert(!method(d,47,2,0x4100u));
+ assert(!method(d,43,7,0u,0u,1u,0u,0x3f800000u,0u)&&clearargs[26]==1&&clearargs[27]==10&&clearargs[28]==20&&clearargs[29]==110&&clearargs[30]==70);
+ const int32_t cut[4]={50,0,512,30};memcpy(HP(0x4700),cut,16);assert(!method(d,75,2,0x4700u)&&!method(d,57,3,174u,1u));
+ assert(!method(d,43,7,0u,0u,1u,0u,0x3f800000u,0u)&&clearargs[27]==50&&clearargs[28]==20&&clearargs[29]==110&&clearargs[30]==30);
+ const int32_t miss[4]={200,100,300,200};memcpy(HP(0x4700),miss,16);assert(!method(d,75,2,0x4700u));clears=calls[MOVIES_D3D9_CLEAR];
+ assert(!method(d,43,7,0u,0u,1u,0u,0x3f800000u,0u)&&calls[MOVIES_D3D9_CLEAR]==clears); /*empty area: no backend clear*/
+ assert(!method(d,57,3,174u,0u));memcpy(HP(0x4700),full,16);assert(!method(d,75,2,0x4700u));W32(0x4100,0);W32(0x4104,0);W32(0x4108,512);W32(0x410c,256);assert(!method(d,47,2,0x4100u));
+ /* GetRenderTargetData -> SYSTEMMEM edit -> UpdateSurface (observed 9A52C0/9A5310). */
+ assert(!method(d,23,9,512u,256u,1u,0x200u,21u,2u,0x2034u,0u));uint32_t memt=R32(0x2034);assert(!method(memt,18,3,0u,0x2038u));uint32_t mems=R32(0x2038);
+ assert(!method(d,32,3,rts,mems));assert(calls[MOVIES_D3D9_READ_TARGET]==1);
+ assert(!method(mems,13,4,0x2050u,0u,0u));assert(R32(0x2050)==2048);uint32_t bits=R32(0x2054);assert(R8(bits)==0x11&&R8(bits+3)==0x44);W8(bits,0x01);W8(bits+1,0x02);W8(bits+2,0x03);W8(bits+3,0x04);
+ assert(method(d,30,5,mems,0u,rts,0u)==0x8876086c); /*locked source rejected*/
+ assert(!method(mems,14,1));assert(!method(d,30,5,mems,0u,rts,0u));assert(calls[MOVIES_D3D9_WRITE_TARGET]==1&&uploaded_bytes==512u*256u*4u&&uploaded[0]==0x03&&uploaded[1]==0x02&&uploaded[2]==0x01&&uploaded[3]==0x04);
+ if(!setjmp(trap)){method(d,32,3,mems,mems);assert(0);} /*non-RT source unclaimed*/
+ if(!setjmp(trap)){method(d,30,5,mems,0x4800u,rts,0u);assert(0);} /*sub-rect unclaimed*/
+ assert(method(mems,2,1)==1);assert(!method(memt,2,1));
+ assert(!method(d,38,3,0u,0x2048u)&&R32(0x2048)==rts);assert(method(rts,2,1)==3); /*caller ref released; app, texture and device keep it*/
+ unsigned released=calls[MOVIES_D3D9_RELEASE_RESOURCE];
+ assert(method(rts,2,1)==2);assert(method(rtt,2,1)==1);assert(calls[MOVIES_D3D9_RELEASE_RESOURCE]==released); /*bound target outlives app refs*/
+ assert(!method(d,37,3,0u,rt));assert(calls[MOVIES_D3D9_RELEASE_RESOURCE]==released+1&&last_target[0]==0&&last_target[1]==640&&last_target[2]==480);
+ assert(!method(d,48,2,0x4100u)&&R32(0x4108)==640&&R32(0x410c)==480);assert(!method(d,38,3,0u,0x2048u)&&R32(0x2048)==rt);assert(method(rt,2,1)==2); /*test still holds its earlier backbuffer ref*/
  ready=0;assert(method(d,3,1)==0x88760868);ready=1;
  /* Resource references keep the device alive; bound references do not create cycles. */
  assert(method(vb,2,1)==0);assert(method(ib,2,1)==1);assert(method(rt,2,1)==1);assert(method(ds,2,1)==1);

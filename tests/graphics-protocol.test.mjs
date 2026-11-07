@@ -38,3 +38,9 @@ test('classic ADD factors are orthogonal to each implemented source equation',()
  assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,texture:3,textureEquation:'diffuse'}));
  assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,textureEquation:'diffuse-rgb-texture-alpha'}));
 });
+test('render-target commands validate dimensions and nullable texture handles',()=>{
+  validateCommand('createRenderTarget',{width:512,height:512});
+  for(const bad of [{width:0,height:1},{width:1,height:5000},{width:1,height:1,format:21}])assert.throws(()=>validateCommand('createRenderTarget',bad));
+  validateCommand('setRenderTarget',{texture:null});validateCommand('setRenderTarget',{texture:7});
+  for(const bad of [{},{texture:0},{texture:'7'},{texture:1,extra:1}])assert.throws(()=>validateCommand('setRenderTarget',bad));
+});

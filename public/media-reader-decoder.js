@@ -1,4 +1,4 @@
-importScripts('media-reader-core.js');
+importScripts(new URL('media-reader-core.js',self.MOVIES_DECODER_BASE||location.href).href);
 let core,control,slot;
 onmessage=async({data})=>{try{
  if(data.op==='initialize'){core=await MoviesMediaReaderCore.load(data.assetBase);postMessage({type:'ready'});}

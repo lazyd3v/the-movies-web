@@ -1,0 +1,62 @@
+[diagnostic-options] assetReads=false imports=false profiling=false
+Build optimization: O1; Wasm SHA-256: 440c104c6b9a1e05654cf81c4396e65afe4506fa3370678b1af5f237a6b41eb1
+[media] Real WMV2/WMAv2 ASF service ready; bounded 1-second encode jobs, no WMV3 encoder.
+[media-reader] Real WMAv2 stereo 44100 Hz PCM reader ready; bounded input and sample queues.
+[graphics] WebGPU 1024×768 ready; bounded D3D9 subset, animation-frame-paced presentation.
+Mounted 719 original files with one 32 MiB range cache.
+original entry=00ad2451 imports=330; strict bootstrap, 176 API handlers
+[dialog] (first-run graphics quality notice; acknowledged with OK)
+[window] create hwnd=d000001 client=1024x768 visible=false cursor=none
+[window] show hwnd=d000001 client=1024x768 visible=true cursor=none
+[window] ShowWindow caller=005431b4 hwnd=0d000001 mode=3 accepted=1 visible=1 minimized=0
+[window] cursor hwnd=d000001 client=1024x768 visible=true cursor=none
+[graphics] First original Present consumed: serial=1 size=1024x768
+[media-com] CoInitialize hr=00000000 arg0=00000000
+[media-com] CoCreateInstance hr=00000000 arg0=00db0abc arg1=00000000 arg2=00000001 arg3=00daf37c arg4=002ffb7c clsid=e436ebb3-524f-11ce-9f53-0020af0ba770 iid=56a868a9-0ad4-11ce-b03a-0020af0ba770
+[media-com] CoCreateInstance hr=00000000 arg0=00db0afc arg1=00000000 arg2=00000001 arg3=00daf34c arg4=002ffb84 clsid=bf87b6e1-8c27-11d0-b3f0-00aa003761c5 iid=93e5a4e0-2d50-11d2-abfa-00a0c9c6e38d
+[media-com] SetFiltergraph hr=00000000 arg0=04001010 arg1=04001000
+[media-com] CoCreateInstance hr=00000000 arg0=00db083c arg1=00000000 arg2=00000001 arg3=00daf4dc arg4=002ffb80 clsid=7c23220e-55bb-11d3-8b16-00c04fb6bd3d iid=56a86895-0ad4-11ce-b03a-0020af0ba770
+[media-com] AddFilter hr=00000000 arg0=04001000 arg1=04001020 arg2=00d76b68
+[media-com] CoInitialize hr=00000000 arg0=00000000
+[D3D9] factory caller=009a7aeb result=05002000 args=00000020
+[D3D9] create_device caller=009a7bc1 result=8876086a args=05002000,00000000,00000001,0d000001,00000044,0105c8c0,0105ca44 pp=00000400,00000300,00000019,00000001,00000000,00000000,00000001,00000000,00000000,00000001,00000050,00000000,00000000,00000000
+[D3D9] create_device caller=009a7bf4 result=00000000 args=05002000,00000000,00000001,0d000001,00000024,0105c8c0,0105ca44 pp=00000400,00000300,00000019,00000001,00000000,00000000,00000001,00000000,00000000,00000001,00000050,00000000,00000000,00000000
+[D3D9] get_caps caller=009a7c11 result=00000000 args=05002010,0105c910
+[D3D9] check_format caller=009a51d6 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000032
+[D3D9] check_format caller=009a51fd result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000018
+[D3D9] check_format caller=009a5224 result=00000000 args=05002000,00000000,00000001,00000016,00000000,00000003,0000001a
+[D3D9] check_format caller=009a524b result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,00000033
+[D3D9] check_format caller=009a5272 result=8876086a args=05002000,00000000,00000001,00000016,00000000,00000003,0000003c
+[D3D9] CreateBuffer requested caller=00a3afcb type=4 usage=00000008 pool=0 size=4194304 format=00000000
+[D3D9] CreateBuffer requested caller=00a3b02a type=5 usage=00000008 pool=0 size=1048576 format=00000065
+[D3D9] CreateBuffer requested caller=00a3b08d type=4 usage=00000208 pool=0 size=4194304 format=00000000
+[D3D9] CreateBuffer requested caller=00a3b0ed type=5 usage=00000208 pool=0 size=1048576 format=00000065
+[D3D9] (get_caps/check_format probes at 00afbb9e/00afbc04/00afc28f elided; identical to previous checkpoint log)
+[D3D9] SetLight caller=009cc666 (repeated directional light updates elided)
+[thread] create id=257 entry=00acf974 handle=0b000006 stack=1048576
+[thread] start id=257 parameter=102f68f8
+[thread] create id=258 entry=00acf974 handle=0b000008 stack=1048576
+[thread] start id=258 parameter=10319b58
+[media-com] CoInitializeEx hr=00000001 arg0=00000000 arg1=00000002
+[media-com] CoCreateInstance hr=80040154 arg0=00d85b2c arg1=00000000 arg2=00000001 arg3=00d85a8c arg4=100dcb40 clsid=47d4d946-62e8-11cf-93bc-444553540000 iid=279afa83-4981-11ce-a521-0020af0be560
+[D3D9] blend state stored caller=0088804a wrapperParent=00992b41 state=19 value=5
+[D3D9] blend state stored caller=0088804a wrapperParent=00992b4a state=20 value=6
+[D3D9] first backend-acknowledged draw device=05002010 method=DrawIndexedPrimitiveUP caller=009eb1a3 primitives=2
+[media-com] CoInitialize hr=00000001 arg0=00000000
+[media-com] CoCreateInstance hr=00000000 arg0=00db0abc arg1=00000000 arg2=00000001 arg3=00daf37c arg4=10319c68 clsid=e436ebb3-524f-11ce-9f53-0020af0ba770 iid=56a868a9-0ad4-11ce-b03a-0020af0ba770
+[media-com] AddFilter hr=80004002 arg0=04001030 arg1=10319e4c arg2=00d73f38
+[D3D9] FVF104 draw caller=00a599dd result=00000000 method=DrawIndexedPrimitive stride=24 texture=05002560 color=3,2,3 alpha=4,3,2 blend=1,5,6,1 lighting=0
+[media-com] CoInitialize hr=00000001 arg0=00000000
+[media-com] CoCreateInstance hr=00000000 arg0=00db0abc arg1=00000000 arg2=00000001 arg3=00daf37c arg4=15882cc0 clsid=e436ebb3-524f-11ce-9f53-0020af0ba770 iid=56a868a9-0ad4-11ce-b03a-0020af0ba770
+[media-com] AddFilter hr=80004002 arg0=04001040 arg1=15882d5c arg2=00d73f38
+[D3D9] CreateTexture rejected caller=0099b270 result=8876086a args=00000200,00000200,00000001,00000001,00000015,00000000,10319ffc,00000000
+[D3D9] blend state stored caller=0088804a wrapperParent=00993e43 state=19 value=3
+[D3D9] blend state stored caller=0088804a wrapperParent=00993e4c state=20 value=4
+[D3D9] blend state stored caller=0088804a wrapperParent=00993d58 state=19 value=1
+[D3D9] blend state stored caller=0088804a wrapperParent=00993d61 state=20 value=3
+[D3D9] unsupported D3D9 textured draw requires UV format and bound texture caller=00a24ee7 stack=05002010,00000004,00018c2a
+STOP: 00a24ee7: D3D9 textured draw requires UV format and bound texture
+eax=05002010 ecx=05000400 edx=00018c2a esp=002ffba0 ebp=00000000
+Bootstrap execution: 260210.1 ms to diagnostic stop, including image loading and function registration, excluding dialog interaction (not a gameplay benchmark).
+Asset reads: 213 range requests, 55836672 bytes fetched, 2648 cache hits, 33554432 bytes cached.
+[graphics] Presentation sample: frames=2186 first-to-last-ms=197038.1 mean-presented-fps=11.09; not a controlled gameplay benchmark.

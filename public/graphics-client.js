@@ -11,11 +11,11 @@ function prepare(command, args, budget = {remaining: GRAPHICS_LIMITS.maxUploadBy
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw new TypeError('Invalid command args');
   if (command === 'batch' && (inBatch || !Array.isArray(args.commands) || !args.commands.length || args.commands.length > GRAPHICS_LIMITS.maxBatchCommands)) throw new RangeError('Invalid graphics batch');
   const copy = {...args};
-  if (command.startsWith('upload')) copy.bytes = copyBytes(copy.bytes, budget);
+  if (command.startsWith('upload') || command === 'writeRenderTarget') copy.bytes = copyBytes(copy.bytes, budget);
   if (command === 'batch') copy.commands = args.commands.map(entry => ({command: entry.command, args: prepare(entry.command, entry.args ?? {}, budget, true)}));
   return copy;
 }
-function transfers(command, args) { return command.startsWith('upload') ? [args.bytes] : command === 'batch' ? args.commands.flatMap(e => transfers(e.command, e.args)) : []; }
+function transfers(command, args) { return command.startsWith('upload') || command === 'writeRenderTarget' ? [args.bytes] : command === 'batch' ? args.commands.flatMap(e => transfers(e.command, e.args)) : []; }
 export class MoviesGraphicsClient {
   #worker; #views; #serial = 0; #closed = false; #busy = false; #timeout; #metrics = null; #onMetrics = null;
   constructor({width = 256, height = 256, presentationPort, presentationAck, timeoutMs = 15000,
@@ -29,7 +29,7 @@ export class MoviesGraphicsClient {
     if (!(presentationAck instanceof SharedArrayBuffer) || presentationAck.byteLength !== 8 || !presentationPort?.postMessage) throw new TypeError('Dedicated presentation port and8-byte SAB required');
     if (typeof profile !== 'boolean' || (onMetrics !== null && typeof onMetrics !== 'function')) throw new TypeError('Invalid graphics profiling options');
     this.#onMetrics = onMetrics;
-    if (profile) this.#metrics = new GraphicsMetrics(['frameMs', 'bridgeMs', 'uploadBytes', ...['setRenderTargetFormat','clear','uploadVertices','uploadIndices','uploadTextureRGBA','drawIndexed','release','readPixels','present','validate','batch','dispose'].map(n => n + 'Ms')]);
+    if (profile) this.#metrics = new GraphicsMetrics(['frameMs', 'bridgeMs', 'uploadBytes', ...['setRenderTargetFormat','createRenderTarget','setRenderTarget','readRenderTarget','writeRenderTarget','clear','uploadVertices','uploadIndices','uploadTextureRGBA','drawIndexed','release','readPixels','present','validate','batch','dispose'].map(n => n + 'Ms')]);
     this.#timeout = timeoutMs;
     const response = responseBuffer ?? new SharedArrayBuffer(GRAPHICS_LIMITS.headerBytes + responseBytes); this.#views = responseViews(response);
     if (this.#views.payload.length < width * height * 4) throw new RangeError('Response cannot hold target pixels');
@@ -77,6 +77,8 @@ export class MoviesGraphicsClient {
   uploadVertices(bytes, format = 'XYZ_DIFFUSE') { return this.call('uploadVertices', {bytes, format}); }
   uploadIndices(bytes, format = 'uint16') { return this.call('uploadIndices', {bytes, format}); }
   uploadTextureRGBA(width, height, bytes) { return this.call('uploadTextureRGBA', {width, height, bytes}); }
+  createRenderTarget(width, height) { return this.call('createRenderTarget', {width, height}); }
+  setRenderTarget(texture = null) { return this.call('setRenderTarget', {texture}); }
   setRenderTargetFormat(args) { return this.call('setRenderTargetFormat', args); }
   clear(args = {}) { return this.call('clear', args); }
   drawIndexed(args) { return this.call('drawIndexed', args); }
