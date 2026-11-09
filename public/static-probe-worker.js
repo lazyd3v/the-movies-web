@@ -9,8 +9,9 @@ let audioClient = null;
 let ownedPthreads = null;
 let graphicsHost = null;
 const gameWindows = new Map();
-let runtimeLog = '';
+let runtimeLog = '', runtimeLogFlushed = Date.now();
 function flushRuntimeLog() {
+  runtimeLogFlushed = Date.now();
   if (!runtimeLog) return;
   postMessage({type:'log', text:runtimeLog.trimEnd()});
   runtimeLog = '';
@@ -20,7 +21,8 @@ function appendRuntimeLog(text) {
   // Guest execution is synchronous: timer-based batching cannot run here.
   // Bound each packet and avoid one browser task for every hot heap API call.
   // Sparse native profiling windows must remain observable during long loops.
-  if (runtimeLog.length >= 32768 || String(text).startsWith('[wait-profile] ') || String(text).startsWith('[D3D9 present]')) flushRuntimeLog();
+  // Also flush at least once per second so sparse diagnostics are observable.
+  if (runtimeLog.length >= 32768 || Date.now() - runtimeLogFlushed >= 1000 || String(text).startsWith('[wait-profile] ') || String(text).startsWith('[D3D9 present]')) flushRuntimeLog();
 }
 let dialogWaitMs = 0;
 function updateGameWindow(event) {
@@ -128,13 +130,15 @@ self.onmessage = async ({data}) => {
     const graphicsClient = new MoviesGraphicsClient({...data.graphics, onMetrics(metrics) {
       postMessage({type: 'log', text: `[graphics-profile] ${JSON.stringify(metrics)}`});
     }});
-    try { graphicsHost = createMoviesD3D9Host({client:graphicsClient, getWindow:hwnd => gameWindows.get(hwnd), presentationIntervalMask:1}); }
+    if (Number.isInteger(data.traceAt) && data.traceAt > 0) globalThis.moviesTrace = {startAt: data.traceAt, remaining: 1, entries: [], onDone: entries => postMessage({type: 'graphics-trace', entries})};
+    try { graphicsHost = createMoviesD3D9Host({client:graphicsClient, getWindow:hwnd => gameWindows.get(hwnd), presentationIntervalMask:1, deferred:true, pipelined:true}); }
     catch (error) { graphicsClient.close(); throw error; }
     postMessage({type: 'log', text: '[graphics] WebGPU 1024×768 ready; bounded D3D9 subset, animation-frame-paced presentation.'});
     const {createMoviesAudioClient} = await import('./audio-client.js');
     if (!data.audio) throw new Error('Page-prewarmed audio descriptor missing');
     audioClient = createMoviesAudioClient(data.audio);
     if (!audioClient.moviesAudioAvailable()) throw new Error('Audio renderer unavailable');
+    const {mirrorUserdata, restoreUserdata} = await import('./userdata-store.js');
     const runtime = await createMoviesStaticProbe({
       ...audioClient,
       ...mediaProvider,
@@ -162,6 +166,8 @@ self.onmessage = async ({data}) => {
       print: appendRuntimeLog,
       printErr: appendRuntimeLog,
       preRun: [module => {
+        const restored = restoreUserdata(module.FS, data.userdata ?? {});
+        postMessage({type: 'log', text: `[userdata] restored ${restored} saved file(s) into /userdata`});
         module.ENV.MOVIES_STARTUP_APIS = '1';
         if (data.traceFiles === true) module.ENV.PORT_LOG_FILES = '1';
         else delete module.ENV.PORT_LOG_FILES;
@@ -171,6 +177,7 @@ self.onmessage = async ({data}) => {
       onExit: code => terminal(code, code === 4 ? 'Stopped at an unsupported operation; see log.' : 'This result does not establish gameplay.'),
       onAbort: reason => terminal('abort', String(reason)),
     });
+    mirrorUserdata(runtime.FS, change => postMessage({type: 'persist', change}, change.bytes ? [change.bytes.buffer] : []));
     archive = await MoviesStoredArchiveFS.mount(runtime.FS, {
       index: fileIndex, url: new URL('game/' + fileIndex.archive, self.location.href).href,
       path: '/game', preloaded: new Map([['MoviesSE.exe', bytes]]),

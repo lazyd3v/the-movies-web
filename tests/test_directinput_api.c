@@ -39,6 +39,10 @@ int main(void){g_mem=calloc(1,0x3010000);assert(g_mem);assert(movies_directinput
  pthread_t foreign;assert(!pthread_create(&foreign,NULL,foreign_thread,NULL));assert(!pthread_join(foreign,NULL));
 #endif
 MoviesDirectInputHost h={avail,focused,0,0};movies_directinput_set_host(&h,0);uint32_t n;ImportHandler*handlers=movies_directinput_handlers(&n);assert(n==1&&!strcmp(handlers[0].name,"DINPUT8.DLL!DirectInput8Create"));putguid(0x500,inputiid);uint32_t args[]={1,0x800,0x500,0x600,0};assert(!invoke(handlers[0].fn,5,args));uint32_t f=R32(0x600);putguid(0x520,key);assert(!method(f,3,4,0x520,0x604,0,0));uint32_t k=R32(0x604);W8(0x520,0x60);assert(!method(f,3,4,0x520,0x608,0,0));uint32_t m=R32(0x608);setup(k,0);setup(m,1);
+ /* Default background cooperative level: failed NULL-window SetCooperativeLevel still allows Acquire without focus. */
+ {W8(0x520,0x60);assert(!method(f,3,4,0x520,0x60c,0,0));uint32_t b=R32(0x60c);assert(!method(b,11,2,0x1000,0,0,0));assert(method(b,13,3,0,5,0,0)==0x80070057);
+  assert(!method(b,6,3,1,0x1100,0,0));focus=0;assert(!method(b,7,1,0,0,0,0));assert(movies_directinput_push_event(2,0,5,77));W32(0x700,128);assert(!method(b,10,5,20,0x4000,0x700,0)&&R32(0x700)==1&&R32(0x4004)==5);
+  ready=0;W32(0x700,128);assert(method(b,10,5,20,0,0x700,0)==0x8007001e);ready=1;focus=1;assert(!method(b,2,1,0,0,0,0));}
  movies_directinput_set_host(0,0);assert(method(k,7,1,0,0,0,0)==0x80070015);movies_directinput_set_host(&h,0);
  W32(0x1000,23);assert(method(k,11,2,0x1000,0,0,0)==0x80070057);W32(0x1000,24);assert(method(k,13,3,999,5,0,0)==0x80070057);assert(method(k,13,3,42,6,0,0)==0x80070057);
  ready=0;assert(method(k,7,1,0,0,0,0)==0x80070015);ready=1;focus=0;assert(method(k,7,1,0,0,0,0)==0x80070005);focus=1;assert(!method(k,7,1,0,0,0,0));assert(method(k,7,1,0,0,0,0)==1);assert(!method(m,7,1,0,0,0,0));assert(method(k,11,2,0x1000,0,0,0)==0x800700aa);

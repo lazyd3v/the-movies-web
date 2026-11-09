@@ -49,6 +49,26 @@
   if(code!==0||frames.length)throw Error('Audio decode failed or timing accounting incomplete: '+code);
   return {decodedSampleFrames:decoded,deliveredSampleFrames:delivered,packets,eos:true};
  }
+ /* Video: WMV1/2/3 decoded by the same pinned FFmpeg core to bottom-up BGR24 frames
+  * (vflip), the layout of a DirectShow RGB24 DIB with positive biHeight. */
+ function probeVideo(core,input){
+  core.FS.writeFile('/video.asf',input);core.setLogger(()=>{});core.reset();core.setTimeout(30000);
+  const path='/video-metadata.json';core.FS.writeFile(path,new Uint8Array());
+  core.ffprobe('-v','error','-show_entries','stream=index,codec_name,codec_type,width,height,r_frame_rate,avg_frame_rate:format=format_name,duration','-of','json','-o',path,'/video.asf');
+  const raw=JSON.parse(core.FS.readFile(path,{encoding:'utf8'})),video=raw.streams?.find(s=>s.codec_type==='video'),audio=raw.streams?.find(s=>s.codec_type==='audio'),duration=Number(raw.format?.duration);
+  const rate=String(video?.r_frame_rate||video?.avg_frame_rate||'0/1').split('/').map(Number),fps=rate[1]?rate[0]/rate[1]:0;
+  if(!video||!['wmv1','wmv2','wmv3','vc1'].includes(video.codec_name)||!(video.width>0&&video.width<=1280&&video.height>0&&video.height<=720)||!(fps>0&&fps<=60)||!Number.isFinite(duration)||duration<=0||duration>3600)throw Error('Unsupported ASF video stream');
+  return {codec:video.codec_name,width:video.width,height:video.height,fps,frameBytes:video.width*video.height*3,duration100ns:Math.round(duration*TICKS),hasAudio:!!audio};
+ }
+ function decodeVideo(core,metadata,startSeconds,publish){
+  const FS=core.FS,dev=FS.makedev(91,0),size=metadata.frameBytes,frame=new Uint8Array(size);let fill=0,count=0;
+  FS.registerDevice(dev,{open:s=>{s.seekable=false;},write(s,buffer,offset,length){
+   let at=0;while(at<length){const n=Math.min(size-fill,length-at);frame.set(buffer.subarray(offset+at,offset+at+n),fill);fill+=n;at+=n;if(fill===size){publish(frame,count++);fill=0;}}return length;}});
+  try{FS.unlink('/video.rgb');}catch{}FS.mkdev('/video.rgb',0o222,dev);core.setLogger(()=>{});core.reset();core.setTimeout(0x7fffffff);
+  const args=['-loglevel','error'];if(startSeconds>0)args.push('-ss',String(startSeconds));
+  args.push('-i','/video.asf','-map','0:v:0','-vf','vflip','-pix_fmt','bgr24','-f','rawvideo','/video.rgb');
+  const code=core.exec(...args);if(code!==0)throw Error('Video decode failed: '+code);return {frames:count,eos:true};
+ }
  async function load(assetBase){
   const base=new URL(assetBase,location.href);if(base.origin!==location.origin)throw Error('Codec assets must be same-origin');
   async function get(name,expected,limit){const r=await fetch(new URL(name,base));if(!r.ok)throw Error('Codec HTTP '+r.status);const bytes=new Uint8Array(await r.arrayBuffer());if(bytes.length>limit)throw Error('Codec size limit');const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(v=>v.toString(16).padStart(2,'0')).join('');if(hash!==expected)throw Error('Codec integrity mismatch');return bytes;}
@@ -56,5 +76,5 @@
   const blob=URL.createObjectURL(new Blob([js],{type:'text/javascript'}));try{importScripts(blob);}finally{URL.revokeObjectURL(blob);}
   const core=await createFFmpegCore({wasmBinary:wasm});let logs=[];core.setLogger(({message})=>logs.push(message));core.exec('-decoders');if(!logs.some(x=>/^\s*A\S*\s+wmav2\s/.test(x)))throw Error('WMAv2 decoder unavailable');return core;
  }
- scope.MoviesMediaReaderCore={load,probe,decode,range,audioStreamNumber,audioStreamInfo};
+ scope.MoviesMediaReaderCore={load,probe,decode,probeVideo,decodeVideo,range,audioStreamNumber,audioStreamInfo};
 })(globalThis);

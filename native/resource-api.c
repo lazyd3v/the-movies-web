@@ -153,7 +153,112 @@ static void stock_object(CPU *c) {
     if(R32(c->esp+4)!=0) { movies_set_last_error(50);ret(c,1,0);return; }
     ret(c,1,BRUSH_HANDLE);
 }
+/* ---- Generic resources: FindResourceA/W, LoadResource, LockResource, SizeofResource
+ * https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-findresourcea
+ * https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadresource
+ * HRSRC is the guest address of the IMAGE_RESOURCE_DATA_ENTRY; HGLOBAL and the
+ * locked pointer are the mapped image bytes (resources are never unloaded).
+ * Names/types: MAKEINTRESOURCE ids, "#123" decimal ids, or case-insensitive
+ * strings (directory names are compared ASCII-uppercased). Language preference:
+ * neutral, then en-US, then the lowest-ranked other entry. */
+typedef struct ResName { int is_id; uint32_t id,length; uint16_t text[256]; } ResName;
+static int res_name(uint32_t p,int wide,ResName *out) {
+    memset(out,0,sizeof *out);
+    if(p<=0xffffu) { if(!p)return 0;out->is_id=1;out->id=p;return 1; }
+    uint32_t n=0;
+    for(;;n++) {
+        if(n>=256 || !guest_range(p+n*(wide?2:1),wide?2:1))return 0;
+        uint16_t ch=wide?R16(p+n*2):R8(p+n);
+        if(!ch)break;
+        if(ch>='a' && ch<='z')ch-=32;
+        out->text[n]=ch;
+    }
+    if(!n)return 0;
+    if(out->text[0]=='#') {
+        uint32_t v=0;if(n<2)return 0;
+        for(uint32_t i=1;i<n;i++){if(out->text[i]<'0'||out->text[i]>'9'||v>0xffffu)return 0;v=v*10+(out->text[i]-'0');}
+        if(!v || v>0xffffu)return 0;out->is_id=1;out->id=v;return 1;
+    }
+    out->length=n;return 1;
+}
+static int named_entry(uint32_t dir,const ResName *want,uint32_t *target) {
+    if(want->is_id)return entry(dir,want->id,target);
+    if(!resource_range(dir,16))return -1;
+    uint32_t count=(uint32_t)R16(ra(dir)+12)+R16(ra(dir)+14);
+    if(count>4096 || !resource_range(dir+16,count*8))return -1;
+    for(uint32_t i=0;i<count;i++) {
+        uint32_t at=ra(dir+16+i*8),name=R32(at);
+        if(!(name&0x80000000u))continue;
+        uint32_t off=name&0x7fffffffu;if(!resource_range(off,2))return -1;
+        uint32_t length=R16(ra(off));if(!resource_range(off+2,length*2))return -1;
+        if(length!=want->length)continue;
+        uint32_t k=0;
+        for(;k<length;k++){uint16_t ch=R16(ra(off+2+k*2));if(ch>='a'&&ch<='z')ch-=32;if(ch!=want->text[k])break;}
+        if(k==length){*target=R32(at+4);return 1;}
+    }
+    return 0;
+}
+static int data_entry(uint32_t hrsrc,uint32_t *address,uint32_t *bytes) {
+    if(!base || !res_size || hrsrc<base+res_rva || hrsrc-(base+res_rva)>res_size || ((hrsrc-base-res_rva)&3))return 0;
+    uint32_t off=hrsrc-base-res_rva;if(!resource_range(off,16))return 0;
+    uint32_t rva=R32(hrsrc),length=R32(hrsrc+4);
+    if(!length || !image_range(rva,length))return 0;
+    *address=base+rva;*bytes=length;return 1;
+}
+static void find_resource(CPU *c,int wide) {
+    uint32_t module=R32(c->esp+4),name_p=R32(c->esp+8),type_p=R32(c->esp+12),result=0,failure=0;
+    ResName name,type;
+    pthread_mutex_lock(&guard);
+    if(!base || (module && module!=base))failure=126;
+    else if(!res_name(name_p,wide,&name) || !res_name(type_p,wide,&type))failure=87;
+    else if(!res_rva || !res_size)failure=1812; /*ERROR_RESOURCE_DATA_NOT_FOUND*/
+    else {
+        uint32_t t,n;int found=named_entry(0,&type,&t);
+        if(found!=1 || !(t&0x80000000u))failure=found<0||found==1?13:1813;
+        else if((found=named_entry(t&0x7fffffffu,&name,&n))!=1 || !(n&0x80000000u))failure=found<0||found==1?13:1814;
+        else {
+            uint32_t dir=n&0x7fffffffu,count=0;
+            if(!resource_range(dir,16))failure=13;
+            else count=(uint32_t)R16(ra(dir)+12)+R16(ra(dir)+14);
+            if(!failure && (count>4096 || !resource_range(dir+16,count*8)))failure=13;
+            if(!failure && !count)failure=1815;
+            int rank=-1;uint32_t chosen=0;
+            for(uint32_t i=0;!failure && i<count;i++) {
+                uint32_t at=ra(dir+16+i*8),l=R32(at),d=R32(at+4);
+                if(l>0xffff || (d&0x80000000u)){failure=13;break;}
+                int r=l==0?3:l==0x409?2:1;
+                if(r>rank){rank=r;chosen=d;}
+            }
+            uint32_t address,bytes;
+            if(!failure && (!resource_range(chosen,16) || !data_entry(ra(chosen),&address,&bytes)))failure=13;
+            if(!failure)result=ra(chosen);
+        }
+    }
+    pthread_mutex_unlock(&guard);
+    if(failure)movies_set_last_error(failure);ret(c,3,result);
+}
+static void find_resource_a(CPU *c) { find_resource(c,0); }
+static void find_resource_w(CPU *c) { find_resource(c,1); }
+static void load_resource(CPU *c) {
+    uint32_t module=R32(c->esp+4),hrsrc=R32(c->esp+8),address=0,bytes;
+    pthread_mutex_lock(&guard);
+    int ok=base && (!module || module==base) && data_entry(hrsrc,&address,&bytes);
+    pthread_mutex_unlock(&guard);
+    if(!ok){movies_set_last_error(module && module!=base?126:6);address=0;}
+    ret(c,2,address);
+}
+static void lock_resource(CPU *c) { ret(c,1,R32(c->esp+4)); }
+static void sizeof_resource(CPU *c) {
+    uint32_t module=R32(c->esp+4),hrsrc=R32(c->esp+8),address,bytes=0;
+    pthread_mutex_lock(&guard);
+    int ok=base && (!module || module==base) && data_entry(hrsrc,&address,&bytes);
+    pthread_mutex_unlock(&guard);
+    if(!ok){movies_set_last_error(module && module!=base?126:6);bytes=0;}
+    ret(c,2,bytes);
+}
 ImportHandler *movies_resource_handlers(uint32_t *count) {
-    static ImportHandler h[]={{"USER32.DLL!LoadIconA",load_icon},{"USER32.DLL!LoadCursorA",load_cursor},{"GDI32.DLL!GetStockObject",stock_object}};
+    static ImportHandler h[]={{"USER32.DLL!LoadIconA",load_icon},{"USER32.DLL!LoadCursorA",load_cursor},{"GDI32.DLL!GetStockObject",stock_object},
+        {"KERNEL32.DLL!FindResourceA",find_resource_a},{"KERNEL32.DLL!FindResourceW",find_resource_w},{"KERNEL32.DLL!LoadResource",load_resource},
+        {"KERNEL32.DLL!LockResource",lock_resource},{"KERNEL32.DLL!SizeofResource",sizeof_resource}};
     *count=sizeof h/sizeof h[0];return h;
 }

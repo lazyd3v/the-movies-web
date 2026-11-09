@@ -13,6 +13,9 @@ if(typeof MoviesMediaServiceClient==='undefined')importScripts('/media-service-c
     moviesMediaReadReaderSample:safe(null,(token,maxBytes)=>this.request({op:'readSample',token,maxBytes})),
     moviesMediaSetReaderRange:safe(0,(token,start100ns,duration100ns=null)=>this.request({op:'setRange',token,start100ns,duration100ns}).seeked?1:0),
     moviesMediaReleaseReader:safe(0,token=>this.request({op:'releaseReader',token}).released?1:0),
+    moviesMediaOpenVideo:safe(null,token=>this.request({op:'openVideo',token}).metadata),
+    moviesMediaSeekVideo:safe(null,(token,start)=>this.request({op:'seekVideo',token,start}).metadata),
+    moviesMediaReadVideoFrame:safe(null,token=>this.request({op:'readFrame',token})),
    };
   }
  }

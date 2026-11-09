@@ -45,6 +45,21 @@ static void version_a(CPU *cpu) {
     return_stdcall(cpu, 1, 1);
 }
 
+/* OSVERSIONINFOW(EX)W: szCSDVersion is 128 WCHARs, so the sizes are 276/284. */
+static void version_w(CPU *cpu) {
+    uint32_t output = R32(cpu->esp + 4);
+    if (!output) { last_error = 87; return_stdcall(cpu, 1, 0); return; }
+    uint32_t size = R32(output);
+    if (size != 276 && size != 284) { last_error = 87; return_stdcall(cpu, 1, 0); return; }
+    memset(HP(output + 4), 0, size - 4);
+    W32(output + 4, 5); W32(output + 8, 1); W32(output + 12, 2600); W32(output + 16, 2);
+    const char *pack = "Service Pack 3";
+    for (unsigned i = 0; pack[i]; i++) W16(output + 20 + 2 * i, (uint8_t)pack[i]);
+    if (size == 284) { W16(output + 276, 3); W16(output + 280, 0x100); W8(output + 282, 1); }
+    return_stdcall(cpu, 1, 1);
+}
+static void is_debugger_present(CPU *cpu) { return_stdcall(cpu, 0, 0); }
+
 /* Explicit host-backed modules only; no disk PE loader, DllMain, or fabricated
  * exports. Core KERNEL32 and the already-loaded executable remain resident.
  * https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
@@ -117,11 +132,47 @@ static void get_or_load_module(CPU *cpu,int wide,int load) {
         else { if(load)m->references++;result=m->handle; }
     }
     pthread_mutex_unlock(&procedure_mutex);
+    if(error && load) { static unsigned logs;if(logs++<16)fprintf(stderr,"[module] LoadLibrary(%s) failed error=%u caller=%08x\n",name,error,R32(cpu->esp)); }
     if(error)last_error=error;return_stdcall(cpu,1,result);
 }
 static void module_a(CPU *cpu) { get_or_load_module(cpu,0,0); }
 static void module_w(CPU *cpu) { get_or_load_module(cpu,1,0); }
 static void load_a(CPU *cpu) { get_or_load_module(cpu,0,1); }
+/* RaiseException: guest structured exception dispatch is not implemented. Report the
+ * exception (for MSVC C++ throws 0xE06D7363: the catchable type names from the
+ * ThrowInfo) and the code addresses on the stack, then stop with a clear message.
+ * https://learn.microsoft.com/en-us/cpp/build/exception-handling-x86 (ThrowInfo layout) */
+static void ascii_at(uint32_t p,char *out,size_t cap) { size_t n=0;while(p && n+1<cap && (uint64_t)p+n<GUEST_SPACE && R8(p+(uint32_t)n)>=32 && R8(p+(uint32_t)n)<127) { out[n]=(char)R8(p+(uint32_t)n);n++; }out[n]=0; }
+static void raise_exception(CPU *cpu) {
+    uint32_t code=R32(cpu->esp+4),flags=R32(cpu->esp+8),count=R32(cpu->esp+12),args=R32(cpu->esp+16);
+    fprintf(stderr,"[exception] RaiseException code=%08x flags=%08x params=%u caller=%08x\n",code,flags,count,R32(cpu->esp));
+    if(code==0xe06d7363u && count>=3 && args && (uint64_t)args+12<GUEST_SPACE) {
+        uint32_t object=R32(args+4),info=R32(args+8);
+        fprintf(stderr,"[exception] C++ throw magic=%08x object=%08x throwinfo=%08x\n",R32(args),object,info);
+        if(info && (uint64_t)info+16<GUEST_SPACE) {
+            uint32_t table=R32(info+12),n=table&&(uint64_t)table+4<GUEST_SPACE?R32(table):0;
+            for(uint32_t i=0;i<n && i<8;i++) {
+                uint32_t type=R32(table+4+i*4),descriptor=type&&(uint64_t)type+8<GUEST_SPACE?R32(type+4):0;char name[128];ascii_at(descriptor?descriptor+8:0,name,sizeof name);
+                fprintf(stderr,"[exception]   catchable type %u: %s\n",i,name);
+            }
+            /* Common payloads: char* / std::exception-like objects with a message. */
+            if(object && (uint64_t)object+8<GUEST_SPACE) { char text[160];ascii_at(R32(object),text,sizeof text);if(text[0])fprintf(stderr,"[exception]   object string: %s\n",text);
+                ascii_at(R32(object+4),text,sizeof text);if(text[0])fprintf(stderr,"[exception]   object+4 string: %s\n",text); }
+        }
+    }
+    fprintf(stderr,"[exception] stack:");
+    for(unsigned k=1;k<160;k++) { uint32_t v=R32(cpu->esp+4*k);if(v>=0x401000u && v<0xd00000u)fprintf(stderr," +%u:%08x",k*4,v); }
+    fprintf(stderr,"\n");
+    guest_trap(cpu,R32(cpu->esp),"C++/SEH exception raised; guest exception dispatch is not implemented");
+}
+/* IsBadReadPtr(ptr, size): readable iff the whole span lies in guest memory
+ * (the C++ runtime's typeid() probes object pointers with it).
+ * https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-isbadreadptr */
+static void is_bad_read_ptr(CPU *cpu) {
+    uint32_t p=R32(cpu->esp+4),n=R32(cpu->esp+8);
+    int bad=n && (!p || p<0x10000u || (uint64_t)p+n>GUEST_SPACE);
+    return_stdcall(cpu,2,bad?1:0);
+}
 static void load_w(CPU *cpu) { get_or_load_module(cpu,1,1); }
 static void free_library(CPU *cpu) {
     uint32_t handle=R32(cpu->esp+4),ok=0;
@@ -192,7 +243,11 @@ static void set_unhandled_filter(CPU *cpu) {
 ImportHandler *movies_startup_handlers(uint32_t image_base, uint32_t *count) {
     static ImportHandler handlers[] = {
         { "KERNEL32.DLL!GetVersionExA", version_a },
+        { "KERNEL32.DLL!GetVersionExW", version_w },
+        { "KERNEL32.DLL!IsDebuggerPresent", is_debugger_present },
         { "KERNEL32.DLL!GetVersion", version_packed },
+        { "KERNEL32.DLL!IsBadReadPtr", is_bad_read_ptr },
+        { "KERNEL32.DLL!RaiseException", raise_exception },
         { "KERNEL32.DLL!GetModuleHandleA", module_a },
         { "KERNEL32.DLL!GetModuleHandleW", module_w },
         { "KERNEL32.DLL!LoadLibraryA", load_a },

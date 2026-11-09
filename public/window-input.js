@@ -114,6 +114,16 @@
       Atomics.store(this.data, 0, (write + 1) | 0);
       return true;
     }
+    // Lossy producer path for real-time input: a full queue drops this event
+    // (like a full Windows message queue / DirectInput buffer) instead of
+    // poisoning the consumer. `reserve` keeps slots free for higher-priority
+    // events such as buttons and keys, so pointer motion cannot starve them.
+    offer(event, reserve = 0) {
+      if (!Number.isInteger(reserve) || reserve < 0 || reserve >= this.capacity) throw new Error('Invalid input reserve');
+      const write = Atomics.load(this.data, 0) >>> 0, read = Atomics.load(this.data, 1) >>> 0;
+      if (((write - read) >>> 0) + reserve >= this.capacity) return false;
+      return this.push(event);
+    }
     drain(maxCount) {
       const fields = this.fields;
       if (!Number.isInteger(maxCount) || maxCount < 0 || maxCount > 4096) throw new Error('Invalid input read count');

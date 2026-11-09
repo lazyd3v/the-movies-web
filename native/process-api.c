@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include "sync-api.h"
 
 #ifndef MOVIES_PROCESS_SPACE
 #define MOVIES_PROCESS_SPACE GUEST_SPACE
@@ -350,9 +351,8 @@ static void console_control(CPU *c) {
  * This terminates the host diagnostic process/runtime, never returns to guest.
  * Guest DLL detach notifications are not synthesized (no PE DLL loader exists).
  * Preserve the full DWORD in diagnostics before POSIX narrows process status. */
-static void exit_process(CPU *c) {
-    uint32_t code=arg(c,0);
-    fprintf(stderr,"[process] ExitProcess code=%u (0x%08x)\n",code,code);
+static void process_exit(CPU *c,uint32_t code,const char *api) {
+    fprintf(stderr,"[process] %s code=%u (0x%08x)\n",api,code,code);
     if (range(c->esp, 4)) fprintf(stderr,"[process] exit caller=%08x esp=%08x ebp=%08x\n",R32(c->esp),c->esp,c->ebp);
     /* Bounded diagnostic frame-pointer walk. Optimized guest code may omit
      * frames; these words are evidence, not a guaranteed complete backtrace. */
@@ -370,6 +370,7 @@ static void exit_process(CPU *c) {
     exit((int)(code&0xffu));
 #endif
 }
+static void exit_process(CPU *c) { process_exit(c,arg(c,0),"ExitProcess"); }
 /* Match runtime.c cpuid(): CX8 and TSC, no MMX/SSE/3DNow extensions.
  * Report the guest execution environment, never the host Apple/Intel CPU.
  * Microsoft permits FALSE when feature detection is unavailable; unrecognized
@@ -462,6 +463,252 @@ static void set_process_affinity(CPU *c) {
 static void output_debug_string_a(CPU *c) {
     c->esp+=8; /* VOID: preserve registers/flags and thread LastError. */
 }
+/* ---- Cross-module helpers. Production links the owning modules; isolated
+ * fixtures without them observe the documented failure paths. */
+__attribute__((weak)) int movies_sync_is_process_handle(uint32_t handle){return handle==UINT32_MAX;}
+__attribute__((weak)) uint32_t movies_sync_create_tagged(uint32_t tag,uint32_t value){(void)tag;(void)value;return 0;}
+__attribute__((weak)) int movies_sync_tagged_get(uint32_t h,uint32_t tag,uint32_t *value){(void)h;(void)tag;(void)value;return 0;}
+__attribute__((weak)) int movies_sync_tagged_set(uint32_t h,uint32_t tag,uint32_t value){(void)h;(void)tag;(void)value;return 0;}
+__attribute__((weak)) uint32_t movies_local_alloc(uint32_t bytes){(void)bytes;return 0;}
+__attribute__((weak)) uint32_t movies_unhandled_exception_filter(void){return 0;}
+__attribute__((weak)) GuestFn lookup_function(uint32_t address){(void)address;return NULL;}
+__attribute__((weak)) void guest_call(CPU *c,GuestFn fn,int n,const uint32_t *args){(void)c;(void)fn;(void)n;(void)args;}
+/* ---- Process creation and devices: unavailable inside a browser tab.
+ * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa */
+static void create_process(CPU *c) { movies_set_last_error(50);ret(c,10,0); }
+static void create_pipe(CPU *c) { movies_set_last_error(50);ret(c,4,0); }
+static void device_io_control(CPU *c) { movies_set_last_error(50);ret(c,8,0); }
+/* Current process (pseudo or duplicated handle) terminates like ExitProcess;
+ * there are no other processes to terminate.
+ * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess */
+static void terminate_process(CPU *c) {
+    if(!movies_sync_is_process_handle(arg(c,0))) { movies_set_last_error(6);ret(c,2,0);return; }
+    process_exit(c,arg(c,1),"TerminateProcess");
+}
+/* ---- Toolhelp module snapshot: exactly the executable image.
+ * MODULEENTRY32 is 548 bytes: 8 DWORD/pointer fields, szModule[256], szExePath[260].
+ * https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/ns-tlhelp32-moduleentry32 */
+#define SNAPSHOT_TAG 0x534e4150u
+static void toolhelp_snapshot(CPU *c) {
+    require_init(c);uint32_t flags=arg(c,0),pid=arg(c,1);
+    if(pid && pid!=1) { movies_set_last_error(87);ret(c,2,INVALID_HANDLE);return; }
+    if(flags&~0x8000001fu) { movies_set_last_error(87);ret(c,2,INVALID_HANDLE);return; }
+    /* Heap/process/thread lists are not modeled: an empty snapshot for them. */
+    uint32_t handle=movies_sync_create_tagged(SNAPSHOT_TAG,(flags&0x18u)?1u:0u);
+    if(!handle) { movies_set_last_error(8);ret(c,2,INVALID_HANDLE);return; }
+    ret(c,2,handle);
+}
+static uint32_t image_size(void) {
+    uint32_t nt=range(executable_base,64)?R32(executable_base+0x3c):0;
+    if(!nt || nt>0x100000u || !range(executable_base+nt,0x54) || R32(executable_base+nt)!=0x4550)return 0;
+    return R32(executable_base+nt+0x50);
+}
+static void module_entry(CPU *c,int first) {
+    require_init(c);uint32_t snapshot=arg(c,0),out=arg(c,1),state;
+    if(!movies_sync_tagged_get(snapshot,SNAPSHOT_TAG,&state)) { movies_set_last_error(6);ret(c,2,0);return; }
+    if(!range(out,4) || R32(out)<548 || !range(out,548)) { movies_set_last_error(24);ret(c,2,0);return; }
+    if(first)state=state?1u:0u;
+    if(state!=1u) { movies_set_last_error(18);ret(c,2,0);return; } /* ERROR_NO_MORE_FILES */
+    movies_sync_tagged_set(snapshot,SNAPSHOT_TAG,2u);
+    memset(HP(out+4),0,544);W32(out,548);
+    W32(out+4,1);W32(out+8,1);W32(out+12,0xffff);W32(out+16,0xffff);
+    W32(out+20,executable_base);W32(out+24,image_size());W32(out+28,executable_base);
+    const char *name=executable_path;for(const char *q=executable_path;*q;q++)if(*q=='\\' || *q=='/')name=q+1;
+    size_t n=strlen(name);if(n>255)n=255;memcpy(HP(out+32),name,n);
+    n=path_length<259?path_length:259;memcpy(HP(out+288),executable_path,n);
+    ret(c,2,1);
+}
+static void module_first(CPU *c) { module_entry(c,1); }
+static void module_next(CPU *c) {
+    /* After the first entry state 2 means exhausted; state 0 lists nothing. */
+    module_entry(c,0);
+}
+/* ---- Pointer probes mirror IsBadReadPtr: valid iff the span is guest memory
+ * above the reserved null region. Page protection is not modeled. */
+static int bad_span(uint32_t p,uint32_t n) { return n && (!p || p<0x10000u || (uint64_t)p+n>GUEST_SPACE); }
+static void is_bad_write_ptr(CPU *c) { ret(c,2,bad_span(arg(c,0),arg(c,1))); }
+static void is_bad_code_ptr(CPU *c) { ret(c,1,bad_span(arg(c,0),1)); }
+/* ---- Console: no console window exists; diagnostics already go to stderr.
+ * Console modes are reported only for the standard handles. */
+static void console_success(CPU *c) { ret(c,0,1); }
+static void set_console_title(CPU *c) { ret(c,1,1); }
+static int console_handle(uint32_t h) { return descriptor(h)>=0; }
+static void get_console_mode(CPU *c) {
+    uint32_t h=arg(c,0),out=arg(c,1);
+    if(!console_handle(h)) { movies_set_last_error(6);ret(c,2,0);return; }
+    if(!range(out,4)) { movies_set_last_error(87);ret(c,2,0);return; }
+    W32(out,h==MOVIES_STD_INPUT_HANDLE?0x7u:0x3u);ret(c,2,1);
+}
+static void set_console_mode(CPU *c) {
+    if(!console_handle(arg(c,0))) { movies_set_last_error(6);ret(c,2,0);return; }
+    ret(c,2,1);
+}
+/* ---- FormatMessageA: FROM_SYSTEM uses a small English table (Win32 codes and
+ * common HRESULTs; 0x8007xxxx maps to xxxx). FROM_STRING supports %1..%99
+ * with !fmt! (s,c,d,i,u,x,X,lu,ld,lx), %0 %n %r %t %b %% and escapes.
+ * FROM_HMODULE has no message tables. ALLOCATE_BUFFER uses LocalAlloc storage.
+ * https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-formatmessagea */
+static const struct { uint32_t code; const char *text; } system_messages[]={
+    {0,"The operation completed successfully."},{1,"Incorrect function."},
+    {2,"The system cannot find the file specified."},{3,"The system cannot find the path specified."},
+    {4,"The system cannot open the file."},{5,"Access is denied."},{6,"The handle is invalid."},
+    {8,"Not enough storage is available to process this command."},{13,"The data is invalid."},
+    {14,"Not enough storage is available to complete this operation."},{15,"The system cannot find the drive specified."},
+    {18,"There are no more files."},{21,"The device is not ready."},
+    {31,"A device attached to the system is not functioning."},
+    {32,"The process cannot access the file because it is being used by another process."},
+    {38,"Reached the end of the file."},{50,"The request is not supported."},{80,"The file exists."},
+    {87,"The parameter is incorrect."},{112,"There is not enough space on the disk."},
+    {122,"The data area passed to a system call is too small."},
+    {123,"The filename, directory name, or volume label syntax is incorrect."},
+    {126,"The specified module could not be found."},{127,"The specified procedure could not be found."},
+    {145,"The directory is not empty."},{183,"Cannot create a file when that file already exists."},
+    {206,"The filename or extension is too long."},{258,"The wait operation timed out."},
+    {487,"Attempt to access invalid address."},{998,"Invalid access to memory location."},
+    {1400,"Invalid window handle."},{1813,"The specified resource type cannot be found in the image file."},
+    {1814,"The specified resource name cannot be found in the image file."},
+    {0x80004001u,"Not implemented"},{0x80004002u,"No such interface supported"},{0x80004003u,"Invalid pointer"},
+    {0x80004004u,"Operation aborted"},{0x80004005u,"Unspecified error"},{0x8000ffffu,"Catastrophic failure"},
+    {0x80040154u,"Class not registered"},{0x800401f0u,"CoInitialize has not been called."},
+};
+typedef struct Text { char *data; size_t used,capacity; int failed; } Text;
+static void text_put(Text *t,const char *p,size_t n) {
+    if(t->failed)return;
+    if(t->used+n+1>t->capacity) {
+        size_t next=t->capacity?t->capacity*2:256;while(next<t->used+n+1)next*=2;
+        if(next>65536) { t->failed=8;return; }
+        char *grown=realloc(t->data,next);if(!grown) { t->failed=8;return; }
+        t->data=grown;t->capacity=next;
+    }
+    memcpy(t->data+t->used,p,n);t->used+=n;t->data[t->used]=0;
+}
+static int guest_string(uint32_t p,Text *t) {
+    if(!p) { text_put(t,"(null)",6);return 1; }
+    for(uint32_t i=0;i<65536;i++) { if(!range(p+i,1))return 0;char ch=(char)R8(p+i);if(!ch)return 1;text_put(t,&ch,1); }
+    return 0;
+}
+static uint32_t format_insert(Text *t,uint32_t index,const char *spec,uint32_t args,int array) {
+    if(!args)return 87;
+    uint32_t list=array?args:(range(args,4)?R32(args):0);
+    if(!list || !range(list+4*(index-1),4))return 87;
+    uint32_t value=R32(list+4*(index-1));
+    size_t n=strlen(spec);char conversion=n?spec[n-1]:'s';
+    if(conversion=='s')return guest_string(value,t)?0:87;
+    /* Accept only flags/width/precision plus an optional l/h, then one integer/char conversion. */
+    size_t i=0;while(spec[i] && strchr("-+ #0",spec[i]))i++;
+    while(spec[i]>='0' && spec[i]<='9')i++;
+    if(spec[i]=='.') { i++;while(spec[i]>='0' && spec[i]<='9')i++; }
+    if(spec[i]=='l' || spec[i]=='h')i++;
+    if(i!=n-1 || !strchr("cdiuxX",conversion))return 87;
+    char format[48],out[96];size_t keep=0;
+    format[keep++]='%';for(size_t k=0;k<n-1;k++)if(spec[k]!='l' && spec[k]!='h' && keep<40)format[keep++]=spec[k];
+    format[keep++]=conversion;format[keep]=0;
+    int written=conversion=='d'||conversion=='i'?snprintf(out,sizeof out,format,(int)(int32_t)value):
+        conversion=='c'?snprintf(out,sizeof out,format,(int)(uint8_t)value):snprintf(out,sizeof out,format,(unsigned)value);
+    if(written<0 || (size_t)written>=sizeof out)return 87;
+    text_put(t,out,(size_t)written);return 0;
+}
+static uint32_t format_template(Text *t,const char *source,int ignore,uint32_t args,int array) {
+    for(const char *p=source;*p;p++) {
+        if(*p!='%' || ignore) { text_put(t,p,1);continue; }
+        char next=*++p;
+        if(!next)break;
+        if(next=='0')return 0;
+        if(next=='n') { text_put(t,"\r\n",2);continue; }
+        if(next=='r') { text_put(t,"\r",1);continue; }
+        if(next=='t') { text_put(t,"\t",1);continue; }
+        if(next=='b') { text_put(t," ",1);continue; }
+        if(next>='1' && next<='9') {
+            uint32_t index=(uint32_t)(next-'0');
+            if(p[1]>='0' && p[1]<='9')index=index*10+(uint32_t)(*++p-'0');
+            char spec[32]="s";
+            if(p[1]=='!') {
+                const char *end=strchr(p+2,'!');if(!end || end-(p+2)>=(long)sizeof spec || end==p+2)return 87;
+                memcpy(spec,p+2,(size_t)(end-(p+2)));spec[end-(p+2)]=0;p=end;
+            }
+            uint32_t failure=format_insert(t,index,spec,args,array);if(failure)return failure;continue;
+        }
+        text_put(t,&next,1); /* %% %. %! and other escaped characters */
+    }
+    return 0;
+}
+static void format_message(CPU *c) {
+    uint32_t flags=arg(c,0),source=arg(c,1),id=arg(c,2),out=arg(c,4),size=arg(c,5),args=arg(c,6),failure=0;
+    int ignore=(flags&0x200u)!=0,allocate=(flags&0x100u)!=0,array=(flags&0x2000u)!=0;
+    uint32_t width=flags&0xffu;
+    Text t={0};char *source_text=NULL;
+    if(flags&0x400u) {
+        Text s0={0};if(!guest_string(source,&s0) || !source)failure=87;
+        if(!failure)failure=format_template(&t,s0.data?s0.data:"",ignore,args,array);free(s0.data);
+    } else if(flags&0x1000u) {
+        uint32_t code=(id&0xffff0000u)==0x80070000u?(id&0xffffu):id;const char *text=NULL;
+        for(unsigned i=0;i<sizeof system_messages/sizeof system_messages[0];i++)if(system_messages[i].code==code || system_messages[i].code==id)text=system_messages[i].text;
+        if(!text)failure=317; /* ERROR_MR_MID_NOT_FOUND */
+        else {
+            size_t n=strlen(text);source_text=malloc(n+3);
+            if(!source_text)failure=8;
+            else { memcpy(source_text,text,n);memcpy(source_text+n,width==0xffu?"":"\r\n",width==0xffu?1:3);failure=format_template(&t,source_text,ignore,args,array); }
+        }
+    } else failure=(flags&0x800u)?1813:87;
+    free(source_text);
+    if(!failure && t.failed)failure=(uint32_t)t.failed;
+    uint32_t length=(uint32_t)t.used;
+    if(!failure && !length)failure=317;
+    if(!failure) {
+        if(allocate) {
+            if(!range(out,4))failure=87;
+            else {
+                uint32_t bytes=length+1<size?size:length+1,memory=movies_local_alloc(bytes);
+                if(!memory)failure=8;else { memcpy(HP(memory),t.data,length+1);W32(out,memory); }
+            }
+        } else if(length+1>size)failure=122;
+        else if(!range(out,length+1))failure=87;
+        else memcpy(HP(out),t.data,length+1);
+    }
+    free(t.data);
+    if(failure) { movies_set_last_error(failure);ret(c,7,0);return; }
+    ret(c,7,length);
+}
+/* ---- Fatal paths stop the strict runtime with a clear diagnostic. */
+static void fatal_app_exit(CPU *c) {
+    char text[512];Text t={0};
+    if(!guest_string(arg(c,1),&t))text_put(&t,"<invalid message pointer>",25);
+    snprintf(text,sizeof text,"FatalAppExitA: %s",t.data?t.data:"");free(t.data);
+    fprintf(stderr,"[process] %s\n",text);fflush(NULL);guest_trap(c,R32(c->esp),text);
+}
+static void debug_break(CPU *c) {
+    fprintf(stderr,"[process] DebugBreak caller=%08x\n",R32(c->esp));fflush(NULL);
+    guest_trap(c,R32(c->esp),"DebugBreak: breakpoint exception without a debugger");
+}
+/* No debugger: invoke the registered top-level filter (SetUnhandledExceptionFilter)
+ * and return its disposition; with none, EXCEPTION_EXECUTE_HANDLER (1) lets the
+ * caller terminate. EXCEPTION_POINTERS fields are logged first.
+ * https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-unhandledexceptionfilter */
+static void unhandled_exception(CPU *c) {
+    uint32_t pointers=arg(c,0),record=range(pointers,8)?R32(pointers):0;
+    fprintf(stderr,"[process] UnhandledExceptionFilter caller=%08x code=%08x address=%08x\n",R32(c->esp),
+        range(record,16)?R32(record):0,range(record,16)?R32(record+12):0);
+    uint32_t filter=movies_unhandled_exception_filter();
+    if(!filter) { ret(c,1,1);return; }
+    GuestFn fn=lookup_function(filter);
+    if(!fn) { guest_trap(c,filter,"untranslated unhandled-exception filter");return; }
+    CPU nested=*c;
+    if(nested.esp<256 || !range(nested.esp-256,256)) { guest_trap(c,R32(c->esp),"exception filter stack outside guest memory");return; }
+    nested.esp-=128;uint32_t before=nested.esp;
+    guest_call(&nested,fn,1,&pointers);
+    if(nested.esp!=before) { guest_trap(c,filter,"exception filter violated stdcall stack contract");return; }
+    ret(c,1,nested.eax);
+}
+/* Fixed virtual NetBIOS name; host identity is never exposed.
+ * https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getcomputernamea */
+static void computer_name(CPU *c) {
+    static const char name[]="MOVIES-PC";uint32_t out=arg(c,0),size=arg(c,1);
+    if(!range(size,4)) { movies_set_last_error(87);ret(c,2,0);return; }
+    uint32_t capacity=R32(size);
+    if(capacity<sizeof name) { W32(size,sizeof name);movies_set_last_error(111);ret(c,2,0);return; }
+    if(!range(out,sizeof name)) { movies_set_last_error(87);ret(c,2,0);return; }
+    memcpy(HP(out),name,sizeof name);W32(size,sizeof name-1);ret(c,2,1);
+}
 ImportHandler *movies_process_handlers(uint32_t *count) {
     static ImportHandler handlers[]={
         {"KERNEL32.DLL!GlobalMemoryStatus",global_memory_status},
@@ -489,6 +736,16 @@ ImportHandler *movies_process_handlers(uint32_t *count) {
         {"WINMM.DLL!timeGetTime",tick_count},
         {"KERNEL32.DLL!QueryPerformanceCounter",performance_counter}, {"KERNEL32.DLL!QueryPerformanceFrequency",performance_frequency},
         {"KERNEL32.DLL!GetSystemTimeAsFileTime",system_filetime},
+        {"KERNEL32.DLL!CreateProcessA",create_process},{"KERNEL32.DLL!CreatePipe",create_pipe},
+        {"KERNEL32.DLL!DeviceIoControl",device_io_control},{"KERNEL32.DLL!TerminateProcess",terminate_process},
+        {"KERNEL32.DLL!CreateToolhelp32Snapshot",toolhelp_snapshot},{"KERNEL32.DLL!Module32First",module_first},
+        {"KERNEL32.DLL!Module32Next",module_next},{"KERNEL32.DLL!IsBadWritePtr",is_bad_write_ptr},
+        {"KERNEL32.DLL!IsBadCodePtr",is_bad_code_ptr},{"KERNEL32.DLL!AllocConsole",console_success},
+        {"KERNEL32.DLL!FreeConsole",console_success},{"KERNEL32.DLL!GetConsoleMode",get_console_mode},
+        {"KERNEL32.DLL!SetConsoleMode",set_console_mode},{"KERNEL32.DLL!SetConsoleTitleA",set_console_title},
+        {"KERNEL32.DLL!FormatMessageA",format_message},{"KERNEL32.DLL!FatalAppExitA",fatal_app_exit},
+        {"KERNEL32.DLL!DebugBreak",debug_break},{"KERNEL32.DLL!UnhandledExceptionFilter",unhandled_exception},
+        {"KERNEL32.DLL!GetComputerNameA",computer_name},
     };
     *count=sizeof handlers/sizeof handlers[0]; return handlers;
 }

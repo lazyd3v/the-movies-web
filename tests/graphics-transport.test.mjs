@@ -32,7 +32,7 @@ test('dead worker times out and bad reply serial is rejected', () => {
 test('protocol validates complete batches and total upload size before dispatch', () => {
   assert.throws(() => validateCommand('headlessPresent'), /Unsupported/);
   assert.throws(() => validateCommand('batch', {commands: [{command: 'batch', args: {commands: []}}]}), /Nested/);
-  assert.throws(() => validateCommand('batch', {commands: new Array(33).fill({command: 'clear'})}), /batch size/);
+  assert.throws(() => validateCommand('batch', {commands: new Array(GRAPHICS_LIMITS.maxBatchCommands + 1).fill({command: 'clear'})}), /batch size/);
   assert.throws(() => validateCommand('batch', {commands: [{command: 'readPixels'}]}), /not allowed/);
   assert.throws(() => validateCommand('clear', {imaginaryStencil: 7}), /fields/);
   assert.throws(() => validateCommand('uploadVertices', {bytes: new SharedArrayBuffer(48), format: 'XYZ_DIFFUSE'}), /owned/);
@@ -67,4 +67,16 @@ test('profiled client emits bounded windows and preserves synchronous result des
   for(let i=0;i<121;i++){c.uploadVertices(new Uint8Array(48));const result=c.present();assert.equal(result.acknowledged,true);}
   assert.equal(reports.length,1);const r=reports[0];assert.equal(r.frames,120);assert.equal(r.values.bridgeMs.count,240);assert.equal(r.values.presentMs.count,120);assert.equal(r.values.uploadVerticesMs.count,120);assert.equal(r.values.uploadBytes.sum,120*48);assert.deepEqual(r.worker,{fixtureOnly:true});
  }finally{c.close();}
+});
+test('pipelined post returns immediately and its reply is checked at the next exchange', () => {
+  const c = new MoviesGraphicsClient(clientOptions());
+  const seen = [];
+  c.post('batch', {commands: [{command: 'clear'}]}, result => seen.push(result));
+  assert.deepEqual(seen, [], 'nothing waited for at post time');
+  c.post('batch', {commands: [{command: 'clear'}]}, result => seen.push(['second', result]));
+  assert.deepEqual(seen, [null], 'a second post settles the first');
+  assert.equal(c.readPixels().width, 1); assert.deepEqual(seen, [null, ['second', null]]);
+  c.post('batch', {commands: [{command: 'clear'}]}, () => { throw new Error('verification failed'); });
+  assert.throws(() => c.readPixels(), /verification failed/);
+  assert.throws(() => c.readPixels(), /closed/);
 });

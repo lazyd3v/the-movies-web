@@ -53,3 +53,26 @@ export class MoviesAudioProducer{
  }
  close(){if(this.closed)return [];const completed=this.poll().buffers;this.closed=true;Atomics.store(this.ring.control,AUDIO.STATE,AUDIO.CLOSED);for(const job of this.jobs)completed.push({...job,status:'closed'});this.jobs=[];this.ids.clear();return completed;}
 }
+/* DirectSound "hardware": looping secondary buffers living in guest memory (shared
+ * Wasm memory). Each slot is 8 Int32: state (1 playing), ring byte address, ring
+ * bytes, channels, play cursor frame (rendered here), heartbeat, volume
+ * (0..10000 linear), reserved. The guest reads the cursor like a DMA position. */
+export const DSOUND_SLOT=Object.freeze({STATE:0,ADDRESS:1,BYTES:2,CHANNELS:3,CURSOR:4,HEARTBEAT:5,VOLUME:6});
+export function mixDirectSound(ds,outputs){
+ const frames=outputs[0]?.length||0;if(!frames)return;
+ for(let slot=0;slot<ds.slots;slot++){
+  const base=slot*8,c=ds.control;Atomics.add(c,base+DSOUND_SLOT.HEARTBEAT,1);
+  if(Atomics.load(c,base+DSOUND_SLOT.STATE)!==1)continue;
+  const address=Atomics.load(c,base+DSOUND_SLOT.ADDRESS)>>>0,bytes=Atomics.load(c,base+DSOUND_SLOT.BYTES)>>>0,channels=Atomics.load(c,base+DSOUND_SLOT.CHANNELS);
+  if(!address||(address&1)||![1,2].includes(channels))continue;
+  const total=Math.floor(bytes/(2*channels));if(!total||address+bytes>ds.samples.byteLength)continue;
+  const gain=Atomics.load(c,base+DSOUND_SLOT.VOLUME)/10000/32768,first=address>>>1;
+  let cursor=(Atomics.load(c,base+DSOUND_SLOT.CURSOR)>>>0)%total;
+  for(let f=0;f<frames;f++){
+   const index=first+cursor*channels,left=ds.samples[index],right=channels===2?ds.samples[index+1]:left;
+   outputs[0][f]+=left*gain;if(outputs[1])outputs[1][f]+=right*gain;
+   if(++cursor===total)cursor=0;
+  }
+  Atomics.store(c,base+DSOUND_SLOT.CURSOR,cursor);
+ }
+}

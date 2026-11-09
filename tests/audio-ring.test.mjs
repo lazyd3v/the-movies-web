@@ -19,3 +19,16 @@ test('queue rejects overflow and duplicate ids without mutation; counters wrap s
 test('close reports pending buffers cancelled and format bounds fail explicitly',()=>{
  const {p,r,out}=setup();p.write(10,new Int16Array(256));assert.equal(p.close()[0].status,'closed');assert.equal(consumeAudioQuantum(r,out),false);assert.throws(()=>p.write(11,new Int16Array(2)),/closed/);assert.throws(()=>createAudioRing({channels:3}));assert.throws(()=>createAudioRing({capacityFrames:129}));
 });
+test('DirectSound slots mix from shared guest memory and advance the play cursor with wrap', async () => {
+  const {mixDirectSound, DSOUND_SLOT} = await import('../public/audio-ring.js');
+  const memory = new SharedArrayBuffer(4096), control = 1024, samples = new Int16Array(memory), ctl = new Int32Array(memory, control, 16);
+  const ring = 256; for (let f = 0; f < 4; f++) { samples[ring / 2 + f * 2] = 16384; samples[ring / 2 + f * 2 + 1] = -16384; }
+  ctl[DSOUND_SLOT.STATE] = 1; ctl[DSOUND_SLOT.ADDRESS] = ring; ctl[DSOUND_SLOT.BYTES] = 16; ctl[DSOUND_SLOT.CHANNELS] = 2; ctl[DSOUND_SLOT.CURSOR] = 2; ctl[DSOUND_SLOT.VOLUME] = 10000;
+  ctl[8 + DSOUND_SLOT.STATE] = 0;
+  const outputs = [new Float32Array(6), new Float32Array(6)];
+  mixDirectSound({samples, control: ctl, slots: 2}, outputs);
+  assert.deepEqual([...outputs[0]], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+  assert.deepEqual([...outputs[1]], [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5]);
+  assert.equal(ctl[DSOUND_SLOT.CURSOR], 0); /* (2 + 6) % 4 */
+  assert.equal(ctl[DSOUND_SLOT.HEARTBEAT], 1); assert.equal(ctl[8 + DSOUND_SLOT.HEARTBEAT], 1);
+});

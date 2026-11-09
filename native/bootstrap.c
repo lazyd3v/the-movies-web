@@ -14,6 +14,9 @@
 #include "text-api.h"
 #include "atomic-api.h"
 #include "shell-api.h"
+#include "acm-api.h"
+#include "dsound-api.h"
+#include "movie-api.h"
 #include "registry-api.h"
 #include "file-api.h"
 #include "sync-api.h"
@@ -23,6 +26,7 @@
 #include "window-api.h"
 #include "directinput-api.h"
 #include "media-com.h"
+#include "ole-api.h"
 #include "d3d9-api.h"
 #include "audio-api.h"
 #ifdef MOVIES_GUEST_THREADS
@@ -127,7 +131,7 @@ int main(int argc, char **argv) {
     runtime_init(&cpu);
     uint32_t handler_count = 0;
     ImportHandler *handlers = NULL;
-    static ImportHandler combined[512];
+    static ImportHandler combined[1024];
     if (getenv("MOVIES_STARTUP_APIS")) {
         uint32_t startup_count, heap_count, thread_count, process_count, text_count, atomic_count, shell_count, registry_count, file_count, sync_count, time_count, dialog_count, resource_count, window_count, input_count, media_count;
         ImportHandler *startup = movies_startup_handlers(0x400000, &startup_count);
@@ -136,6 +140,7 @@ int main(int argc, char **argv) {
         if (!movies_process_init(0x400000, "C:\\Games\\TheMovies\\MoviesSE.exe")) return 2;
         ImportHandler *process = movies_process_handlers(&process_count);
         ImportHandler *text = movies_text_handlers(&text_count);
+        movies_text_set_dispatcher(lookup_function, guest_call);
         ImportHandler *atomic = movies_atomic_handlers(&atomic_count);
         const char *userdata = getenv("MOVIES_USERDATA_ROOT");
         if (!movies_shell_init(userdata ? userdata : "/userdata")) {
@@ -144,6 +149,9 @@ int main(int argc, char **argv) {
         }
         ImportHandler *shell = movies_shell_handlers(&shell_count);
         movies_registry_init(userdata ? userdata : "/userdata");
+        /* A browser session ends by closing the tab: record the previous run as a
+         * clean exit so the original does not warn "not closed properly" every start. */
+        if(movies_registry_replace_string(0x80000001u,"Software\\Lionhead Studios Ltd\\TheMovies","Game running:",""))fprintf(stderr,"[userdata] previous session recorded as a clean exit\n");
         ImportHandler *registry = movies_registry_handlers(&registry_count);
         char game_root[4096];
         if (!realpath(argv[1], game_root)) { perror("original executable path"); return 2; }
@@ -188,11 +196,26 @@ int main(int argc, char **argv) {
         if (handler_count + graphics_count > sizeof combined / sizeof combined[0]) return 2;
         memcpy(combined + handler_count, graphics, graphics_count * sizeof *graphics);
         handler_count += graphics_count;
+        uint32_t ole_count;
+        ImportHandler *ole = movies_ole_handlers(&ole_count);
+        if (handler_count + ole_count > sizeof combined / sizeof combined[0]) return 2;
+        memcpy(combined + handler_count, ole, ole_count * sizeof *ole);
+        handler_count += ole_count;
         uint32_t audio_count;
         ImportHandler *audio = movies_audio_handlers(&audio_count);
         if (handler_count + audio_count > sizeof combined / sizeof combined[0]) return 2;
         memcpy(combined + handler_count, audio, audio_count * sizeof *audio);
         handler_count += audio_count;
+        uint32_t acm_count;
+        ImportHandler *acm = movies_acm_handlers(&acm_count);
+        if (handler_count + acm_count > sizeof combined / sizeof combined[0]) return 2;
+        memcpy(combined + handler_count, acm, acm_count * sizeof *acm);
+        handler_count += acm_count;
+        uint32_t dsound_count;
+        ImportHandler *dsound = movies_dsound_handlers(&dsound_count);
+        if (handler_count + dsound_count > sizeof combined / sizeof combined[0]) return 2;
+        memcpy(combined + handler_count, dsound, dsound_count * sizeof *dsound);
+        handler_count += dsound_count;
         if (!movies_audio_init_browser()) return 2;
         audio_ready = 1;
 #ifdef MOVIES_GUEST_THREADS
@@ -202,7 +225,7 @@ int main(int argc, char **argv) {
         memcpy(combined + handler_count, guest_thread, guest_thread_count * sizeof *guest_thread);
         handler_count += guest_thread_count;
         main_guest_thread = pthread_self();
-        if (!movies_guest_threads_init(2)) return 2;
+        if (!movies_guest_threads_init(8)) return 2;
         guest_threads_ready = 1;
 #ifdef __EMSCRIPTEN__
         MoviesGuestFailureView failure_view;
@@ -223,6 +246,9 @@ int main(int argc, char **argv) {
     register_all_functions();
     if (getenv("MOVIES_STARTUP_APIS") &&
         (!movies_directinput_init() || !movies_media_init() || !movies_d3d9_init() ||
+         !movies_dsound_init(movies_backend_alloc, movies_backend_free) || !movies_movie_init() ||
+         !movies_startup_register_module("dsound.dll", "DllGetClassObject") ||
+         !movies_file_register_builtin_module("dsound.dll", "DllGetClassObject") ||
          !movies_startup_register_module("d3d9.dll", "Direct3DCreate9") ||
          !movies_startup_register_module("wmvcore.dll", "WMCreateProfileManager") ||
          !movies_file_register_builtin_module("wmvcore.dll", "WMCreateProfileManager") ||

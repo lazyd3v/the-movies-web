@@ -28,10 +28,14 @@ __attribute__((weak)) void movies_wait_profile_present(void){}
 #define ARG(n) R32(c->esp+4+4*(n))
 enum { FACTORY=1,DEVICE,SURFACE,VERTEX,INDEX,TEXTURE };
 typedef struct LightState {uint32_t index,used,enabled;uint32_t words[26];} LightState;
+/* Per-buffer GPU upload cache: draws sharing one buffer with different ranges or
+ * conversions keep their own GPU copies instead of evicting each other every draw. */
+#define UPLOAD_CACHE 4
+typedef struct UploadEntry {uint32_t gpu,version,offset,bytes,fvf,mask,bias,key,age;} UploadEntry;
 typedef struct Object {
  uint32_t type,address,refs,internal,parent,format,usage,pool,size,mem,gpu,version,uploaded,offset,upload_size,index_bias;
  uint32_t width,height,depth,hwnd,flags,interval,windowed,rt,ds,vb,ib,stride,stream_offset,fvf,scene,locked;
- uint32_t draw_ack_logged,draw_reject_logged,draw104_logged;uint32_t diag_draws,diag_draw_ok,diag_clears,diag_clear_ok,diag_clear_caller,diag_present,diag_parent,diag_logs,diag_table_seen,diag_table_state,diag_lock_attempt,diag_lock_ok,diag_cooperative,diag_cooperative_failed;uint32_t viewport[6],scissor[4],rs[256],tss[8][33],sampler[16][14],texture,container,surface,lockflags,color_mask,lost,target;float matrices[48],material[17];uint32_t material_set;LightState lights[16];
+ uint32_t draw_ack_logged,draw_reject_logged,draw104_logged;uint32_t diag_draws,diag_draw_ok,diag_clears,diag_clear_ok,diag_clear_caller,diag_present,diag_parent,diag_logs,diag_table_seen,diag_table_state,diag_lock_attempt,diag_lock_ok,diag_cooperative,diag_cooperative_failed;uint32_t viewport[6],scissor[4],rs[256],tss[8][33],sampler[16][14],texture,container,surface,lockflags,color_mask,lost,target;float matrices[48],material[17];uint32_t material_set,light_hash,specular_logged,stage_textures[7],stage_logged,texmat_set;float texmat[8][16];UploadEntry cache[UPLOAD_CACHE];uint32_t cache_clock;float clip_planes[6][4];LightState lights[16];
 } Object;
 #define OBJECT_CAPACITY 4096u
 static Object *objects[OBJECT_CAPACITY];static uint32_t live_device;
@@ -65,35 +69,42 @@ EM_JS(int,graphics_bridge,(uint32_t cmd, const uint32_t *a, const void *data, ui
  try {
   const call=Module.moviesGraphicsCall;
   if(typeof call!=='function')return 0;
-  const v=Array.from(HEAPU32.subarray(a>>>2,(a>>>2)+33));
+  const v=Array.from(HEAPU32.subarray(a>>>2,(a>>>2)+64));
   let command,args={},result;const scissor=v[26]?{x:v[27],y:v[28],width:v[29]-v[27],height:v[30]-v[28]}:null;
   if(cmd===1){command='capabilities';}
   else if(cmd===2){command='createDevice';args={width:v[0],height:v[1],hwnd:v[2],depth16:!!v[3],windowed:!!v[4],presentationInterval:v[5],backBufferFormat:v[6]};}
-  else if(cmd===3){command='clear';const f=new Float32Array(new Uint32Array([v[1]]).buffer)[0];args={color:v[0],depth:f,scissor,zbuffer:(v[2]&2)!==0};}
+  else if(cmd===3){command='clear';const f=new Float32Array(new Uint32Array([v[1]]).buffer)[0];args={color:v[0],depth:f,scissor,zbuffer:(v[2]&2)!==0,...(v[2]&1?{}:{target:false})};}
   else if(cmd===4){command='present';}
-  else if(cmd===5||cmd===6){command=cmd===5?'uploadVertices':'uploadIndices';args={bytes:HEAPU8.slice(data,data+bytes).buffer,format:cmd===5?(v[0]===0x144?'XYZRHW_DIFFUSE_UV':v[0]===0x142?'XYZ_DIFFUSE_UV':'XYZ_DIFFUSE'):v[0]===101?'uint16':'uint32'};}
-  else if(cmd===7){command='drawIndexed';const f=new Float32Array(new Uint32Array([v[10],v[11]]).buffer);args={vertices:v[0],indices:v[1],firstIndex:v[2],indexCount:v[3],baseVertex:v[4]|0,depthTest:!!v[5],depthCompare:v[23]===8?'always':'less-equal',depthWrite:!!v[24],blend:!!v[25],...(v[25]&256?{blendFactors:{source:(v[25]>>>4)&15,destination:v[25]&15}}:{}),blendMode:v[25]===3?'destination-times-source':v[25]===2?'source-color':'source-alpha',textureEquation:v[31]===3?'diffuse-rgb-texture-alpha':v[31]===2?'diffuse':v[31]?'factor-rgb-texture-alpha':'modulate',textureFactor:v[32],scissor,texture:v[12]||null,alphaTest:{enabled:!!v[20],func:v[21],reference:v[22]},sampler:{addressU:v[13],addressV:v[14],addressW:v[15],minFilter:v[16],magFilter:v[17],mipFilter:v[18],lodBias:new Float32Array(new Uint32Array([v[19]]).buffer)[0]},viewport:{x:v[6],y:v[7],width:v[8],height:v[9],minDepth:f[0],maxDepth:f[1]},world:Array.from(HEAPF32.subarray(m>>>2,(m>>>2)+16)),view:Array.from(HEAPF32.subarray((m>>>2)+16,(m>>>2)+32)),projection:Array.from(HEAPF32.subarray((m>>>2)+32,(m>>>2)+48))};}
+  else if(cmd===5||cmd===6){command=cmd===5?'uploadVertices':'uploadIndices';args={bytes:HEAPU8.slice(data,data+bytes).buffer,format:cmd===5?(v[0]===0x244?'XYZRHW_DIFFUSE_UV2':v[0]===0x242?'XYZ_DIFFUSE_UV2':v[0]===0x144?'XYZRHW_DIFFUSE_UV':v[0]===0x142?'XYZ_DIFFUSE_UV':'XYZ_DIFFUSE'):v[0]===101?'uint16':'uint32'};}
+  else if(cmd===7){command='drawIndexed';const f=new Float32Array(new Uint32Array([v[10],v[11]]).buffer);args={vertices:v[0],indices:v[1],firstIndex:v[2],indexCount:v[3],baseVertex:v[4]|0,depthTest:!!v[5],depthCompare:['never','less','equal','less-equal','greater','not-equal','greater-equal','always'][v[23]-1]??'less-equal',...(v[60]&0x100?{colorWriteMask:v[60]&15,blendConstant:v[57],depthBias:new Float32Array(new Uint32Array([v[58]]).buffer)[0],slopeScaleDepthBias:new Float32Array(new Uint32Array([v[59]]).buffer)[0]}:{}),depthWrite:!!v[24],blend:!!v[25],...(v[25]&256?{blendFactors:{source:(v[25]>>>4)&15,destination:v[25]&15,...(v[56]&15?{operation:v[56]&15}:{}),...((v[56]>>>8)&1?{alphaSource:(v[56]>>>12)&15,alphaDestination:(v[56]>>>16)&15,alphaOperation:((v[56]>>>4)&15)||1}:{})}}:{}),blendMode:v[25]===3?'destination-times-source':v[25]===2?'source-color':'source-alpha',...(v[45]?{texture1:v[45],sampler1:{addressU:v[48],addressV:v[49],addressW:v[50],minFilter:v[51],magFilter:v[52],mipFilter:v[53],lodBias:new Float32Array(new Uint32Array([v[54]]).buffer)[0]}}:{}),...(v[31]===4?{stages:[v.slice(33,39),v.slice(39,45)]}:{textureEquation:v[31]===3?'diffuse-rgb-texture-alpha':v[31]===2?'diffuse':v[31]?'factor-rgb-texture-alpha':'modulate'}),textureFactor:v[32],scissor,texture:v[12]||null,alphaTest:{enabled:!!v[20],func:v[21],reference:v[22]},sampler:{addressU:v[13],addressV:v[14],addressW:v[15],minFilter:v[16],magFilter:v[17],mipFilter:v[18],lodBias:new Float32Array(new Uint32Array([v[19]]).buffer)[0]},viewport:{x:v[6],y:v[7],width:v[8],height:v[9],minDepth:f[0],maxDepth:f[1]},world:Array.from(HEAPF32.subarray(m>>>2,(m>>>2)+16)),view:Array.from(HEAPF32.subarray((m>>>2)+16,(m>>>2)+32)),projection:Array.from(HEAPF32.subarray((m>>>2)+32,(m>>>2)+48))};}
   else if(cmd===8){command='release';args={handle:v[0]};}
   else if(cmd===9){command='destroyDevice';}
   else if(cmd===10){command='uploadTextureRGBA';args={width:v[0],height:v[1],bytes:HEAPU8.slice(data,data+bytes).buffer};}
   else if(cmd===11){command='createRenderTarget';args={width:v[0],height:v[1]};}
   else if(cmd===12){command='setRenderTarget';args={texture:v[0]||null};}
   else if(cmd===13){command='readRenderTarget';args={texture:v[0]};}
+  else if(cmd===16){command='readPixels';}
+  else if(cmd===15){command='copyRenderTarget';args={source:v[0],destination:v[1]};}
   else if(cmd===14){command='writeRenderTarget';args={texture:v[0],width:v[1],height:v[2],bytes:HEAPU8.slice(data,data+bytes).buffer};}else return 0;
   result=call(command,args);
   if(result&&typeof result.then==='function')throw Error('D3D9 graphics hook must be synchronous');
   if(cmd===1){if(!result||result.backend!=='WebGPU')return 0;const values=[result.width,result.height,result.depthFormat==='depth16unorm'?1:0,result.maxBufferBytes,result.presentationIntervalMask,result.maxTextureDimension,(result.renderTargetFormats?.includes(22)?1:0)|(result.renderTargetFormats?.includes(25)?2:0)];if(values.some(x=>!Number.isInteger(x)||x<0||x>4294967295))return 0;HEAPU32.set(values,out>>>2);}
   else if(cmd===12){if(!result||result.width!==v[1]||result.height!==v[2])return 0;}
-  else if(cmd===13){if(!result||result.width!==v[1]||result.height!==v[2]||!(result.rgba instanceof Uint8Array)||result.rgba.length!==bytes)return 0;const s=result.rgba;for(let i=0;i<bytes;i+=4){HEAPU8[data+i]=s[i+2];HEAPU8[data+i+1]=s[i+1];HEAPU8[data+i+2]=s[i];HEAPU8[data+i+3]=s[i+3];}}
+  else if(cmd===13||cmd===16){if(!result||result.width!==v[1]||result.height!==v[2]||!(result.rgba instanceof Uint8Array)||result.rgba.length!==bytes)return 0;const s=result.rgba;for(let i=0;i<bytes;i+=4){HEAPU8[data+i]=s[i+2];HEAPU8[data+i+1]=s[i+1];HEAPU8[data+i+2]=s[i];HEAPU8[data+i+3]=s[i+3];}}
   else if(cmd===5||cmd===6||cmd===10||cmd===11){if(!Number.isInteger(result)||result<1||result>2147483647)return 0;HEAPU32[out>>>2]=result;}
   else if(cmd===2&&result!==true)return 0;
   return 1;
  }catch(error){Module.moviesGraphicsLastError=String(error?.stack||error);return 0;}
 });
 #endif
+#ifdef __EMSCRIPTEN__
+EM_JS(void,graphics_failure_log,(uint32_t cmd),{const e=Module.moviesGraphicsLastError;Module.moviesGraphicsLastError=undefined;err('[D3D9] graphics bridge command '+cmd+' failed: '+(e?String(e).split('\n').slice(0,3).join(' | '):'rejected result'));});
+#endif
 static int invoke(MoviesD3D9Request*q,MoviesD3D9Reply*r){memset(r,0,sizeof*r);if(host)return host(q,r,host_context);
 #ifdef __EMSCRIPTEN__
- return graphics_bridge(q->command,q->args,q->data,q->bytes,q->matrices,r->values);
+ int ok=graphics_bridge(q->command,q->args,q->data,q->bytes,q->matrices,r->values);
+ static unsigned failures;if(!ok&&failures++<16)graphics_failure_log(q->command);
+ return ok;
 #else
  return 0;
 #endif
@@ -111,11 +122,14 @@ static Object *allocate(uint32_t type){for(unsigned i=0;i<OBJECT_CAPACITY;i++)if
  allocation_failure(type,0,"COM object table exhausted");return NULL;}
 static void add(Object*o){if(o->type>=SURFACE&&!o->refs&&o->parent){Object*p=find(o->container?o->container:o->parent);if(p)add(p);}o->refs++;}
 static void drop(Object*o);static void bind_target(Object*d,Object*s);
+static int invoke(MoviesD3D9Request*q,MoviesD3D9Reply*r);
+static void release_upload_cache(Object*b){for(unsigned i=0;i<UPLOAD_CACHE;i++)if(b->cache[i].gpu){MoviesD3D9Request q={.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={b->cache[i].gpu}};MoviesD3D9Reply r;(void)invoke(&q,&r);b->cache[i].gpu=0;}b->gpu=0;}
 static void destroy(Object*o){
  uint32_t parent=o->parent;
- if(o->type==DEVICE){bind_target(o,NULL);uint32_t children[]={o->vb,o->ib,o->rt,o->ds,o->texture};for(unsigned i=0;i<5;i++){Object*k=find(children[i]);if(k&&k->internal){k->internal--;if(!k->refs&&!k->internal)destroy(k);}}MoviesD3D9Request q={.command=MOVIES_D3D9_DESTROY};MoviesD3D9Reply r;(void)invoke(&q,&r);live_device=0;}
+ if(o->type==DEVICE){bind_target(o,NULL);uint32_t children[]={o->vb,o->ib,o->rt,o->ds,o->texture,o->stage_textures[0],o->stage_textures[1],o->stage_textures[2],o->stage_textures[3],o->stage_textures[4],o->stage_textures[5],o->stage_textures[6]};for(unsigned i=0;i<12;i++){Object*k=find(children[i]);if(k&&k->internal){k->internal--;if(!k->refs&&!k->internal)destroy(k);}}MoviesD3D9Request q={.command=MOVIES_D3D9_DESTROY};MoviesD3D9Reply r;(void)invoke(&q,&r);live_device=0;}
  if(o->type==TEXTURE&&o->surface){Object*s=find(o->surface);if(s&&s->internal){s->internal--;if(!s->refs&&!s->internal)destroy(s);}}
- if(o->gpu){MoviesD3D9Request q={.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={o->gpu}};MoviesD3D9Reply r;(void)invoke(&q,&r);}
+ if(o->type==VERTEX||o->type==INDEX)release_upload_cache(o);
+ else if(o->gpu){MoviesD3D9Request q={.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={o->gpu}};MoviesD3D9Reply r;(void)invoke(&q,&r);}
  if(o->mem&&!movies_backend_free(o->mem))abort();
  uint32_t type=o->type;W32(o->address,0);memset(o,0,sizeof*o);
  if(type==DEVICE){Object*p=find(parent);if(p)drop(p);}
@@ -142,7 +156,8 @@ static void mode_out(uint32_t p,MoviesD3D9Reply*r){W32(p,r->values[0]);W32(p+4,r
 static void enum_mode(CPU*c){MoviesD3D9Reply r;if(!adapter(c)||!target_format(ARG(2))||ARG(3)||!range(ARG(4),16)){ret(c,5,INVALID);return;}if(!caps(&r)){ret(c,5,UNAVAILABLE);return;}mode_out(ARG(4),&r);W32(ARG(4)+12,ARG(2));ret(c,5,0);}
 static void display_mode(CPU*c){MoviesD3D9Reply r;if(!adapter(c)||!range(ARG(2),16)){ret(c,3,INVALID);return;}if(!caps(&r)){ret(c,3,UNAVAILABLE);return;}mode_out(ARG(2),&r);ret(c,3,0);}
 static void device_type(CPU*c){MoviesD3D9Reply r;if(!adapter(c)){diagnostic_ret(c,6,INVALID,1,"device_type");return;}diagnostic_ret(c,6,ARG(2)==1&&target_format(ARG(3))&&(ARG(4)==22||(ARG(4)==25&&caps(&r)&&(r.values[6]&2))||(ARG(5)&&ARG(4)==0))&&ARG(5)<=1&&caps(&r)?0:UNAVAILABLE,1,"device_type");}
-static void check_format(CPU*c){MoviesD3D9Reply r;if(!adapter(c)){diagnostic_ret(c,7,INVALID,2,"check_format");return;}uint32_t usage=ARG(4),type=ARG(5),format=ARG(6);int supported=(type==3&&usage==0&&(format==21||format==26||format==0x33545844u||format==0x31545844u))||(type==1&&usage==1&&(format==22||(format==25&&caps(&r)&&(r.values[6]&2))))||(type==1&&usage==2&&format==80&&caps(&r)&&r.values[2]);diagnostic_ret(c,7,ARG(2)==1&&target_format(ARG(3))&&supported?0:UNAVAILABLE,2,"check_format");}
+static int texture_format(uint32_t format);
+static void check_format(CPU*c){MoviesD3D9Reply r;if(!adapter(c)){diagnostic_ret(c,7,INVALID,2,"check_format");return;}uint32_t usage=ARG(4),type=ARG(5),format=ARG(6);int supported=(type==3&&usage==0&&texture_format(format))||(type==1&&usage==1&&(format==22||(format==25&&caps(&r)&&(r.values[6]&2))))||(type==1&&usage==2&&format==80&&caps(&r)&&r.values[2]);diagnostic_ret(c,7,ARG(2)==1&&target_format(ARG(3))&&supported?0:UNAVAILABLE,2,"check_format");}
 static void depth_match(CPU*c){MoviesD3D9Reply r;diagnostic_ret(c,6,adapter(c)&&ARG(2)==1&&target_format(ARG(3))&&(ARG(4)==22||(ARG(4)==25&&caps(&r)&&(r.values[6]&2)))&&ARG(5)==80&&caps(&r)&&r.values[2]?0:UNAVAILABLE,3,"depth_match");}
 static void multisample(CPU*c){MoviesD3D9Reply r;uint32_t p=ARG(6);if(!adapter(c)||(p&&!range(p,4))){diagnostic_ret(c,7,INVALID,4,"multisample");return;}int ok=ARG(2)==1&&(ARG(3)==22||(ARG(3)==25&&caps(&r)&&(r.values[6]&2)))&&ARG(4)<=1&&ARG(5)==0&&caps(&r);if(ok&&p)W32(p,1);diagnostic_ret(c,7,ok?0:UNAVAILABLE,4,"multisample");}
 static int fill_caps(uint32_t p){MoviesD3D9Reply r;if(!caps(&r))return 0;memset(HP(p),0,304);W32(p,1);W32(p+20,r.values[4]);W32(p+28,0x80000);W32(p+32,0x10);W32(p+36,0x01000000|(r.values[2]?0x10:0));W32(p+40,r.values[2]?0x88:0);W32(p+44,0x7ff);W32(p+48,0x7ff);W32(p+52,255);W32(p+56,8);W32(p+60,5);W32(p+64,0x03030300);W32(p+76,7);W32(p+88,r.values[5]);W32(p+92,r.values[5]);W32(p+104,r.values[5]);W32(p+108,1);W32(p+144,10);W32(p+148,1);W32(p+152,1);W32(p+180,r.values[3]/48);W32(p+184,r.values[3]/16-1);W32(p+188,1);W32(p+192,28);W32(p+232,1);W32(p+240,1);return 1;}
@@ -239,20 +254,35 @@ static void clear_target(CPU*c){Object*d=self(c,DEVICE);d->diag_clears++;d->diag
   * clears TARGET alone when the pass disables Z). Clear covers the viewport,
   * intersected with the scissor rect when scissor test is enabled.
   * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-clear */
- uint32_t flags=ARG(3);
- if(ARG(1)||ARG(2)||(flags!=1u&&!(flags==3u&&d->depth))||!isfinite(z)||z<0||z>1||ARG(6)){unsupported(c,"D3D9 Clear unsupported rectangle/flags/depth/stencil combination");return;}
- uint32_t tw,th;target_size(d,&tw,&th);int64_t l=d->viewport[0],t=d->viewport[1],r_=l+(int64_t)d->viewport[2],b=t+(int64_t)d->viewport[3];
- if(d->rs[174]){l=l>(int32_t)d->scissor[0]?l:(int32_t)d->scissor[0];t=t>(int32_t)d->scissor[1]?t:(int32_t)d->scissor[1];r_=r_<(int32_t)d->scissor[2]?r_:(int32_t)d->scissor[2];b=b<(int32_t)d->scissor[3]?b:(int32_t)d->scissor[3];}
- if(r_>tw)r_=tw;if(b>th)b=th;if(l<0)l=0;if(t<0)t=0;
- if(l>=r_||t>=b){d->diag_clear_ok++;ret(c,7,0);return;} /*empty area: nothing to clear*/
- MoviesD3D9Request q={.command=MOVIES_D3D9_CLEAR,.args={ARG(4),bits,flags}};
- if(l||t||r_!=tw||b!=th){q.args[26]=1;q.args[27]=(uint32_t)l;q.args[28]=(uint32_t)t;q.args[29]=(uint32_t)r_;q.args[30]=(uint32_t)b;}
- MoviesD3D9Reply r;int ok=invoke(&q,&r);if(ok)d->diag_clear_ok++;ret(c,7,ok?0:LOST);
+ /* Flags: TARGET(1), ZBUFFER(2), STENCIL(4); there is no stencil buffer, so the
+  * stencil part is a no-op. ZBUFFER without a depth surface is INVALIDCALL. Each
+  * rectangle (or the whole viewport when Count is 0) is intersected with the
+  * viewport and, when enabled, the scissor rect. */
+ uint32_t flags=ARG(3),count=ARG(1),rects=ARG(2);
+ if(!flags||(flags&~7u)||((flags&2u)&&!d->depth)||(count&&(!rects||count>4096||!range(rects,(uint64_t)count*16)))||!isfinite(z)||z<0||z>1){ret(c,7,INVALID);return;}
+ if(!(flags&3u)){d->diag_clear_ok++;ret(c,7,0);return;} /* stencil only */
+ uint32_t tw,th;target_size(d,&tw,&th);int ok=1;
+ for(uint32_t i=0;i<(count?count:1u)&&ok;i++){
+  int64_t l=d->viewport[0],t=d->viewport[1],r_=l+(int64_t)d->viewport[2],b=t+(int64_t)d->viewport[3];
+  if(count){int32_t rl=(int32_t)R32(rects+i*16),rt=(int32_t)R32(rects+i*16+4),rr=(int32_t)R32(rects+i*16+8),rb=(int32_t)R32(rects+i*16+12);if(rl>l)l=rl;if(rt>t)t=rt;if(rr<r_)r_=rr;if(rb<b)b=rb;}
+  if(d->rs[174]){l=l>(int32_t)d->scissor[0]?l:(int32_t)d->scissor[0];t=t>(int32_t)d->scissor[1]?t:(int32_t)d->scissor[1];r_=r_<(int32_t)d->scissor[2]?r_:(int32_t)d->scissor[2];b=b<(int32_t)d->scissor[3]?b:(int32_t)d->scissor[3];}
+  if(r_>tw)r_=tw;if(b>th)b=th;if(l<0)l=0;if(t<0)t=0;
+  if(l>=r_||t>=b)continue; /*empty area: nothing to clear*/
+  MoviesD3D9Request q={.command=MOVIES_D3D9_CLEAR,.args={ARG(4),bits,flags&3u}};
+  if(l||t||r_!=tw||b!=th){q.args[26]=1;q.args[27]=(uint32_t)l;q.args[28]=(uint32_t)t;q.args[29]=(uint32_t)r_;q.args[30]=(uint32_t)b;}
+  MoviesD3D9Reply r;ok=invoke(&q,&r);}
+ if(ok)d->diag_clear_ok++;ret(c,7,ok?0:LOST);
 }
 static void present(CPU*c){Object*d=self(c,DEVICE);if(d->scene||ARG(1)||ARG(2)||ARG(3)||ARG(4)){ret(c,5,INVALID);return;}MoviesD3D9Request q={.command=MOVIES_D3D9_PRESENT};MoviesD3D9Reply r;int ok=invoke(&q,&r);if(ok)movies_wait_profile_present();present_diagnostic(c,d,ok);ret(c,5,ok?0:LOST);}
 static int transform_index(uint32_t value){return value==256?0:value==2?16:value==3?32:-1;}
-static void set_transform(CPU*c){Object*d=self(c,DEVICE);int index=transform_index(ARG(1));if(index<0){unsupported(c,"D3D9 SetTransform unsupported state");return;}if(!range(ARG(2),64)){ret(c,3,INVALID);return;}float values[16];memcpy(values,HP(ARG(2)),64);for(unsigned i=0;i<16;i++)if(!isfinite(values[i])){ret(c,3,INVALID);return;}memcpy(d->matrices+index,values,64);ret(c,3,0);}
-static void get_transform(CPU*c){Object*d=self(c,DEVICE);int index=transform_index(ARG(1));if(index<0||!range(ARG(2),64)){ret(c,3,INVALID);return;}memcpy(HP(ARG(2)),d->matrices+index,64);ret(c,3,0);}
+/* D3DTS_TEXTURE0..7 (16..23): per-stage texture-coordinate matrices; unset = identity. */
+static const float*texture_matrix(Object*d,unsigned stage){static const float identity[16]={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};return d->texmat_set&(1u<<stage)?d->texmat[stage]:identity;}
+static void set_transform(CPU*c){Object*d=self(c,DEVICE);
+ if(ARG(1)>=16&&ARG(1)<=23){if(!range(ARG(2),64)){ret(c,3,INVALID);return;}float values[16];memcpy(values,HP(ARG(2)),64);for(unsigned i=0;i<16;i++)if(!isfinite(values[i])){ret(c,3,INVALID);return;}memcpy(d->texmat[ARG(1)-16],values,64);d->texmat_set|=1u<<(ARG(1)-16);ret(c,3,0);return;}
+ int index=transform_index(ARG(1));if(index<0){unsupported(c,"D3D9 SetTransform unsupported state");return;}if(!range(ARG(2),64)){ret(c,3,INVALID);return;}float values[16];memcpy(values,HP(ARG(2)),64);for(unsigned i=0;i<16;i++)if(!isfinite(values[i])){ret(c,3,INVALID);return;}memcpy(d->matrices+index,values,64);ret(c,3,0);}
+static void get_transform(CPU*c){Object*d=self(c,DEVICE);
+ if(ARG(1)>=16&&ARG(1)<=23){if(!range(ARG(2),64)){ret(c,3,INVALID);return;}memcpy(HP(ARG(2)),texture_matrix(d,ARG(1)-16),64);ret(c,3,0);return;}
+ int index=transform_index(ARG(1));if(index<0||!range(ARG(2),64)){ret(c,3,INVALID);return;}memcpy(HP(ARG(2)),d->matrices+index,64);ret(c,3,0);}
 static void set_viewport(CPU*c){Object*d=self(c,DEVICE);uint32_t p=ARG(1);if(!range(p,24)){ret(c,2,INVALID);return;}uint32_t v[6];memcpy(v,HP(p),24);float min,max;memcpy(&min,v+4,4);memcpy(&max,v+5,4);uint32_t tw,th;target_size(d,&tw,&th);if(!v[2]||!v[3]||(uint64_t)v[0]+v[2]>tw||(uint64_t)v[1]+v[3]>th||!isfinite(min)||!isfinite(max)||min<0||max>1||min>max){ret(c,2,INVALID);return;}memcpy(d->viewport,v,24);ret(c,2,0);}
 static void get_viewport(CPU*c){Object*d=self(c,DEVICE);if(!range(ARG(1),24)){ret(c,2,INVALID);return;}memcpy(HP(ARG(1)),d->viewport,24);ret(c,2,0);}
 static int known_state(uint32_t state){switch(state){case 7:case 8:case 9:case 14:case 15:case 16:case 19:case 20:case 22:case 23:case 24:case 25:case 26:case 27:case 28:case 29:case 34:case 35:case 36:case 37:case 38:case 48:case 52:case 53:case 54:case 55:case 56:case 57:case 58:case 59:case 60:case 128:case 129:case 130:case 131:case 132:case 133:case 134:case 135:case 136:case 137:case 139:case 140:case 141:case 142:case 143:case 145:case 146:case 147:case 148:case 151:case 152:case 154:case 155:case 156:case 157:case 158:case 159:case 160:case 161:case 162:case 163:case 166:case 167:case 168:case 170:case 171:case 172:case 173:case 174:case 175:case 176:case 178:case 179:case 180:case 181:case 182:case 183:case 184:case 185:case 186:case 187:case 188:case 189:case 190:case 191:case 192:case 193:case 194:case 195:case 198:case 199:case 200:case 201:case 202:case 203:case 204:case 205:case 206:case 207:case 208:case 209:return 1;default:return 0;}}
@@ -265,17 +295,49 @@ static void set_state(CPU*c){Object*d=self(c,DEVICE);uint32_t state=ARG(1),value
   static uint32_t seen[2];unsigned slot=state-19;uint32_t bit=1u<<value;
   if(!(seen[slot]&bit)){seen[slot]|=bit;fprintf(stderr,"[D3D9] blend state stored caller=%08x wrapperParent=%08x state=%u value=%u\n",R32(c->esp),R32(c->esp)==0x88804a&&range(c->esp,24)?R32(c->esp+20):0,state,value);}
  }
- if(known_state(state)&&d->rs[state]==value){ret(c,3,0);return;}int ok=0;switch(state){case 7:ok=value<=1&&(!value||d->depth);break;case 8:ok=value==3;break;case 9:ok=value==2;break;case 14:ok=value<=1;break;case 22:ok=value==1;break;case 23:ok=value==4||value==8;break;case 174:ok=value<=1;break;case 168:ok=value==15;break;case 15:ok=value<=1;break;case 24:ok=value<=255;break;case 25:ok=value>=1&&value<=8;break;case 137:ok=value<=1;break;case 19:case 20:ok=1;break;case 27:ok=value<=1;break;case 60:ok=1;break;case 28:case 29:case 52:ok=value==0;break;}
- if(!ok){static unsigned reports;if(reports++<32)fprintf(stderr,"[D3D9] SetRenderState caller=%08x state=%u value=%08x\n",R32(c->esp),state,value);unsupported(c,"D3D9 SetRenderState unsupported state/value");return;}d->rs[state]=value;ret(c,3,0);}
+ /* Every documented render state is stored; enumerations are range-checked like
+  * the runtime (D3DERR_INVALIDCALL), and draw-time code maps what WebGPU supports
+  * and logs (once) what it does not (fog, stencil, fill/shade modes). Only states
+  * outside the D3DRENDERSTATETYPE set stop the run. */
+ if(!known_state(state)){static unsigned reports;if(reports++<32)fprintf(stderr,"[D3D9] SetRenderState caller=%08x state=%u value=%08x\n",R32(c->esp),state,value);unsupported(c,"D3D9 SetRenderState unknown state");return;}
+ int ok=1;switch(state){
+  case 7:ok=value<=2&&(!value||d->depth);break;
+  case 8:case 9:ok=value>=1&&value<=3;break;
+  case 22:ok=value>=1&&value<=3;break;
+  case 19:case 207:ok=value>=1&&value<=15;break;
+  case 20:case 208:ok=value>=1&&value<=15&&value!=12&&value!=13;break;
+  case 171:case 209:ok=value>=1&&value<=5;break;
+  case 23:case 25:case 56:case 189:ok=value>=1&&value<=8;break;
+  case 24:ok=value<=255;break;
+  case 145:case 146:case 147:case 148:ok=value<=2;break;}
+ if(!ok){ret(c,3,INVALID);return;}d->rs[state]=value;ret(c,3,0);}
 static void get_state(CPU*c){Object*d=self(c,DEVICE);if(!known_state(ARG(1))){ret(c,3,INVALID);return;}if(!range(ARG(2),4)){ret(c,3,INVALID);return;}W32(ARG(2),d->rs[ARG(1)]);ret(c,3,0);}
-static void set_fvf(CPU*c){Object*d=self(c,DEVICE);if(ARG(1)!=0x42&&ARG(1)!=0x142&&ARG(1)!=0x144&&ARG(1)!=0x104){unsupported(c,"D3D9 SetFVF only XYZ/XYZRHW diffuse single-UV formats implemented");return;}d->fvf=ARG(1);ret(c,2,0);}
+/* Flexible vertex formats: position (XYZ or XYZRHW), optional normal, point size,
+ * diffuse, specular and 0..8 texture coordinate sets of 1..4 floats. Blend-weight
+ * positions (XYZB*), XYZW and LASTBETA flags are not supported.
+ * https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dfvf */
+static int stage1_texture(Object*d);static void texture_rgba(Object*t,uint8_t*rgba);
+typedef struct Fvf{uint32_t stride,rhw,normal,diffuse,specular,tex_count,tex_off[8],tex_size[8];}Fvf; /* offsets are +1, 0 = absent */
+static int decode_fvf(uint32_t fvf,Fvf*f){
+ memset(f,0,sizeof*f);uint32_t pos=fvf&0x400eu,off;
+ if(fvf&~(0x0eu|0x10u|0x20u|0x40u|0x80u|0xf00u|0xffff0000u))return 0;
+ if(pos==2)off=12;else if(pos==4){off=16;f->rhw=1;}else return 0;
+ if(fvf&0x10u){f->normal=off+1;off+=12;}
+ if(fvf&0x20u)off+=4;
+ if(fvf&0x40u){f->diffuse=off+1;off+=4;}
+ if(fvf&0x80u){f->specular=off+1;off+=4;}
+ uint32_t n=(fvf>>8)&15u;if(n>8)return 0;
+ for(uint32_t i=0;i<n;i++){uint32_t code=(fvf>>(16+2*i))&3u;f->tex_size[i]=code==0?2:code==1?3:code==2?4:1;f->tex_off[i]=off;off+=4*f->tex_size[i];}
+ f->tex_count=n;f->stride=off;return 1;}
+static int valid_fvf(uint32_t fvf){Fvf f;return decode_fvf(fvf,&f);}
+static void set_fvf(CPU*c){Object*d=self(c,DEVICE);Fvf decoded;if(!decode_fvf(ARG(1),&decoded)){fprintf(stderr,"[D3D9] SetFVF rejected fvf=%08x caller=%08x\n",ARG(1),R32(c->esp));unsupported(c,"D3D9 SetFVF blend-weight/XYZW vertex formats unsupported");return;}d->fvf=ARG(1);ret(c,2,0);}
 static void get_fvf(CPU*c){Object*d=self(c,DEVICE);if(!range(ARG(1),4)){ret(c,2,INVALID);return;}W32(ARG(1),d->fvf);ret(c,2,0);}
 static void create_buffer(CPU*c,uint32_t type){Object*d=self(c,DEVICE);uint32_t out=ARG(5),size=ARG(1),usage=ARG(2),fmt=ARG(3),pool=ARG(4);MoviesD3D9Reply caps_;
  static uint32_t seen[16][3];static unsigned seen_count;uint32_t key[3]={type,usage,pool};int fresh=1;for(unsigned i=0;i<seen_count;i++)if(!memcmp(seen[i],key,sizeof key))fresh=0;
  if(fresh&&seen_count<16){memcpy(seen[seen_count++],key,sizeof key);fprintf(stderr,"[D3D9] CreateBuffer requested caller=%08x type=%u usage=%08x pool=%u size=%u format=%08x\n",R32(c->esp),type,usage,pool,size,fmt);}
 
  if(!range(out,4)){ret(c,7,INVALID);return;}W32(out,0);
- if(!size||ARG(6)||(usage&~0x208u)||pool>1||(pool==1&&(usage&0x200))||(type==INDEX&&fmt!=101&&fmt!=102)||(type==VERTEX&&fmt!=0&&fmt!=0x42&&fmt!=0x142&&fmt!=0x144&&fmt!=0x104)){ret(c,7,INVALID);return;}
+ if(!size||ARG(6)||(usage&~0x208u)||pool>1||(pool==1&&(usage&0x200))||(type==INDEX&&fmt!=101&&fmt!=102)||(type==VERTEX&&fmt!=0&&!valid_fvf(fmt))){ret(c,7,INVALID);return;}
  if(!caps(&caps_)||size>caps_.values[3]){ret(c,7,UNAVAILABLE);return;}
  Object*b=allocate(type);if(!b){ret(c,7,OOM);return;}
  b->mem=movies_backend_alloc(size);if(!b->mem){allocation_failure(type,size,"guest buffer storage allocation");W32(b->address,0);memset(b,0,sizeof*b);ret(c,7,OOM);return;}
@@ -292,53 +354,183 @@ static void buffer_lock(CPU*c){Object*b=self(c,0);uint32_t offset=ARG(1),bytes=A
 }
 static void buffer_unlock(CPU*c){Object*b=self(c,0);if((b->type!=VERTEX&&b->type!=INDEX)||!b->locked){ret(c,1,INVALID);return;}b->locked=0;b->version++;ret(c,1,0);}
 static void buffer_desc(CPU*c){Object*b=self(c,0);uint32_t out=ARG(1);if((b->type!=VERTEX&&b->type!=INDEX)||!range(out,b->type==VERTEX?24:20)){ret(c,2,INVALID);return;}W32(out,b->type==VERTEX?100:b->format);W32(out+4,b->type==VERTEX?6:7);W32(out+8,b->usage);W32(out+12,b->pool);W32(out+16,b->size);if(b->type==VERTEX)W32(out+20,b->format);ret(c,2,0);}
-static void stream_source(CPU*c){Object*d=self(c,DEVICE);Object*b=find(ARG(2));if(ARG(1)||(!b&&ARG(2))||(b&&(b->type!=VERTEX||b->parent!=d->address||ARG(3)>b->size||(ARG(4)!=16&&ARG(4)!=24&&ARG(4)!=28)))){ret(c,5,INVALID);return;}bind(d,&d->vb,b);d->stream_offset=ARG(3);d->stride=ARG(4);ret(c,5,0);}
+static void stream_source(CPU*c){Object*d=self(c,DEVICE);Object*b=find(ARG(2));if(ARG(1)||(!b&&ARG(2))||(b&&(b->type!=VERTEX||b->parent!=d->address||ARG(3)>b->size||(ARG(4)<4||ARG(4)>512||(ARG(4)&3))))){ret(c,5,INVALID);return;}bind(d,&d->vb,b);d->stream_offset=ARG(3);d->stride=ARG(4);ret(c,5,0);}
 static void set_indices(CPU*c){Object*d=self(c,DEVICE);Object*b=find(ARG(1));if((ARG(1)&&!b)||(b&&(b->type!=INDEX||b->parent!=d->address))){ret(c,2,INVALID);return;}bind(d,&d->ib,b);ret(c,2,0);}
 /* Immutable upload snapshots cover only the draw's referenced span. Guest
  * indices stay untouched; a normalized copy permits firstIndex/baseVertex0.
  * This is a contiguous span, not a sparse gather: unused holes inside it still
  * pass through backend float validation. No NaN-hole support is claimed. */
-static int upload(Object*b,uint32_t offset,uint32_t bytes,uint32_t fvf,uint32_t mask,uint32_t bias){
- if(b->gpu&&b->uploaded==b->version&&b->offset==offset&&b->upload_size==bytes&&b->fvf==fvf&&b->color_mask==mask&&b->index_bias==bias)return 1;
+/* Fixed-function vertex lighting for XYZ|NORMAL|TEX1 (no vertex colours, so
+ * every material source resolves to the material). Computed on the CPU in world
+ * space, which equals D3D9's camera-space result for an orthonormal view and no
+ * specular term, then stored as the vertex diffuse of an XYZ|DIFFUSE|TEX1 snapshot.
+ * https://learn.microsoft.com/en-us/windows/win32/direct3d9/mathematics-of-lighting */
+static uint32_t light_hash(Object*d){
+ uint32_t h=2166136261u;
+#define MIX(p,n) for(size_t k_=0;k_<(n);k_++){h^=((const uint8_t*)(p))[k_];h*=16777619u;}
+ MIX(d->matrices,64);MIX(d->material,68);const unsigned states[]={29,137,139,141,143,145,147,148};for(unsigned i=0;i<8;i++)MIX(&d->rs[states[i]],4);
+ for(unsigned i=0;i<16;i++)if(d->lights[i].used&&d->lights[i].enabled){MIX(&d->lights[i].index,4);MIX(d->lights[i].words,104);}
+#undef MIX
+ return h|1u;}
+static float clamp01(float v){return v<0?0:v>1?1:v;}
+static float finite_or_zero(float v){return isfinite(v)?v:0.f;}
+static void unpack_color(uint32_t c,float o[4]){o[0]=((c>>16)&255)/255.f;o[1]=((c>>8)&255)/255.f;o[2]=(c&255)/255.f;o[3]=(c>>24)/255.f;}
+static uint32_t pack_color(const float c[4]){return ((uint32_t)(clamp01(c[3])*255+.5f)<<24)|((uint32_t)(clamp01(c[0])*255+.5f)<<16)|((uint32_t)(clamp01(c[1])*255+.5f)<<8)|(uint32_t)(clamp01(c[2])*255+.5f);}
+/* Fixed-function vertex lighting, evaluated in world space (equal to D3D9's
+ * camera-space result for an orthonormal view; specular term not modelled).
+ * https://learn.microsoft.com/en-us/windows/win32/direct3d9/mathematics-of-lighting */
+/* Per-draw light setup: every enabled light is decoded once (normalized directions,
+ * colours, cone cosines); directional ambient terms fold into the global ambient. */
+typedef struct PreLight{uint32_t type;float dir[3],pos[3],diffuse[3],ambient[3],range,att[3],ct,cp,falloff;}PreLight;
+typedef struct LightCtx{const float*m;float inv[9],global[3];PreLight lights[16];unsigned n;int normalize;}LightCtx;
+static void light_setup(Object*d,LightCtx*L){
+ const float*m=d->matrices;L->m=m;float a=m[0],b=m[1],cc=m[2],e=m[4],f=m[5],g=m[6],hh=m[8],ii=m[9],j=m[10];
+ float det=a*(f*j-g*ii)-b*(e*j-g*hh)+cc*(e*ii-f*hh);if(fabsf(det)<1e-30f)det=1e-30f;float r=1/det;
+ /* Row vectors: n' = n * transpose(inverse(W3)); inv holds that product's columns. */
+ L->inv[0]=(f*j-g*ii)*r;L->inv[1]=-(e*j-g*hh)*r;L->inv[2]=(e*ii-f*hh)*r;L->inv[3]=-(b*j-cc*ii)*r;L->inv[4]=(a*j-cc*hh)*r;L->inv[5]=-(a*ii-b*hh)*r;L->inv[6]=(b*g-cc*f)*r;L->inv[7]=-(a*g-cc*e)*r;L->inv[8]=(a*f-b*e)*r;
+ uint32_t amb=d->rs[139];L->global[0]=((amb>>16)&255)/255.f;L->global[1]=((amb>>8)&255)/255.f;L->global[2]=(amb&255)/255.f;
+ L->n=0;
+ for(unsigned i=0;i<16;i++){if(!d->lights[i].used||!d->lights[i].enabled)continue;float w[26];memcpy(w,d->lights[i].words,104);PreLight*pl=&L->lights[L->n];
+  pl->type=d->lights[i].words[0];float l=sqrtf(w[16]*w[16]+w[17]*w[17]+w[18]*w[18]);
+  for(unsigned k=0;k<3;k++){pl->diffuse[k]=w[1+k];pl->ambient[k]=w[9+k];pl->pos[k]=w[13+k];pl->dir[k]=l>0?w[16+k]/l:0;}
+  pl->range=w[19];pl->falloff=w[20];pl->att[0]=w[21];pl->att[1]=w[22];pl->att[2]=w[23];pl->ct=cosf(w[24]*.5f);pl->cp=cosf(w[25]*.5f);
+  if(pl->type==3){if(!(l>0))continue;for(unsigned k=0;k<3;k++){pl->dir[k]=-pl->dir[k];L->global[k]+=pl->ambient[k];}}
+  L->n++;}
+ L->normalize=d->rs[143]!=0;}
+static uint32_t light_vertex(const LightCtx*L,const float p[3],const float nn[3],const float md[4],const float ma[4],const float me[4]){
+ const float*m=L->m;float wp[3],wn[3];
+ for(unsigned k=0;k<3;k++){wp[k]=p[0]*m[k]+p[1]*m[4+k]+p[2]*m[8+k]+m[12+k];wn[k]=nn[0]*L->inv[k*3]+nn[1]*L->inv[k*3+1]+nn[2]*L->inv[k*3+2];}
+ if(L->normalize){float l=sqrtf(wn[0]*wn[0]+wn[1]*wn[1]+wn[2]*wn[2]);if(l>0){l=1/l;for(unsigned k=0;k<3;k++)wn[k]*=l;}}
+ float ambient[3]={L->global[0],L->global[1],L->global[2]},diffuse[3]={0,0,0};
+ for(unsigned li=0;li<L->n;li++){const PreLight*pl=&L->lights[li];
+  if(pl->type==3){float ndl=wn[0]*pl->dir[0]+wn[1]*pl->dir[1]+wn[2]*pl->dir[2];if(ndl>0)for(unsigned k=0;k<3;k++)diffuse[k]+=pl->diffuse[k]*ndl;continue;}
+  float D[3],dist=0;for(unsigned k=0;k<3;k++){D[k]=pl->pos[k]-wp[k];dist+=D[k]*D[k];}dist=sqrtf(dist);if(dist>pl->range)continue;if(dist>0){float inv=1/dist;for(unsigned k=0;k<3;k++)D[k]*=inv;}
+  float den=pl->att[0]+pl->att[1]*dist+pl->att[2]*dist*dist,atten=den>0?1/den:1,spot=1;
+  if(pl->type==2){float rho=-(D[0]*pl->dir[0]+D[1]*pl->dir[1]+D[2]*pl->dir[2]);spot=rho>pl->ct?1:rho<=pl->cp?0:pl->ct>pl->cp?powf((rho-pl->cp)/(pl->ct-pl->cp),pl->falloff):1;}
+  float ndl=wn[0]*D[0]+wn[1]*D[1]+wn[2]*D[2];if(ndl<0)ndl=0;float s=atten*spot;
+  for(unsigned k=0;k<3;k++){ambient[k]+=pl->ambient[k]*s;diffuse[k]+=pl->diffuse[k]*ndl*s;}}
+ float rgba[4];for(unsigned k=0;k<3;k++)rgba[k]=me[k]+ma[k]*ambient[k]+md[k]*diffuse[k];rgba[3]=md[3];
+ return pack_color(rgba);}
+/* D3DRS_*MATERIALSOURCE: MATERIAL(0), COLOR1(1, vertex diffuse), COLOR2(2, vertex
+ * specular); a missing vertex colour falls back to the material. */
+static const float*material_source(Object*d,uint32_t state,const float*material,const float*c1,const float*c2){
+ if(!d->rs[141])return material;uint32_t v=d->rs[state];return v==1&&c1?c1:v==2&&c2?c2:material;}
+/* Convert any supported FVF to the GPU's XYZ|DIFFUSE|TEX1 (24B) or XYZRHW|DIFFUSE|TEX1
+ * (28B) layout: lit diffuse (or vertex diffuse/white), and the stage-0 coordinate set. */
+/* Stage-0 texture coordinates: D3DTSS_TEXCOORDINDEX selects a set or generates
+ * camera-space normal/position/reflection/sphere-map input (high word 1..4);
+ * D3DTSS_TEXTURETRANSFORMFLAGS COUNTn applies D3DTS_TEXTURE0 (row vector) and
+ * PROJECTED divides by the last counted component (per vertex, not per pixel).
+ * https://learn.microsoft.com/en-us/windows/win32/direct3d9/texture-coordinate-processing */
+static int texcoord_processing(Object*d){return (d->tss[0][11]>>16)!=0||(d->tss[0][24]&0x1ffu)!=0||(d->tss[1][11]>>16)!=0||(d->tss[1][24]&0x1ffu)!=0;}
+static void texture_coords(Object*d,unsigned stage,const Fvf*f,const uint8_t*s,const float pos[3],uint32_t texset,float uv[2]){
+ uint32_t gen=d->tss[stage][11]>>16,flags=d->tss[stage][24];float in[4]={0,0,1,0};
+ if(gen&&!f->rhw){const float*w=d->matrices,*v=d->matrices+16;float wp[3],cp[3],n[3]={0,0,0},wn[3],cn[3];
+  for(unsigned k=0;k<3;k++)wp[k]=pos[0]*w[k]+pos[1]*w[4+k]+pos[2]*w[8+k]+w[12+k];
+  for(unsigned k=0;k<3;k++)cp[k]=wp[0]*v[k]+wp[1]*v[4+k]+wp[2]*v[8+k]+v[12+k];
+  if(f->normal){memcpy(n,s+f->normal-1,12);for(unsigned k=0;k<3;k++)n[k]=finite_or_zero(n[k]);}
+  for(unsigned k=0;k<3;k++)wn[k]=n[0]*w[k]+n[1]*w[4+k]+n[2]*w[8+k];
+  for(unsigned k=0;k<3;k++)cn[k]=wn[0]*v[k]+wn[1]*v[4+k]+wn[2]*v[8+k];
+  float l=sqrtf(cn[0]*cn[0]+cn[1]*cn[1]+cn[2]*cn[2]);if(l>0)for(unsigned k=0;k<3;k++)cn[k]/=l;
+  if(gen==1){in[0]=cn[0];in[1]=cn[1];in[2]=cn[2];in[3]=1;}
+  else if(gen==2){in[0]=cp[0];in[1]=cp[1];in[2]=cp[2];in[3]=1;}
+  else{float e[3]={cp[0],cp[1],cp[2]};float el=sqrtf(e[0]*e[0]+e[1]*e[1]+e[2]*e[2]);if(el>0)for(unsigned k=0;k<3;k++)e[k]/=el;
+   float dn=e[0]*cn[0]+e[1]*cn[1]+e[2]*cn[2],r[3];for(unsigned k=0;k<3;k++)r[k]=e[k]-2*dn*cn[k];
+   if(gen==3){in[0]=r[0];in[1]=r[1];in[2]=r[2];in[3]=1;}
+   else{float m=2*sqrtf(r[0]*r[0]+r[1]*r[1]+(r[2]+1)*(r[2]+1));if(m>0){in[0]=r[0]/m+.5f;in[1]=r[1]/m+.5f;}in[2]=1;}}}
+ else if(texset<f->tex_count){uint32_t size=f->tex_size[texset];float t[4]={0,0,0,0};memcpy(t,s+f->tex_off[texset],4*size);for(unsigned k=0;k<size;k++)in[k]=finite_or_zero(t[k]);if(size<3)in[2]=1;if(size<4)in[3]=size==3?1:0;}
+ uint32_t n=flags&0xffu;float out[4]={in[0],in[1],in[2],in[3]};
+ if(n){const float*m=texture_matrix(d,stage);for(unsigned k=0;k<4;k++)out[k]=in[0]*m[k]+in[1]*m[4+k]+in[2]*m[8+k]+in[3]*m[12+k];
+  if((flags&256u)&&n>=2&&n<=4){float q=out[n-1];if(fabsf(q)>1e-12f){out[0]/=q;out[1]/=q;}}}
+ uv[0]=finite_or_zero(out[0]);uv[1]=finite_or_zero(out[1]);}
+static uint32_t stage_set(Object*d,unsigned stage,const Fvf*f){uint32_t set=d->tss[stage][11]&0xffffu;return set<f->tex_count?set:0;}
+static void convert_vertices(Object*d,const Fvf*f,const uint8_t*src,uint32_t count,uint8_t*dst,uint32_t texset){
+ int lit=!f->rhw&&d->rs[137];LightCtx L;if(lit)light_setup(d,&L);
+ const uint32_t out=f->rhw?36:32;static const float zero3[3]={0,0,0};(void)texset;
+ for(uint32_t v=0;v<count;v++){const uint8_t*s=src+(size_t)v*f->stride;uint8_t*o=dst+(size_t)v*out;float pos[4];memcpy(pos,s,f->rhw?16:12);
+  for(unsigned k=0;k<(f->rhw?4u:3u);k++)pos[k]=finite_or_zero(pos[k]);
+  uint32_t color=0xffffffffu,raw;float c1[4],c2[4];int has1=0,has2=0;
+  if(f->diffuse){memcpy(&raw,s+f->diffuse-1,4);unpack_color(raw,c1);has1=1;color=raw;}
+  if(f->specular){memcpy(&raw,s+f->specular-1,4);unpack_color(raw,c2);has2=1;}
+  if(lit){float nn[3]={0,0,0};if(f->normal){memcpy(nn,s+f->normal-1,12);for(unsigned k=0;k<3;k++)nn[k]=finite_or_zero(nn[k]);}
+   const float*md=material_source(d,145,d->material,has1?c1:NULL,has2?c2:NULL),*ma=material_source(d,147,d->material+4,has1?c1:NULL,has2?c2:NULL),*me=material_source(d,148,d->material+12,has1?c1:NULL,has2?c2:NULL);
+   (void)zero3;color=light_vertex(&L,pos,nn,md,ma,me);}
+  float uv[4]={0,0,0,0};for(unsigned st=0;st<2;st++)texture_coords(d,st,f,s,pos,stage_set(d,st,f),uv+st*2);
+  memcpy(o,pos,f->rhw?16:12);memcpy(o+(f->rhw?16:12),&color,4);memcpy(o+(f->rhw?20:16),uv,16);}}
+static int upload(Object*b,uint32_t offset,uint32_t bytes,uint32_t fvf,uint32_t mask,uint32_t bias,Object*d){
+ Fvf f={0};uint32_t key=0,texset=0;int passthrough=0;
+ if(b->type==VERTEX){
+  if(!decode_fvf(fvf,&f)||!d)return 0;
+  int lit=!f.rhw&&d->rs[137];texset=d->tss[0][11]&0xffffu;if(texset>=f.tex_count)texset=0;
+  int texproc=texcoord_processing(d);
+  int stage1=stage1_texture(d);
+  passthrough=(fvf==0x42||fvf==0x142||fvf==0x144)&&!lit&&!texset&&!mask&&!texproc&&!stage1;
+  key=passthrough?1u:((lit||texproc?light_hash(d):2u)^((texset+1)*0x9e3779b1u)^((d->tss[1][11]&0xffffu)+7)*0x27d4eb2fu)|1u;
+  if(texproc){uint32_t h=key;const uint8_t*p=(const uint8_t*)texture_matrix(d,0);for(unsigned i=0;i<64;i++){h^=p[i];h*=16777619u;}
+   p=(const uint8_t*)texture_matrix(d,1);for(unsigned i=0;i<64;i++){h^=p[i];h*=16777619u;}h^=d->tss[1][11]*0x165667b1u^d->tss[1][24]*0x9e3779b9u;
+   p=(const uint8_t*)(d->matrices+16);for(unsigned i=0;i<64;i++){h^=p[i];h*=16777619u;}h^=d->tss[0][11]*0x85ebca6bu^d->tss[0][24]*0xc2b2ae35u;key=h|1u;}}
+ for(unsigned i=0;i<UPLOAD_CACHE;i++){UploadEntry*e=&b->cache[i];if(e->gpu&&e->version==b->version&&e->offset==offset&&e->bytes==bytes&&e->fvf==fvf&&e->mask==mask&&e->bias==bias&&e->key==key){e->age=++b->cache_clock;b->gpu=e->gpu;return 1;}}
  if(!bytes||offset>b->size||bytes>b->size-offset)return 0;
  MoviesD3D9Request q={.command=b->type==VERTEX?MOVIES_D3D9_UPLOAD_VERTEX:MOVIES_D3D9_UPLOAD_INDEX,.args={b->type==VERTEX?fvf:b->format},.data=HP(b->mem+offset),.bytes=bytes};
- uint32_t stride=b->type==VERTEX?(fvf==0x144?28:(fvf==0x142||fvf==0x104)?24:16):b->format==101?2:4;if(bytes%stride)return 0;
+ uint32_t stride=b->type==VERTEX?f.stride:b->format==101?2:4;if(!stride||bytes%stride)return 0;
  uint8_t*converted=NULL;
- /* Missing diffuse defaults to opaque white (D3DTA_DIFFUSE), while guest104
-  * XYZRHW+UV keeps24-byte storage. Only the host snapshot expands to144/28B.
-  * https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dta */
- if(b->type==VERTEX&&fvf==0x104){
-  uint64_t expanded=(uint64_t)(bytes/24)*28;if(expanded>32u*1024u*1024u)return 0;
+ if(b->type==VERTEX&&!passthrough){
+  uint32_t count=bytes/stride,out=f.rhw?36:32;uint64_t expanded=(uint64_t)count*out;if(expanded>32u*1024u*1024u)return 0;
   converted=malloc((size_t)expanded);if(!converted)return 0;
-  for(uint32_t i=0;i<bytes/24;i++){memcpy(converted+i*28,(const uint8_t*)q.data+i*24,16);uint32_t white=0xffffffff;memcpy(converted+i*28+16,&white,4);memcpy(converted+i*28+20,(const uint8_t*)q.data+i*24+16,8);}
-  q.data=converted;q.bytes=(uint32_t)expanded;q.args[0]=0x144;
- }else if(mask||(b->type==INDEX&&bias)){
+  convert_vertices(d,&f,(const uint8_t*)q.data,count,converted,texset);
+  if(mask)for(uint32_t i=0;i<count;i++){uint32_t color;memcpy(&color,converted+i*out+(f.rhw?16:12),4);color|=mask;memcpy(converted+i*out+(f.rhw?16:12),&color,4);}
+  q.data=converted;q.bytes=(uint32_t)expanded;q.args[0]=f.rhw?0x244:0x242;
+ }else if(b->type==INDEX&&bias){
   converted=malloc(bytes);if(!converted)return 0;memcpy(converted,q.data,bytes);
-  for(uint32_t i=0;i<bytes;i+=stride){if(b->type==VERTEX){uint32_t color;memcpy(&color,converted+i+(fvf==0x144?16:12),4);color|=mask;memcpy(converted+i+(fvf==0x144?16:12),&color,4);}
-   else if(stride==2){uint16_t v;memcpy(&v,converted+i,2);if(v<bias){free(converted);return 0;}v=(uint16_t)(v-bias);memcpy(converted+i,&v,2);}
+  for(uint32_t i=0;i<bytes;i+=stride){
+   if(stride==2){uint16_t v;memcpy(&v,converted+i,2);if(v<bias){free(converted);return 0;}v=(uint16_t)(v-bias);memcpy(converted+i,&v,2);}
    else{uint32_t v;memcpy(&v,converted+i,4);if(v<bias){free(converted);return 0;}v-=bias;memcpy(converted+i,&v,4);}}
   q.data=converted;
  }
  MoviesD3D9Reply r;int ok=invoke(&q,&r)&&r.values[0];free(converted);if(!ok)return 0;
- uint32_t old=b->gpu;b->gpu=r.values[0];b->uploaded=b->version;b->offset=offset;b->upload_size=bytes;b->index_bias=bias;b->fvf=fvf;b->color_mask=mask;
+ /* Slot: empty, else stale (older buffer version), else least recently used. */
+ unsigned slot=UPLOAD_CACHE;
+ for(unsigned i=0;i<UPLOAD_CACHE&&slot==UPLOAD_CACHE;i++)if(!b->cache[i].gpu)slot=i;
+ for(unsigned i=0;i<UPLOAD_CACHE&&slot==UPLOAD_CACHE;i++)if(b->cache[i].version!=b->version)slot=i;
+ if(slot==UPLOAD_CACHE){slot=0;for(unsigned i=1;i<UPLOAD_CACHE;i++)if(b->cache[i].age<b->cache[slot].age)slot=i;}
+ uint32_t old=b->cache[slot].gpu;
+ b->cache[slot]=(UploadEntry){r.values[0],b->version,offset,bytes,fvf,mask,bias,key,++b->cache_clock};b->gpu=r.values[0];
  if(old){MoviesD3D9Request release_={.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={old}};MoviesD3D9Reply ignored;if(!invoke(&release_,&ignored))return 0;}return 1;
 }
 /* Only the audited mode6 alpha blend equation. State setters allow the
  * original sequential updates; unsupported active combinations fail at draw. */
-/* Original material20: unused ARG2 values do not affect SELECTARG1. */
-static int diffuse_equation(Object*d){return !d->texture&&d->tss[0][1]==2&&d->tss[0][2]==0&&d->tss[0][4]==2&&d->tss[0][5]==0&&d->tss[1][1]==1&&d->tss[1][4]==1;}
-static int diffuse_texture_equation(Object*d){return d->texture&&d->tss[0][1]==2&&d->tss[0][2]==0&&d->tss[0][4]==2&&d->tss[0][5]==2&&d->tss[1][1]==1&&d->tss[1][4]==1;}
-static uint32_t blend_encoding(Object*d){if(!d->rs[27])return 0;if(d->rs[19]==5&&d->rs[20]==6)return 1;if(d->rs[19]==3&&d->rs[20]==4)return 2;if(d->rs[19]==1&&d->rs[20]==3)return 3;return 256|(d->rs[19]<<4)|d->rs[20];}
-static int draw_blend_supported(CPU*c,Object*d){if(d->rs[27]&&(d->rs[19]<1||d->rs[19]>11||d->rs[20]<1||d->rs[20]>11||d->rs[171]!=1||d->rs[206])){
- static unsigned reports;if(reports++<8)fprintf(stderr,"[D3D9] active blend rejected caller=%08x fvf=%08x stride=%u texture=%08x blend=%u,%u,%u,%u separate=%u color=%u,%u,%u alpha=%u,%u,%u factor=%08x\n",R32(c->esp),d->fvf,d->stride,d->texture,d->rs[27],d->rs[19],d->rs[20],d->rs[171],d->rs[206],d->tss[0][1],d->tss[0][2],d->tss[0][3],d->tss[0][4],d->tss[0][5],d->tss[0][6],d->rs[60]);
- unsupported(c,"D3D9 active blend requires classic factors1..11 ADD and separate-alpha disabled");return 0;}return 1;}
-/* Audited material35: select TFACTOR RGB, multiply its alpha by texture alpha.
- * D3DTOP_SELECTARG2 and MODULATE: Microsoft Learn /direct3d9/d3dtextureop. */
-static int factor_texture_equation(Object*d){return d->tss[0][1]==3&&d->tss[0][3]==3&&d->tss[0][4]==4&&d->tss[0][5]==3&&d->tss[0][6]==2&&d->tss[1][1]==1&&d->tss[1][4]==1;}
-static int texture_mask(CPU*c,Object*d,uint32_t*mask){*mask=0;if(factor_texture_equation(d)||diffuse_texture_equation(d))return 1;for(unsigned channel=0;channel<2;channel++){unsigned op=channel?4:1,a=channel?5:2,b=channel?6:3;uint32_t first=d->tss[0][a],second=d->tss[0][b];
- if(d->tss[0][op]==2){if(first==2)*mask|=channel?0xff000000u:0x00ffffffu;else{unsupported(c,"D3D9 SELECTARG1 requires texture in implemented pipeline");return 0;}}
- else if(d->tss[0][op]!=4||!((first==2&&second<=1)||(second==2&&first<=1))){unsupported(c,"D3D9 MODULATE requires one texture and one diffuse argument");return 0;}}
+/* BOTHSRCALPHA/BOTHINVSRCALPHA (12/13) set both factors of the pair. */
+static void blend_pair(uint32_t src,uint32_t dst,uint32_t*out_src,uint32_t*out_dst){if(src==12){src=5;dst=6;}else if(src==13){src=6;dst=5;}*out_src=src;*out_dst=dst;}
+static uint32_t blend_encoding(Object*d){if(!d->rs[27])return 0;uint32_t src,dst;blend_pair(d->rs[19],d->rs[20],&src,&dst);
+ if(d->rs[171]==1&&!d->rs[206]){if(src==5&&dst==6)return 1;if(src==3&&dst==4)return 2;if(src==1&&dst==3)return 3;}return 256|(src<<4)|dst;}
+/* args[56]: blend op | alpha op<<4 | separate<<8 | alpha src<<12 | alpha dst<<16. */
+static uint32_t blend_extended(Object*d){if(!d->rs[27])return 0;uint32_t v=d->rs[171]&15;
+ if(d->rs[206]){uint32_t as,ad;blend_pair(d->rs[207],d->rs[208],&as,&ad);v|=((d->rs[209]&15)<<4)|(1u<<8)|(as<<12)|(ad<<16);}return v;}
+static int draw_blend_supported(CPU*c,Object*d){
+ static unsigned logged;unsigned why=0;
+ if(d->rs[28])why|=1;if(d->rs[52])why|=2;if(d->rs[152])why|=16;if(d->rs[8]!=3)why|=4;if(d->rs[9]==1)why|=8;
+ if(why&~logged){logged|=why;fprintf(stderr,"[D3D9] render state approximated flags=%x caller=%08x (1 fog not drawn, 2 stencil ignored, 4 non-solid fill drawn solid, 8 flat shading drawn smooth, 16 user clip planes ignored)\n",why,R32(c->esp));}
  return 1;}
+
+/* General fixed-function texture-stage cascade (stages 0 and 1) is evaluated in
+ * the WGSL shader from the raw D3DTSS_COLOROP/ARG1/ARG2/ALPHAOP/ARG1/ARG2 values.
+ * https://learn.microsoft.com/en-us/windows/win32/direct3d9/texture-blending */
+static int stage_arg_texture(uint32_t a){return (a&0x0fu)==2;}
+static int op_uses_texture(uint32_t op,uint32_t a1,uint32_t a2){
+ if(op<=1)return 0;if(op==13||op==15)return 1;if(op==2)return stage_arg_texture(a1);if(op==3)return stage_arg_texture(a2);
+ return stage_arg_texture(a1)||stage_arg_texture(a2);}
+static int stage1_texture(Object*d){return d->tss[0][1]!=1&&d->tss[1][1]!=1&&(op_uses_texture(d->tss[1][1],d->tss[1][2],d->tss[1][3])||op_uses_texture(d->tss[1][4],d->tss[1][5],d->tss[1][6]));}
+static int stage0_texture(Object*d){return d->tss[0][1]!=1&&(op_uses_texture(d->tss[0][1],d->tss[0][2],d->tss[0][3])||op_uses_texture(d->tss[0][4],d->tss[0][5],d->tss[0][6]));}
+static void fill_stages(CPU*c,Object*d,MoviesD3D9Request*q){
+ q->args[31]=4;
+ for(unsigned s=0;s<2;s++)for(unsigned k=0;k<6;k++)q->args[33+s*6+k]=d->tss[s][1+k];
+ if(d->tss[0][1]==1)q->args[39]=1; /* a disabled stage ends the cascade */
+ static unsigned logged;unsigned why=0;
+ if(d->tss[0][1]!=1&&d->tss[1][1]!=1&&d->tss[2][1]!=1)why|=1;
+ for(unsigned s=0;s<2;s++){if(d->tss[s][28]==5)why|=2;for(unsigned k=1;k<=4;k+=3)if(d->tss[s][k]>=22)why|=4;}
+ if(d->tss[0][11]&0xffffu)why|=8;if(d->tss[0][24])why|=16;
+ if(why&~logged){logged|=why;fprintf(stderr,"[D3D9] texture-stage approximation flags=%x caller=%08x (1 stage>=2 enabled, 2 RESULTARG TEMP, 4 bump/dot3/arg0 op, 8 texcoord index, 16 texture transform) stage0=%u,%u,%u/%u,%u,%u stage1=%u,%u,%u/%u,%u,%u\n",why,R32(c->esp),d->tss[0][1],d->tss[0][2],d->tss[0][3],d->tss[0][4],d->tss[0][5],d->tss[0][6],d->tss[1][1],d->tss[1][2],d->tss[1][3],d->tss[1][4],d->tss[1][5],d->tss[1][6]);}
+}
 /* One acknowledgement and one returned rejection per device, not per frame.
  * Acknowledgement means submitted backend command, not presentation/scanout. */
 static void draw_ret(CPU*c,Object*d,unsigned argc,uint32_t hr,const char*method){
@@ -352,28 +544,108 @@ static void indexed_reject(CPU*c,Object*d,Object*vb,Object*ib,const char*reason,
  static unsigned reports;if(reports++<8)fprintf(stderr,"[D3D9] DrawIndexedPrimitive rejected reason=%s caller=%08x type=%u base=%d minimum=%u vertices=%u start=%u primitives=%u scene=%u fvf=%08x stride=%u streamOffset=%u vb=%08x size=%u locked=%u usage=%08x ib=%08x size=%u locked=%u format=%u indexAt=%u index=%u texture=%08x\n",reason,R32(c->esp),ARG(1),(int32_t)ARG(2),ARG(3),ARG(4),ARG(5),ARG(6),d->scene,d->fvf,d->stride,d->stream_offset,d->vb,vb?vb->size:0,vb?vb->locked:0,vb?vb->usage:0,d->ib,ib?ib->size:0,ib?ib->locked:0,ib?ib->format:0,at,index,d->texture);
  draw_ret(c,d,7,INVALID,"DrawIndexedPrimitive");
 }
-static void draw_indexed(CPU*c){Object*d=self(c,DEVICE);d->diag_draws++;if(!draw_blend_supported(c,d))return;Object*vb=find(d->vb),*ib=find(d->ib);uint32_t first=ARG(5),primitives=ARG(6),minimum=ARG(3),vertices=ARG(4);int32_t base=(int32_t)ARG(2);
- const char*reason=!d->scene?"outside scene":ARG(1)!=4?"unsupported topology":!vb||!ib?"missing bound buffer":vb->locked||ib->locked?"locked bound buffer":(d->fvf!=0x42&&d->fvf!=0x142&&d->fvf!=0x144&&d->fvf!=0x104)?"unsupported bound FVF":d->stride!=(d->fvf==0x144?28u:(d->fvf==0x142||d->fvf==0x104)?24u:16u)?"FVF stride mismatch":(!primitives||primitives>0xffffffffu/3||!vertices)?"empty/overflow draw count":NULL;
+/* Shared draw plumbing. Culling (D3DCULL_CW/CCW) is drawn as CULL_NONE: depth
+ * testing hides back faces of closed meshes. Point and line primitives are not
+ * rasterized by the WebGPU triangle path and are skipped (logged once per type). */
+static int draw_texture(CPU*c,Object*d,Object**out){
+ Object*t=find(d->texture);if(t&&!stage0_texture(d))t=NULL;
+ if(t&&d->target&&find(d->target)&&find(d->target)->container==t->address){unsupported(c,"D3D9 draw samples the active render target");return 0;}
+ *out=t;return 1;}
+static int issue_draw(CPU*c,Object*d,uint32_t vg,uint32_t ig,uint32_t count,Object*t){
+ Object*t1=stage1_texture(d)?find(d->stage_textures[0]):NULL;if(t1&&(t1->locked||(d->target&&find(d->target)&&find(d->target)->container==t1->address)))t1=NULL;
+ MoviesD3D9Request q={.command=MOVIES_D3D9_DRAW,.args={vg,ig,0,count,0,d->rs[7]}};q.args[12]=t?t->gpu:0;q.args[20]=d->rs[15];q.args[21]=d->rs[25];q.args[22]=d->rs[24];q.args[23]=d->rs[23];q.args[24]=d->rs[14];q.args[25]=blend_encoding(d);q.args[26]=d->rs[174];fill_stages(c,d,&q);q.args[32]=d->rs[60];q.args[56]=blend_extended(d);q.args[57]=d->rs[193];q.args[58]=d->rs[195];q.args[59]=d->rs[175];q.args[60]=(d->rs[168]&15)|0x100u;memcpy(q.args+27,d->scissor,16);const unsigned samplers[]={1,2,3,6,5,7,8};for(unsigned i=0;i<7;i++)q.args[13+i]=d->sampler[0][samplers[i]];if(t1){q.args[45]=t1->gpu;for(unsigned i=0;i<7;i++)q.args[48+i]=d->sampler[1][samplers[i]];}memcpy(q.args+6,d->viewport,24);memcpy(q.matrices,d->matrices,sizeof q.matrices);MoviesD3D9Reply r;return invoke(&q,&r);}
+static int draw_preamble(CPU*c,Object*d,uint32_t type,unsigned argc,const char*method){
+ if(d->rs[22]<1||d->rs[22]>3){unsupported(c,"D3D9 draw needs unsupported culling mode");return 0;}
+ if(type>=1&&type<=3){static unsigned logged;if(!(logged&(1u<<type))){logged|=1u<<type;fprintf(stderr,"[D3D9] %s point/line primitive type %u skipped caller=%08x\n",method,type,R32(c->esp));}draw_ret(c,d,argc,0,method);return 0;}
+ if(type<4||type>6){draw_ret(c,d,argc,INVALID,method);return 0;}
+ Fvf f;if(decode_fvf(d->fvf,&f)&&!f.rhw&&d->rs[137]&&d->rs[29]&&!d->specular_logged){d->specular_logged=1;fprintf(stderr,"[D3D9] specular lighting requested caller=%08x; drawn without the specular term\n",R32(c->esp));}
+ return 1;}
+static uint32_t source_indices(uint32_t type,uint32_t primitives){return type==4?primitives*3:primitives+2;}
+/* Triangle strips/fans become lists (winding preserved; culling is off anyway). */
+static uint32_t*triangulate(uint32_t type,const uint32_t*src,uint32_t primitives){
+ uint32_t*out=malloc((size_t)primitives*12);if(!out)return NULL;
+ for(uint32_t i=0;i<primitives;i++){uint32_t*o=out+i*3;
+  if(type==4){o[0]=src[i*3];o[1]=src[i*3+1];o[2]=src[i*3+2];}
+  else if(type==5){if(i&1){o[0]=src[i+1];o[1]=src[i];}else{o[0]=src[i];o[1]=src[i+1];}o[2]=src[i+2];}
+  else{o[0]=src[0];o[1]=src[i+1];o[2]=src[i+2];}}
+ return out;}
+/* Draw a host-built triangle list against vertex storage b (a bound buffer or a
+ * temporary UP wrapper): upload the referenced vertex span, a temporary index
+ * buffer rebased to it, draw, release the temporary indices. */
+static int draw_generated(CPU*c,Object*d,Object*b,uint32_t stream_offset,uint32_t stride,int64_t base,const uint32_t*tri,uint32_t count,unsigned argc,const char*method){
+ if(stream_offset>b->size)return INVALID;uint64_t available=(b->size-stream_offset)/stride;int64_t mn=INT64_MAX,mx=-1;
+ for(uint32_t i=0;i<count;i++){int64_t a=(int64_t)tri[i]+base;if(a<0||(uint64_t)a>=available)return INVALID;if(a<mn)mn=a;if(a>mx)mx=a;}
+ Object*t;if(!draw_texture(c,d,&t))return -1;if(t&&t->locked)return INVALID;
+ uint64_t offset=stream_offset+(uint64_t)mn*stride,bytes=(uint64_t)(mx-mn+1)*stride;
+ if(offset>UINT32_MAX||bytes>UINT32_MAX||!upload(b,(uint32_t)offset,(uint32_t)bytes,d->fvf,0,0,d))return LOST;
+ uint32_t*rebased=malloc((size_t)count*4);if(!rebased)return OOM;
+ for(uint32_t i=0;i<count;i++)rebased[i]=(uint32_t)((int64_t)tri[i]+base-mn);
+ MoviesD3D9Request q={.command=MOVIES_D3D9_UPLOAD_INDEX,.args={102},.data=rebased,.bytes=count*4};MoviesD3D9Reply r;
+ int ok=invoke(&q,&r)&&r.values[0];free(rebased);if(!ok)return LOST;uint32_t ig=r.values[0];
+ ok=issue_draw(c,d,b->gpu,ig,count,t);
+ q=(MoviesD3D9Request){.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={ig}};if(!invoke(&q,&r))ok=0;
+ (void)argc;(void)method;return ok?0:LOST;}
+static void draw_indexed(CPU*c){Object*d=self(c,DEVICE);d->diag_draws++;if(!draw_blend_supported(c,d))return;Object*vb=find(d->vb),*ib=find(d->ib);uint32_t type=ARG(1),first=ARG(5),primitives=ARG(6),minimum=ARG(3),vertices=ARG(4);int32_t base=(int32_t)ARG(2);
+ Fvf f;int fvf_ok=decode_fvf(d->fvf,&f);
+ const char*reason=!d->scene?"outside scene":(type<1||type>6)?"unsupported topology":!vb||!ib?"missing bound buffer":vb->locked||ib->locked?"locked bound buffer":!fvf_ok?"unsupported bound FVF":d->stride!=f.stride?"FVF stride mismatch":(!primitives||primitives>0x3fffffffu||!vertices)?"empty/overflow draw count":NULL;
  if(reason){indexed_reject(c,d,vb,ib,reason,UINT32_MAX,0);return;}
- if((d->rs[137]&&d->fvf!=0x104&&d->fvf!=0x144)||d->rs[22]!=1){unsupported(c,"D3D9 draw needs unsupported default lighting/culling");return;}
- uint32_t count=primitives*3,index_stride=ib->format==101?2:4;
+ if(!draw_preamble(c,d,type,7,"DrawIndexedPrimitive"))return;
+ uint32_t count=source_indices(type,primitives),index_stride=ib->format==101?2:4;
  if((uint64_t)first+count>ib->size/index_stride||(uint64_t)minimum+vertices>0x100000000ull){indexed_reject(c,d,vb,ib,"index/declared vertex range",UINT32_MAX,0);return;}
  uint32_t min_index=UINT32_MAX,max_index=0;
  for(uint32_t i=0;i<count;i++){uint32_t p=ib->mem+(first+i)*index_stride,idx=index_stride==2?R16(p):R32(p);int64_t actual=(int64_t)idx+base;
  if(idx<minimum||(uint64_t)idx>=(uint64_t)minimum+vertices||actual<0||(uint64_t)actual>=(vb->size-d->stream_offset)/d->stride){indexed_reject(c,d,vb,ib,idx<minimum||(uint64_t)idx>=(uint64_t)minimum+vertices?"index outside declared vertex range":"index/base outside vertex buffer",i,idx);return;}if(idx<min_index)min_index=idx;if(idx>max_index)max_index=idx;}
- Object*t=find(d->texture);uint32_t mask=0;
- if(t&&d->target&&find(d->target)&&find(d->target)->container==t->address){unsupported(c,"D3D9 draw samples the active render target");return;}
- if(!diffuse_equation(d)&&(d->fvf==0x142||d->fvf==0x144||d->fvf==0x104)!=!!t){unsupported(c,"D3D9 textured draw requires UV format and bound texture");return;}
- if(t){if(t->locked){indexed_reject(c,d,vb,ib,"locked texture",UINT32_MAX,0);return;}if(!texture_mask(c,d,&mask))return;}
+ if(type!=4){
+  uint32_t*src=malloc((size_t)count*4);if(!src){draw_ret(c,d,7,OOM,"DrawIndexedPrimitive");return;}
+  for(uint32_t i=0;i<count;i++){uint32_t p=ib->mem+(first+i)*index_stride;src[i]=index_stride==2?R16(p):R32(p);}
+  uint32_t*tri=triangulate(type,src,primitives);free(src);if(!tri){draw_ret(c,d,7,OOM,"DrawIndexedPrimitive");return;}
+  int hr=draw_generated(c,d,vb,d->stream_offset,d->stride,base,tri,primitives*3,7,"DrawIndexedPrimitive");free(tri);if(hr>=0||hr<-1)draw_ret(c,d,7,(uint32_t)hr,"DrawIndexedPrimitive");return;}
+ Object*t;if(!draw_texture(c,d,&t))return;
+ if(t&&t->locked){indexed_reject(c,d,vb,ib,"locked texture",UINT32_MAX,0);return;}
  uint64_t vertex_offset=(uint64_t)d->stream_offset+(uint64_t)((int64_t)min_index+base)*d->stride,vertex_bytes=((uint64_t)max_index-min_index+1)*d->stride;
- if(vertex_offset>UINT32_MAX||vertex_bytes>UINT32_MAX||!upload(vb,(uint32_t)vertex_offset,(uint32_t)vertex_bytes,d->fvf,mask,0)||!upload(ib,first*index_stride,count*index_stride,0,0,min_index)){draw_ret(c,d,7,LOST,"DrawIndexedPrimitive");return;}
- MoviesD3D9Request q={.command=MOVIES_D3D9_DRAW,.args={vb->gpu,ib->gpu,0,count,0,d->rs[7]}};q.args[12]=t?t->gpu:0;q.args[20]=d->rs[15];q.args[21]=d->rs[25];q.args[22]=d->rs[24];q.args[23]=d->rs[23];q.args[24]=d->rs[14];q.args[25]=blend_encoding(d);q.args[26]=d->rs[174];q.args[31]=diffuse_texture_equation(d)?3:diffuse_equation(d)?2:factor_texture_equation(d);q.args[32]=d->rs[60];memcpy(q.args+27,d->scissor,16);const unsigned samplers[]={1,2,3,6,5,7,8};for(unsigned i=0;i<7;i++)q.args[13+i]=d->sampler[0][samplers[i]];memcpy(q.args+6,d->viewport,24);memcpy(q.matrices,d->matrices,sizeof q.matrices);MoviesD3D9Reply r;draw_ret(c,d,7,invoke(&q,&r)?0:LOST,"DrawIndexedPrimitive");
+ if(vertex_offset>UINT32_MAX||vertex_bytes>UINT32_MAX||!upload(vb,(uint32_t)vertex_offset,(uint32_t)vertex_bytes,d->fvf,0,0,d)||!upload(ib,first*index_stride,count*index_stride,0,0,min_index,NULL)){draw_ret(c,d,7,LOST,"DrawIndexedPrimitive");return;}
+ draw_ret(c,d,7,issue_draw(c,d,vb->gpu,ib->gpu,count,t)?0:LOST,"DrawIndexedPrimitive");
 }
+/* DrawPrimitive(type,startVertex,primitiveCount) on the bound stream 0. */
+static void draw_primitive(CPU*c){Object*d=self(c,DEVICE);d->diag_draws++;if(!draw_blend_supported(c,d))return;Object*vb=find(d->vb);uint32_t type=ARG(1),start=ARG(2),primitives=ARG(3);
+ Fvf f;if(!d->scene||!vb||vb->locked||!decode_fvf(d->fvf,&f)||d->stride!=f.stride||!primitives||primitives>0x3fffffffu){draw_ret(c,d,4,INVALID,"DrawPrimitive");return;}
+ if(!draw_preamble(c,d,type,4,"DrawPrimitive"))return;
+ uint32_t n=source_indices(type,primitives);uint32_t*src=malloc((size_t)n*4);if(!src){draw_ret(c,d,4,OOM,"DrawPrimitive");return;}
+ for(uint32_t i=0;i<n;i++)src[i]=start+i;uint32_t*tri=triangulate(type,src,primitives);free(src);if(!tri){draw_ret(c,d,4,OOM,"DrawPrimitive");return;}
+ int hr=draw_generated(c,d,vb,d->stream_offset,d->stride,0,tri,primitives*3,4,"DrawPrimitive");free(tri);if(hr!=-1)draw_ret(c,d,4,(uint32_t)hr,"DrawPrimitive");}
+/* DrawPrimitiveUP(type,primitiveCount,data,stride): caller memory; invalidates stream 0. */
+static void draw_primitive_up(CPU*c){Object*d=self(c,DEVICE);d->diag_draws++;if(!draw_blend_supported(c,d))return;uint32_t type=ARG(1),primitives=ARG(2),data=ARG(3),stride=ARG(4);
+ bind(d,&d->vb,NULL);d->stride=d->stream_offset=0;Fvf f;
+ if(!d->scene||!decode_fvf(d->fvf,&f)||stride!=f.stride||!primitives||primitives>0x3fffffffu||!data){draw_ret(c,d,5,INVALID,"DrawPrimitiveUP");return;}
+ if(!draw_preamble(c,d,type,5,"DrawPrimitiveUP"))return;
+ uint32_t n=source_indices(type,primitives);uint64_t bytes=(uint64_t)n*stride;if(bytes>32u*1024u*1024u||!range(data,bytes)){draw_ret(c,d,5,INVALID,"DrawPrimitiveUP");return;}
+ uint32_t*src=malloc((size_t)n*4);if(!src){draw_ret(c,d,5,OOM,"DrawPrimitiveUP");return;}for(uint32_t i=0;i<n;i++)src[i]=i;
+ uint32_t*tri=triangulate(type,src,primitives);free(src);if(!tri){draw_ret(c,d,5,OOM,"DrawPrimitiveUP");return;}
+ Object tmp={0};tmp.type=VERTEX;tmp.mem=data;tmp.size=(uint32_t)bytes;tmp.version=1;
+ int hr=draw_generated(c,d,&tmp,0,stride,0,tri,primitives*3,5,"DrawPrimitiveUP");free(tri);
+ release_upload_cache(&tmp);
+ if(hr!=-1)draw_ret(c,d,5,(uint32_t)hr,"DrawPrimitiveUP");}
+/* DrawIndexedPrimitiveUP for formats/topologies beyond the audited 144/28B list path. */
+static void draw_indexed_up_general(CPU*c,Object*d){uint32_t type=ARG(1),minimum=ARG(2),vertices=ARG(3),primitives=ARG(4),indices=ARG(5),format=ARG(6),data=ARG(7),stride=ARG(8);
+ bind(d,&d->vb,NULL);bind(d,&d->ib,NULL);d->stride=d->stream_offset=0;Fvf f;
+ if(!d->scene||!decode_fvf(d->fvf,&f)||stride!=f.stride||!primitives||primitives>0x3fffffffu||!vertices||!data||(format!=101&&format!=102)){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}
+ if(!draw_preamble(c,d,type,9,"DrawIndexedPrimitiveUP"))return;
+ uint32_t n=source_indices(type,primitives),is=format==101?2:4;uint64_t vbytes=((uint64_t)minimum+vertices)*stride;
+ if(vbytes>32u*1024u*1024u||!range(data,vbytes)||!range(indices,(uint64_t)n*is)){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}
+ uint32_t*src=malloc((size_t)n*4);if(!src){draw_ret(c,d,9,OOM,"DrawIndexedPrimitiveUP");return;}
+ for(uint32_t i=0;i<n;i++){src[i]=is==2?R16(indices+i*2):R32(indices+i*4);if(src[i]<minimum||src[i]>=minimum+vertices){free(src);draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}}
+ uint32_t*tri=triangulate(type,src,primitives);free(src);if(!tri){draw_ret(c,d,9,OOM,"DrawIndexedPrimitiveUP");return;}
+ Object tmp={0};tmp.type=VERTEX;tmp.mem=data;tmp.size=(uint32_t)vbytes;tmp.version=1;
+ int hr=draw_generated(c,d,&tmp,0,stride,0,tri,primitives*3,9,"DrawIndexedPrimitiveUP");free(tri);
+ release_upload_cache(&tmp);
+ if(hr!=-1)draw_ret(c,d,9,(uint32_t)hr,"DrawIndexedPrimitiveUP");}
 /* Observed9EB1A3: XYZRHW|DIFFUSE|TEX1, stride28, INDEX16 triangles.
  * Caller buffers are copied synchronously. UP invalidates stream0 and indices.
  * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-drawindexedprimitiveup */
 static void draw_indexed_up(CPU*c){
- Object*d=self(c,DEVICE);d->diag_draws++;if(!draw_blend_supported(c,d))return;uint32_t minimum=ARG(2),vertices=ARG(3),primitives=ARG(4),indices=ARG(5),data=ARG(7);
+ Object*d=self(c,DEVICE);d->diag_draws++;if(!draw_blend_supported(c,d))return;
+ if(!(d->fvf==0x144&&ARG(8)==28&&ARG(1)==4&&ARG(6)==101)||stage1_texture(d)||texcoord_processing(d)){draw_indexed_up_general(c,d);return;}
+ uint32_t minimum=ARG(2),vertices=ARG(3),primitives=ARG(4),indices=ARG(5),data=ARG(7);
  bind(d,&d->vb,NULL);bind(d,&d->ib,NULL);d->stride=d->stream_offset=0;
  MoviesD3D9Reply limits;if(!caps(&limits)){draw_ret(c,d,9,LOST,"DrawIndexedPrimitiveUP");return;}
  uint64_t vertex_start=(uint64_t)data+(uint64_t)minimum*28,vertex_bytes=(uint64_t)vertices*28,index_bytes=(uint64_t)primitives*6;
@@ -386,16 +658,16 @@ static void draw_indexed_up(CPU*c){
   if(!isfinite(v[0])||!isfinite(v[1])||!isfinite(v[2])||!isfinite(v[3])||!isfinite(v[5])||!isfinite(v[6])||v[2]<0||v[2]>1||v[3]<=0||!isfinite(1.f/v[3])){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}}
  /* XYZRHW bypasses lighting, but unrelated unsupported culling remains explicit. */
  if(d->rs[22]!=1){unsupported(c,"D3D9 UP draw requires implemented no-culling mode");return;}
- Object*t=find(d->texture);if(!t&&!diffuse_equation(d)){unsupported(c,"D3D9 XYZRHW textured draw requires bound texture");return;}
+ Object*t=find(d->texture);if(t&&!stage0_texture(d))t=NULL;
  if(t&&d->target&&find(d->target)&&find(d->target)->container==t->address){unsupported(c,"D3D9 draw samples the active render target");return;}if(t&&t->locked){draw_ret(c,d,9,INVALID,"DrawIndexedPrimitiveUP");return;}
- uint32_t mask=0;if(t&&!texture_mask(c,d,&mask))return;
+ uint32_t mask=0;
  uint8_t*vb=malloc((size_t)vertex_bytes);uint16_t*ib=malloc((size_t)index_bytes);if(!vb||!ib){free(vb);free(ib);draw_ret(c,d,9,OOM,"DrawIndexedPrimitiveUP");return;}
  memcpy(vb,HP((uint32_t)vertex_start),(size_t)vertex_bytes);
  if(mask)for(uint32_t i=0;i<vertices;i++){uint32_t color;memcpy(&color,vb+i*28+16,4);color|=mask;memcpy(vb+i*28+16,&color,4);}
  for(uint32_t i=0;i<count;i++){uint16_t v;memcpy(&v,HP(indices+i*2),2);ib[i]=(uint16_t)(v-minimum);}
  MoviesD3D9Request q={.command=MOVIES_D3D9_UPLOAD_VERTEX,.args={0x144},.data=vb,.bytes=(uint32_t)vertex_bytes};MoviesD3D9Reply r;uint32_t vg=0,ig=0;int ok=invoke(&q,&r)&&r.values[0];if(ok)vg=r.values[0];
  if(ok){q=(MoviesD3D9Request){.command=MOVIES_D3D9_UPLOAD_INDEX,.args={101},.data=ib,.bytes=(uint32_t)index_bytes};ok=invoke(&q,&r)&&r.values[0];if(ok)ig=r.values[0];}free(vb);free(ib);
- if(ok){q=(MoviesD3D9Request){.command=MOVIES_D3D9_DRAW,.args={vg,ig,0,count,0,d->rs[7]}};q.args[12]=t?t->gpu:0;q.args[20]=d->rs[15];q.args[21]=d->rs[25];q.args[22]=d->rs[24];q.args[23]=d->rs[23];q.args[24]=d->rs[14];q.args[25]=blend_encoding(d);q.args[26]=d->rs[174];q.args[31]=diffuse_texture_equation(d)?3:diffuse_equation(d)?2:factor_texture_equation(d);q.args[32]=d->rs[60];memcpy(q.args+27,d->scissor,16);const unsigned samplers[]={1,2,3,6,5,7,8};for(unsigned i=0;i<7;i++)q.args[13+i]=d->sampler[0][samplers[i]];memcpy(q.args+6,d->viewport,24);memcpy(q.matrices,d->matrices,sizeof q.matrices);ok=invoke(&q,&r);}
+ if(ok){q=(MoviesD3D9Request){.command=MOVIES_D3D9_DRAW,.args={vg,ig,0,count,0,d->rs[7]}};q.args[12]=t?t->gpu:0;q.args[20]=d->rs[15];q.args[21]=d->rs[25];q.args[22]=d->rs[24];q.args[23]=d->rs[23];q.args[24]=d->rs[14];q.args[25]=blend_encoding(d);q.args[26]=d->rs[174];fill_stages(c,d,&q);q.args[32]=d->rs[60];memcpy(q.args+27,d->scissor,16);const unsigned samplers[]={1,2,3,6,5,7,8};for(unsigned i=0;i<7;i++)q.args[13+i]=d->sampler[0][samplers[i]];memcpy(q.args+6,d->viewport,24);memcpy(q.matrices,d->matrices,sizeof q.matrices);ok=invoke(&q,&r);}
  uint32_t handles[]={vg,ig};for(unsigned i=0;i<2;i++)if(handles[i]){q=(MoviesD3D9Request){.command=MOVIES_D3D9_RELEASE_RESOURCE,.args={handles[i]}};if(!invoke(&q,&r))ok=0;}
  draw_ret(c,d,9,ok?0:LOST,"DrawIndexedPrimitiveUP");
 }
@@ -405,9 +677,18 @@ static void get_indices(CPU*c){Object*d=self(c,DEVICE);uint32_t out=ARG(1);if(!r
  * 99A5FB LockRect(level0,NULL,NOSYSLOCK),99A62C UnlockRect(level0).
  * Guest BGRA byte order is preserved; only GPU upload changes it to RGBA. */
 #define DXT1 0x31545844u
+#define DXT2 0x32545844u
 #define DXT3 0x33545844u
-static int block_format(uint32_t format){return format==DXT1||format==DXT3;}
-static uint32_t texture_pitch(uint32_t width,uint32_t format){return block_format(format)?((width+3)/4)*(format==DXT1?8:16):width*(format==26?2:4);}
+#define DXT4 0x34545844u
+#define DXT5 0x35545844u
+/* Sampled texture formats decoded to RGBA8 on upload: A8R8G8B8, X8R8G8B8, R8G8B8,
+ * R5G6B5, X1R5G5B5, A1R5G5B5, A4R4G4B4, A8R3G3B2, A8, L8, A8L8 and DXT1..5.
+ * https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dformat */
+static int block_format(uint32_t format){return format==DXT1||format==DXT2||format==DXT3||format==DXT4||format==DXT5;}
+static uint32_t block_bytes(uint32_t format){return format==DXT1?8:16;}
+static uint32_t pixel_bytes(uint32_t format){switch(format){case 21:case 22:return 4;case 20:return 3;case 23:case 24:case 25:case 26:case 29:case 51:return 2;case 28:case 50:return 1;default:return 0;}}
+static int texture_format(uint32_t format){return block_format(format)||pixel_bytes(format)!=0;}
+static uint32_t texture_pitch(uint32_t width,uint32_t format){return block_format(format)?((width+3)/4)*block_bytes(format):width*pixel_bytes(format);}
 /* DXT3/BC2: explicit four-bit alpha, always four RGB565 palette colors,
  * independent of endpoint ordering. Unpremultiplied, no gamma conversion.
  * https://learn.microsoft.com/en-us/windows/win32/direct3d9/opaque-and-1-bit-alpha-textures
@@ -417,15 +698,27 @@ static void texture_rgba(Object*t,uint8_t*rgba){
  if(block_format(t->format)){
   uint32_t pitch=texture_pitch(t->width,t->format);
   for(uint32_t by=0;by<t->height;by+=4)for(uint32_t bx=0;bx<t->width;bx+=4){
-   const uint8_t*b=src+(by/4)*pitch+(bx/4)*(t->format==DXT1?8:16);const uint8_t*rgb=b+(t->format==DXT1?0:8);uint8_t color[4][3];uint32_t ends[2];
+   const uint8_t*b=src+(by/4)*pitch+(bx/4)*block_bytes(t->format);const uint8_t*rgb=b+(t->format==DXT1?0:8);uint8_t color[4][3];uint32_t ends[2];
+   uint8_t alpha8[8]={0};if(t->format==DXT4||t->format==DXT5){alpha8[0]=b[0];alpha8[1]=b[1];for(unsigned k=2;k<8;k++)alpha8[k]=b[0]>b[1]?(uint8_t)(((8-k)*b[0]+(k-1)*b[1])/7):k<6?(uint8_t)(((6-k)*b[0]+(k-1)*b[1])/5):k==6?0:255;}
+   uint64_t abits=0;for(unsigned k=0;k<6;k++)abits|=(uint64_t)b[2+k]<<(8*k);
    for(unsigned e=0;e<2;e++){uint32_t v=rgb[e*2]|((uint32_t)rgb[1+e*2]<<8);ends[e]=v;uint32_t r=v>>11,g=(v>>5)&63,bl=v&31;color[e][0]=(r<<3)|(r>>2);color[e][1]=(g<<2)|(g>>4);color[e][2]=(bl<<3)|(bl>>2);}
    int transparent=t->format==DXT1&&ends[0]<=ends[1];
    for(unsigned c=0;c<3;c++){color[2][c]=transparent?(color[0][c]+color[1][c])/2:(2*color[0][c]+color[1][c])/3;color[3][c]=transparent?0:(color[0][c]+2*color[1][c])/3;}
-   for(unsigned y=0;y<4&&by+y<t->height;y++)for(unsigned x=0;x<4&&bx+x<t->width;x++){unsigned i=y*4+x,index=(rgb[4+y]>>(x*2))&3;uint8_t*out=rgba+((by+y)*t->width+bx+x)*4;memcpy(out,color[index],3);out[3]=t->format==DXT1?(transparent&&index==3?0:255):((b[i/2]>>((i&1)*4))&15)*17;}
+   for(unsigned y=0;y<4&&by+y<t->height;y++)for(unsigned x=0;x<4&&bx+x<t->width;x++){unsigned i=y*4+x,index=(rgb[4+y]>>(x*2))&3;uint8_t*out=rgba+((by+y)*t->width+bx+x)*4;memcpy(out,color[index],3);out[3]=t->format==DXT1?(transparent&&index==3?0:255):(t->format==DXT4||t->format==DXT5)?alpha8[(abits>>(3*i))&7]:((b[i/2]>>((i&1)*4))&15)*17;}
   }
  }else for(uint32_t i=0;i<t->width*t->height;i++){
-  if(t->format==26){uint32_t v=src[i*2]|((uint32_t)src[i*2+1]<<8);rgba[i*4]=((v>>8)&15)*17;rgba[i*4+1]=((v>>4)&15)*17;rgba[i*4+2]=(v&15)*17;rgba[i*4+3]=(v>>12)*17;}
-  else{rgba[i*4]=src[i*4+2];rgba[i*4+1]=src[i*4+1];rgba[i*4+2]=src[i*4];rgba[i*4+3]=src[i*4+3];}
+  uint8_t*o=rgba+i*4;uint32_t v=pixel_bytes(t->format)==2?(uint32_t)(src[i*2]|(src[i*2+1]<<8)):0;
+  switch(t->format){
+   case 26:o[0]=((v>>8)&15)*17;o[1]=((v>>4)&15)*17;o[2]=(v&15)*17;o[3]=(v>>12)*17;break;
+   case 23:o[0]=(uint8_t)(((v>>11)&31)*255/31);o[1]=(uint8_t)(((v>>5)&63)*255/63);o[2]=(uint8_t)((v&31)*255/31);o[3]=255;break;
+   case 24:case 25:o[0]=(uint8_t)(((v>>10)&31)*255/31);o[1]=(uint8_t)(((v>>5)&31)*255/31);o[2]=(uint8_t)((v&31)*255/31);o[3]=t->format==25&&!(v&0x8000)?0:255;break;
+   case 29:o[0]=(uint8_t)(((v>>5)&7)*255/7);o[1]=(uint8_t)(((v>>2)&7)*255/7);o[2]=(uint8_t)((v&3)*255/3);o[3]=(uint8_t)(v>>8);break;
+   case 51:o[0]=o[1]=o[2]=(uint8_t)v;o[3]=(uint8_t)(v>>8);break;
+   case 28:o[0]=o[1]=o[2]=0;o[3]=src[i];break;
+   case 50:o[0]=o[1]=o[2]=src[i];o[3]=255;break;
+   case 20:o[0]=src[i*3+2];o[1]=src[i*3+1];o[2]=src[i*3];o[3]=255;break;
+   case 22:o[0]=src[i*4+2];o[1]=src[i*4+1];o[2]=src[i*4];o[3]=255;break;
+   default:o[0]=src[i*4+2];o[1]=src[i*4+1];o[2]=src[i*4];o[3]=src[i*4+3];break;}
  }
 }
 static int upload_texture(Object*t){
@@ -458,10 +751,10 @@ static void create_texture(CPU*c){Object*d=self(c,DEVICE);uint32_t w=ARG(1),h=AR
   add(t);W32(out,t->address);ret(c,9,0);return;
  }
  int systemmem=ARG(6)==2;
- if(ARG(3)!=1||(ARG(5)!=21&&(systemmem||(ARG(5)!=26&&!block_format(ARG(5)))))||(!systemmem&&(ARG(4)||ARG(6)!=1))||(systemmem&&(ARG(4)&~0x200u))){texture_create_failure(c,UNAVAILABLE);return;}
+ if(ARG(3)!=1||!texture_format(ARG(5))||(!systemmem&&(ARG(4)||ARG(6)!=1))||(systemmem&&(ARG(4)&~0x200u))){texture_create_failure(c,UNAVAILABLE);return;}
  uint64_t decoded=(uint64_t)w*h*4;
  if(block_format(ARG(5))&&((w&3)||(h&3))){texture_create_failure(c,INVALID);return;}
- uint64_t size=block_format(ARG(5))?(uint64_t)(w/4)*(h/4)*(ARG(5)==DXT1?8:16):(uint64_t)w*h*(ARG(5)==26?2:4);
+ uint64_t size=block_format(ARG(5))?(uint64_t)(w/4)*(h/4)*block_bytes(ARG(5)):(uint64_t)w*h*pixel_bytes(ARG(5));
  if(!caps(&cap)||w>cap.values[5]||h>cap.values[5]||decoded>cap.values[3]||size>cap.values[3]){ret(c,9,UNAVAILABLE);return;}
  Object*t=allocate(TEXTURE);if(!t){ret(c,9,OOM);return;}
  t->parent=d->address;t->width=w;t->height=h;t->format=ARG(5);t->pool=ARG(6);t->usage=ARG(4);t->size=(uint32_t)size;t->version=1;t->mem=movies_backend_alloc(t->size);
@@ -483,17 +776,59 @@ static int texture_lock(Object*t,uint32_t locked,uint32_t rect,uint32_t flags){
  if(rect){if(!range(rect,16))return 0;left=R32(rect);top=R32(rect+4);right=R32(rect+8);bottom=R32(rect+12);}
  if(left>=right||top>=bottom||right>t->width||bottom>t->height)return 0;
  if(block_format(t->format)&&((left|top|right|bottom)&3))return 0;
- uint32_t pitch=texture_pitch(t->width,t->format),offset=block_format(t->format)?(top/4)*pitch+(left/4)*(t->format==DXT1?8:16):top*pitch+left*(t->format==26?2:4);
+ uint32_t pitch=texture_pitch(t->width,t->format),offset=block_format(t->format)?(top/4)*pitch+(left/4)*block_bytes(t->format):top*pitch+left*pixel_bytes(t->format);
  t->locked=1;t->lockflags=flags;W32(locked,pitch);W32(locked+4,t->mem+offset);return 1;
 }
 static uint32_t texture_unlock(Object*t){if(!t->locked)return INVALID;t->locked=0;if(t->lockflags&0x10)return 0;t->version++;return t->pool==2?0:upload_texture(t)?0:LOST;}
 static void lock_texture(CPU*c){Object*t=self(c,TEXTURE);ret(c,5,!ARG(1)&&texture_lock(t,ARG(2),ARG(3),ARG(4))?0:INVALID);}
 static void unlock_texture(CPU*c){Object*t=self(c,TEXTURE);ret(c,2,ARG(1)?INVALID:texture_unlock(t));}
-static void lock_surface(CPU*c){Object*s=self(c,SURFACE);Object*t=find(s->container);if(!t){unsupported(c,"D3D9 back/depth surface LockRect unsupported");return;}ret(c,4,texture_lock(t,ARG(1),ARG(2),ARG(3))?0:INVALID);}
-static void unlock_surface(CPU*c){Object*s=self(c,SURFACE);Object*t=find(s->container);if(!t){unsupported(c,"D3D9 back/depth surface UnlockRect unsupported");return;}ret(c,1,texture_unlock(t));}
+/* Standalone render-target surfaces (CreateRenderTarget) own a GPU target; the
+ * lockable form also owns guest storage. Lock reads the GPU target back; a
+ * non-READONLY unlock uploads it. D3DX fallback at B0E5F1 uses Lockable=TRUE. */
+static int rt_read(Object*o,uint32_t mem){MoviesD3D9Request q={.command=MOVIES_D3D9_READ_TARGET,.args={o->gpu,o->width,o->height},.data=HP(mem),.bytes=o->width*o->height*4};MoviesD3D9Reply r;return invoke(&q,&r);}
+static int rt_write(Object*o,uint32_t gpu){uint32_t bytes=o->width*o->height*4;uint8_t*rgba=malloc(bytes);if(!rgba)return 0;texture_rgba(o,rgba);
+ MoviesD3D9Request q={.command=MOVIES_D3D9_WRITE_TARGET,.args={gpu,o->width,o->height},.data=rgba,.bytes=bytes};MoviesD3D9Reply r;int ok=invoke(&q,&r);free(rgba);return ok;}
+/* The implicit backbuffer (PresentationFlags=0, so not lockable on Windows). The
+ * statically linked D3DX lock helper B0E42C locks it first (caller B0E839) and only
+ * then falls back to copies; we serve the lock as a readback of the last rendered
+ * image in the backbuffer's own format (22 X8R8G8B8 or 25 A1R5G5B5, already
+ * quantized to 16 bits). Guest writes are not uploaded back. */
+static void lock_backbuffer(CPU*c,Object*d,Object*s){uint32_t locked=ARG(1),rect=ARG(2),flags=ARG(3);
+ if(s->locked||!range(locked,8)||(flags&~0x2810u)||(flags&0x2000u)||(s->format!=22&&s->format!=25)){ret(c,4,INVALID);return;}
+ uint32_t left=0,top=0,right=s->width,bottom=s->height;
+ if(rect){if(!range(rect,16)){ret(c,4,INVALID);return;}left=R32(rect);top=R32(rect+4);right=R32(rect+8);bottom=R32(rect+12);}
+ if(left>=right||top>=bottom||right>s->width||bottom>s->height){ret(c,4,INVALID);return;}
+ if(!s->mem){s->size=s->width*s->height*4;s->mem=movies_backend_alloc(s->size);if(!s->mem){allocation_failure(SURFACE,s->size,"backbuffer lock storage");s->size=0;ret(c,4,OOM);return;}}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_READ_BACKBUFFER,.args={0,s->width,s->height},.data=HP(s->mem),.bytes=s->width*s->height*4};MoviesD3D9Reply r;
+ if(!invoke(&q,&r)){ret(c,4,LOST);return;}
+ uint32_t bpp=s->format==25?2:4,pitch=s->width*bpp;
+ if(bpp==2){uint8_t*m=HP(s->mem);for(uint32_t i=0,n=s->width*s->height;i<n;i++){const uint8_t*p=m+i*4; /* B,G,R,A */
+  uint16_t v=(uint16_t)((p[3]>=128?0x8000u:0)|((p[2]>>3)<<10)|((p[1]>>3)<<5)|(p[0]>>3));m[i*2]=(uint8_t)v;m[i*2+1]=(uint8_t)(v>>8);}}
+ static unsigned logs;if(logs++<4)fprintf(stderr,"[D3D9] backbuffer LockRect caller=%08x %ux%u format=%u flags=%x\n",R32(c->esp),s->width,s->height,s->format,flags);
+ s->locked=1;s->lockflags=flags;W32(locked,pitch);W32(locked+4,s->mem+top*pitch+left*bpp);ret(c,4,0);(void)d;}
+static void lock_rt_surface(CPU*c,Object*s){uint32_t locked=ARG(1),rect=ARG(2),flags=ARG(3);
+ if(s->usage&2u){ret(c,4,INVALID);return;} /* D3DFMT_D16 depth is not lockable */
+ Object*d=find(s->parent);if(!s->gpu&&d&&d->rt==s->address){lock_backbuffer(c,d,s);return;}
+ if(!(s->usage&1u)||!s->gpu){unsupported(c,"D3D9 back/depth surface LockRect unsupported");return;}
+ if(!s->mem||s->locked||!range(locked,8)||(flags&~0x2810u)||(flags&0x2000u)){ret(c,4,INVALID);return;}
+ uint32_t left=0,top=0,right=s->width,bottom=s->height;
+ if(rect){if(!range(rect,16)){ret(c,4,INVALID);return;}left=R32(rect);top=R32(rect+4);right=R32(rect+8);bottom=R32(rect+12);}
+ if(left>=right||top>=bottom||right>s->width||bottom>s->height){ret(c,4,INVALID);return;}
+ if(!rt_read(s,s->mem)){ret(c,4,LOST);return;}
+ s->locked=1;s->lockflags=flags;W32(locked,s->width*4);W32(locked+4,s->mem+top*s->width*4+left*4);ret(c,4,0);}
+static void lock_surface(CPU*c){Object*s=self(c,SURFACE);Object*t=find(s->container);if(!t){lock_rt_surface(c,s);return;}ret(c,4,texture_lock(t,ARG(1),ARG(2),ARG(3))?0:INVALID);}
+static void unlock_surface(CPU*c){Object*s=self(c,SURFACE);Object*t=find(s->container);
+ if(!t&&!s->gpu&&(s->usage&1u)){Object*d=find(s->parent);if(d&&d->rt==s->address){if(!s->locked){ret(c,1,INVALID);return;}s->locked=0;
+  static unsigned dropped;if(!(s->lockflags&0x10u)&&dropped++<4)fprintf(stderr,"[D3D9] backbuffer UnlockRect without READONLY caller=%08x: guest writes are not uploaded\n",R32(c->esp));ret(c,1,0);return;}}
+ if(!t){if(!(s->usage&1u)||!s->gpu){unsupported(c,"D3D9 back/depth surface UnlockRect unsupported");return;}if(!s->locked){ret(c,1,INVALID);return;}
+  s->locked=0;ret(c,1,(s->lockflags&0x10u)||rt_write(s,s->gpu)?0:LOST);return;}ret(c,1,texture_unlock(t));}
 static void surface_container(CPU*c){Object*s=self(c,SURFACE);uint32_t out=ARG(2);if(!range(out,4)){ret(c,3,INVALID);return;}W32(out,0);Object*t=find(s->container);if(!t||(!iid(ARG(1),ids[0])&&!iid(ARG(1),ids[TEXTURE])&&!iid(ARG(1),base_texture_id)&&!iid(ARG(1),resource_id))){ret(c,3,0x80004002);return;}add(t);W32(out,t->address);ret(c,3,0);}
-static void set_texture(CPU*c){Object*d=self(c,DEVICE);Object*t=find(ARG(2));if(ARG(1)||((ARG(2)&&!t)||(t&&(t->type!=TEXTURE||t->parent!=d->address||t->pool==2)))){ret(c,3,INVALID);return;}bind(d,&d->texture,t);ret(c,3,0);}
-static void get_texture(CPU*c){Object*d=self(c,DEVICE);uint32_t out=ARG(2);if(ARG(1)||!range(out,4)){ret(c,3,INVALID);return;}Object*t=find(d->texture);if(t)add(t);W32(out,t?t->address:0);ret(c,3,0);}
+/* Stages 0 and 1 are sampled. Textures on stages 2..7 are stored and owned
+ * (refcounted) but not sampled; the shader cascade evaluates stages 0..1 only. */
+static void set_texture(CPU*c){Object*d=self(c,DEVICE);Object*t=find(ARG(2));uint32_t stage=ARG(1);if(stage>=8||((ARG(2)&&!t)||(t&&(t->type!=TEXTURE||t->parent!=d->address||t->pool==2)))){ret(c,3,INVALID);return;}
+ if(stage){if(t&&!(d->stage_logged&1)){d->stage_logged|=1;fprintf(stderr,"[D3D9] texture bound to stage %u caller=%08x; stages 0 and 1 are sampled\n",stage,R32(c->esp));}bind(d,&d->stage_textures[stage-1],t);ret(c,3,0);return;}
+ bind(d,&d->texture,t);ret(c,3,0);}
+static void get_texture(CPU*c){Object*d=self(c,DEVICE);uint32_t out=ARG(2);if(ARG(1)>=8||!range(out,4)){ret(c,3,INVALID);return;}Object*t=find(ARG(1)?d->stage_textures[ARG(1)-1]:d->texture);if(t)add(t);W32(out,t?t->address:0);ret(c,3,0);}
 /* Valid query state domains are independent of our supported drawing subset.
  * https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dtexturestagestatetype
  * https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dsamplerstatetype */
@@ -502,8 +837,12 @@ static void state_failure(CPU*c,const char*name){static unsigned reports;if(repo
 static void set_texture_stage(CPU*c){Object*d=self(c,DEVICE);uint32_t stage=ARG(1),state=ARG(2),value=ARG(3);
  if(stage>=8||!stage_state(state)){state_failure(c,"D3D9 SetTextureStageState invalid stage/state");return;}
  if(d->tss[stage][state]==value){ret(c,4,0);return;} /* exact no-op preserves state, including disabled stages */
- int ok=!stage&&((state==1||state==4)?(value==2||value==3||value==4):(state==2||state==5||state==3||state==6)?value<=3:(state==11||state==24)?value==0:0);
- if(!ok){state_failure(c,"D3D9 SetTextureStageState unsupported state/value");return;}d->tss[stage][state]=value;ret(c,4,0);}
+ /* D3DTEXTUREOP 1..26; D3DTA selectors 0..6 with COMPLEMENT(0x10)/ALPHAREPLICATE(0x20);
+  * RESULTARG CURRENT/TEMP; remaining states are stored (bump-env, texcoord index,
+  * transform flags, constant) and diagnosed at draw time if they matter. */
+ int arg=(value&~0x30u)<=6;
+ int ok=(state==1||state==4)?(value>=1&&value<=26):(state==2||state==3||state==5||state==6||state==26||state==27)?arg:state==28?(value==1||value==5):1;
+ if(!ok){fprintf(stderr,"[D3D9] SetTextureStageState rejected stage=%u state=%u value=%u caller=%08x\n",stage,state,value,R32(c->esp));state_failure(c,"D3D9 SetTextureStageState unsupported state/value");return;}d->tss[stage][state]=value;ret(c,4,0);}
 static void get_texture_stage(CPU*c){Object*d=self(c,DEVICE);uint32_t stage=ARG(1),state=ARG(2);if(!range(ARG(3),4)){ret(c,4,INVALID);return;}if(stage>=8||!stage_state(state)){state_failure(c,"D3D9 GetTextureStageState invalid stage/state");return;}W32(ARG(3),d->tss[stage][state]);ret(c,4,0);}
 static int sampler_state(uint32_t state){return state>=1&&state<=13;}
 static void set_sampler(CPU*c){Object*d=self(c,DEVICE);uint32_t stage=ARG(1),state=ARG(2),value=ARG(3);
@@ -530,7 +869,20 @@ static void unsupported_1_21(CPU*c){unsupported(c,"IDirect3DDevice9::SetGammaRam
 static void unsupported_1_22(CPU*c){unsupported(c,"IDirect3DDevice9::GetGammaRamp unsupported");}
 static void unsupported_1_24(CPU*c){unsupported(c,"IDirect3DDevice9::CreateVolumeTexture unsupported");}
 static void unsupported_1_25(CPU*c){unsupported(c,"IDirect3DDevice9::CreateCubeTexture unsupported");}
-static void unsupported_1_28(CPU*c){unsupported(c,"IDirect3DDevice9::CreateRenderTarget unsupported");}
+/* No multisampling, no shared handle; A8R8G8B8/X8R8G8B8. Observed D3DX B0E5F1:
+ * (w,h,srcFormat,NONE,0,Lockable=TRUE,&surface,NULL).
+ * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-createrendertarget */
+static void create_render_target(CPU*c){Object*d=self(c,DEVICE);uint32_t w=ARG(1),h=ARG(2),format=ARG(3),out=ARG(7);MoviesD3D9Reply cap;
+ if(!range(out,4)){ret(c,9,INVALID);return;}W32(out,0);
+ if(!w||!h||ARG(8)||ARG(6)>1){ret(c,9,INVALID);return;}
+ if(ARG(4)||ARG(5)||(format!=21&&format!=22)||!caps(&cap)||w>cap.values[5]||h>cap.values[5]){ret(c,9,UNAVAILABLE);return;}
+ Object*o=allocate(SURFACE);if(!o){ret(c,9,OOM);return;}
+ o->parent=d->address;o->width=w;o->height=h;o->format=format;o->usage=1;o->pool=0;o->size=w*h*4;
+ if(ARG(6)){o->mem=movies_backend_alloc(o->size);if(!o->mem){W32(o->address,0);memset(o,0,sizeof*o);ret(c,9,OOM);return;}}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_CREATE_TARGET,.args={w,h}};MoviesD3D9Reply r;
+ if(!invoke(&q,&r)||!r.values[0]){destroy(o);ret(c,9,OOM);return;}o->gpu=r.values[0];
+ static unsigned logs;if(logs++<8)fprintf(stderr,"[D3D9] CreateRenderTarget caller=%08x %ux%u format=%u lockable=%u\n",R32(c->esp),w,h,format,ARG(6));
+ add(o);W32(out,o->address);ret(c,9,0);}
 static void unsupported_1_29(CPU*c){unsupported(c,"IDirect3DDevice9::CreateDepthStencilSurface unsupported");}
 static Object*surface_texture(Object*s){return s&&s->type==SURFACE?find(s->container):NULL;}
 /* Observed 9A5335: UpdateSurface(SYSTEMMEM A8R8G8B8 level0 0x105ca64, NULL, RT level0
@@ -557,19 +909,30 @@ static void render_target_data(CPU*c){Object*d=self(c,DEVICE);Object*src=find(AR
  static unsigned logs;if(logs++<4)fprintf(stderr,"[D3D9] GetRenderTargetData caller=%08x %ux%u\n",R32(c->esp),st->width,st->height);
  ret(c,3,0);}
 static void unsupported_1_33(CPU*c){unsupported(c,"IDirect3DDevice9::GetFrontBufferData unsupported");}
-static void unsupported_1_34(CPU*c){unsupported(c,"IDirect3DDevice9::StretchRect unsupported");}
+static uint32_t surface_gpu(Object*s){if(!s||s->type!=SURFACE)return 0;Object*t=find(s->container);if(t)return (t->usage&1u)?t->gpu:0;return (s->usage&1u)?s->gpu:0;}
+/* Whole-surface, same-size copies between render-target surfaces (1:1, so the
+ * filter has no effect). Observed D3DX B0E60B (NONE) and A2B3B4 (LINEAR).
+ * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-stretchrect */
+static void stretch_rect(CPU*c){Object*d=self(c,DEVICE);Object*src=find(ARG(1)),*dst=find(ARG(3));uint32_t filter=ARG(5);
+ if(!src||!dst||src->type!=SURFACE||dst->type!=SURFACE||src->parent!=d->address||dst->parent!=d->address||src==dst||filter>3){ret(c,6,INVALID);return;}
+ uint32_t sg=surface_gpu(src),dg=surface_gpu(dst);
+ if(!sg||!dg||ARG(2)||ARG(4)||src->width!=dst->width||src->height!=dst->height){static unsigned reports;if(reports++<8)fprintf(stderr,"[D3D9] StretchRect unsupported caller=%08x src=%ux%u gpu=%u rect=%08x dst=%ux%u gpu=%u rect=%08x filter=%u\n",R32(c->esp),src->width,src->height,sg,ARG(2),dst->width,dst->height,dg,ARG(4),filter);
+  unsupported(c,"D3D9 StretchRect supports whole same-size render-target copies only");return;}
+ if(src->locked||dst->locked){ret(c,6,INVALID);return;}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_COPY_TARGET,.args={sg,dg,src->width,src->height}};MoviesD3D9Reply r;ret(c,6,invoke(&q,&r)?0:LOST);}
 static void unsupported_1_35(CPU*c){unsupported(c,"IDirect3DDevice9::ColorFill unsupported");}
 static void unsupported_1_36(CPU*c){unsupported(c,"IDirect3DDevice9::CreateOffscreenPlainSurface unsupported");}
 /* One simultaneous target (NumSimultaneousRTs=1). Index0 rejects NULL. Accepts the
  * implicit backbuffer or level0 of this device's RENDERTARGET texture. Setting a
  * target resets viewport and scissor to the full target (as Wine's wined3d does).
  * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-setrendertarget */
+static uint32_t surface_gpu(Object*s);
 static void set_render_target(CPU*c){Object*d=self(c,DEVICE);uint32_t index=ARG(1);Object*s=find(ARG(2));
  if(index||!s||s->type!=SURFACE||s->parent!=d->address){ret(c,3,INVALID);return;}
- Object*t=find(s->container);int backbuffer=s->address==d->rt;
- if(!backbuffer&&(!t||!(t->usage&1u)||!t->gpu)){ret(c,3,INVALID);return;}
+ Object*t=find(s->container);int backbuffer=s->address==d->rt;uint32_t gpu=backbuffer?0:surface_gpu(s);
+ if(!backbuffer&&!gpu){ret(c,3,INVALID);return;}
  if(t&&t->address==d->texture){unsupported(c,"D3D9 SetRenderTarget on the bound texture");return;}
- MoviesD3D9Request q={.command=MOVIES_D3D9_SET_TARGET,.args={backbuffer?0:t->gpu,s->width,s->height}};MoviesD3D9Reply r;
+ MoviesD3D9Request q={.command=MOVIES_D3D9_SET_TARGET,.args={gpu,s->width,s->height}};MoviesD3D9Reply r;
  if(!invoke(&q,&r)){ret(c,3,LOST);return;}
  bind_target(d,backbuffer?NULL:s);
  uint32_t one=0x3f800000u,vp[6]={0,0,s->width,s->height,0,one};memcpy(d->viewport,vp,24);
@@ -591,8 +954,10 @@ static void set_light(CPU*c){Object*d=self(c,DEVICE);uint32_t index=ARG(1),p=ARG
 static void get_light(CPU*c){Object*d=self(c,DEVICE);LightState*l=light_state(d,ARG(1),0);if(!l||!range(ARG(2),104)){ret(c,3,INVALID);return;}memcpy(HP(ARG(2)),l->words,104);ret(c,3,0);}
 static void light_enable(CPU*c){Object*d=self(c,DEVICE);LightState*l=light_state(d,ARG(1),1);if(!l){ret(c,3,OOM);return;}l->enabled=ARG(2)!=0;ret(c,3,0);}
 static void get_light_enable(CPU*c){Object*d=self(c,DEVICE);LightState*l=light_state(d,ARG(1),0);if(!l||!range(ARG(2),4)){ret(c,3,INVALID);return;}W32(ARG(2),l->enabled);ret(c,3,0);}
-static void unsupported_1_55(CPU*c){unsupported(c,"IDirect3DDevice9::SetClipPlane unsupported");}
-static void unsupported_1_56(CPU*c){unsupported(c,"IDirect3DDevice9::GetClipPlane unsupported");}
+/* User clip planes are stored and queryable; drawing ignores them (logged once
+ * when D3DRS_CLIPPLANEENABLE is set at draw time). */
+static void set_clip_plane(CPU*c){Object*d=self(c,DEVICE);uint32_t i=ARG(1),p=ARG(2);if(i>=6||!range(p,16)){ret(c,3,INVALID);return;}memcpy(d->clip_planes[i],HP(p),16);ret(c,3,0);}
+static void get_clip_plane(CPU*c){Object*d=self(c,DEVICE);uint32_t i=ARG(1),p=ARG(2);if(i>=6||!range(p,16)){ret(c,3,INVALID);return;}memcpy(HP(p),d->clip_planes[i],16);ret(c,3,0);}
 static void unsupported_1_59(CPU*c){unsupported(c,"IDirect3DDevice9::CreateStateBlock unsupported");}
 static void unsupported_1_60(CPU*c){unsupported(c,"IDirect3DDevice9::BeginStateBlock unsupported");}
 static void unsupported_1_61(CPU*c){unsupported(c,"IDirect3DDevice9::EndStateBlock unsupported");}
@@ -612,8 +977,6 @@ static void unsupported_1_77(CPU*c){unsupported(c,"IDirect3DDevice9::SetSoftware
 static void unsupported_1_78(CPU*c){unsupported(c,"IDirect3DDevice9::GetSoftwareVertexProcessing unsupported");}
 static void unsupported_1_79(CPU*c){unsupported(c,"IDirect3DDevice9::SetNPatchMode unsupported");}
 static void unsupported_1_80(CPU*c){unsupported(c,"IDirect3DDevice9::GetNPatchMode unsupported");}
-static void unsupported_1_81(CPU*c){unsupported(c,"IDirect3DDevice9::DrawPrimitive unsupported");}
-static void unsupported_1_83(CPU*c){unsupported(c,"IDirect3DDevice9::DrawPrimitiveUP unsupported");}
 static void unsupported_1_85(CPU*c){unsupported(c,"IDirect3DDevice9::ProcessVertices unsupported");}
 static void unsupported_1_86(CPU*c){unsupported(c,"IDirect3DDevice9::CreateVertexDeclaration unsupported");}
 static void unsupported_1_87(CPU*c){unsupported(c,"IDirect3DDevice9::SetVertexDeclaration unsupported");}
@@ -647,7 +1010,7 @@ static void unsupported_1_115(CPU*c){unsupported(c,"IDirect3DDevice9::DrawRectPa
 static void unsupported_1_116(CPU*c){unsupported(c,"IDirect3DDevice9::DrawTriPatch unsupported");}
 static void unsupported_1_117(CPU*c){unsupported(c,"IDirect3DDevice9::DeletePatch unsupported");}
 static void unsupported_1_118(CPU*c){unsupported(c,"IDirect3DDevice9::CreateQuery unsupported");}
-static GuestFn table_1[]={query,addref,release,cooperative,available_texture_memory,unsupported_1_5,get_direct3d,get_caps,device_mode,creation_parameters,unsupported_1_10,unsupported_1_11,unsupported_1_12,unsupported_1_13,unsupported_1_14,unsupported_1_15,unsupported_1_16,present,get_backbuffer,unsupported_1_19,unsupported_1_20,unsupported_1_21,unsupported_1_22,create_texture,unsupported_1_24,unsupported_1_25,create_vb,create_ib,unsupported_1_28,unsupported_1_29,update_surface,unsupported_1_31,render_target_data,unsupported_1_33,unsupported_1_34,unsupported_1_35,unsupported_1_36,set_render_target,get_rt,unsupported_1_39,get_ds,begin_scene,end_scene,clear_target,set_transform,get_transform,unsupported_1_46,set_viewport,get_viewport,set_material,get_material,set_light,get_light,light_enable,get_light_enable,unsupported_1_55,unsupported_1_56,set_state,get_state,unsupported_1_59,unsupported_1_60,unsupported_1_61,unsupported_1_62,unsupported_1_63,get_texture,set_texture,get_texture_stage,set_texture_stage,get_sampler,set_sampler,unsupported_1_70,unsupported_1_71,unsupported_1_72,unsupported_1_73,unsupported_1_74,set_scissor,get_scissor,unsupported_1_77,unsupported_1_78,unsupported_1_79,unsupported_1_80,unsupported_1_81,draw_indexed,unsupported_1_83,draw_indexed_up,unsupported_1_85,unsupported_1_86,unsupported_1_87,unsupported_1_88,set_fvf,get_fvf,unsupported_1_91,set_vertex_shader,get_vertex_shader,unsupported_1_94,unsupported_1_95,unsupported_1_96,unsupported_1_97,unsupported_1_98,unsupported_1_99,stream_source,get_stream_source,unsupported_1_102,unsupported_1_103,set_indices,get_indices,unsupported_1_106,set_pixel_shader,get_pixel_shader,unsupported_1_109,unsupported_1_110,unsupported_1_111,unsupported_1_112,unsupported_1_113,unsupported_1_114,unsupported_1_115,unsupported_1_116,unsupported_1_117,unsupported_1_118};
+static GuestFn table_1[]={query,addref,release,cooperative,available_texture_memory,unsupported_1_5,get_direct3d,get_caps,device_mode,creation_parameters,unsupported_1_10,unsupported_1_11,unsupported_1_12,unsupported_1_13,unsupported_1_14,unsupported_1_15,unsupported_1_16,present,get_backbuffer,unsupported_1_19,unsupported_1_20,unsupported_1_21,unsupported_1_22,create_texture,unsupported_1_24,unsupported_1_25,create_vb,create_ib,create_render_target,unsupported_1_29,update_surface,unsupported_1_31,render_target_data,unsupported_1_33,stretch_rect,unsupported_1_35,unsupported_1_36,set_render_target,get_rt,unsupported_1_39,get_ds,begin_scene,end_scene,clear_target,set_transform,get_transform,unsupported_1_46,set_viewport,get_viewport,set_material,get_material,set_light,get_light,light_enable,get_light_enable,set_clip_plane,get_clip_plane,set_state,get_state,unsupported_1_59,unsupported_1_60,unsupported_1_61,unsupported_1_62,unsupported_1_63,get_texture,set_texture,get_texture_stage,set_texture_stage,get_sampler,set_sampler,unsupported_1_70,unsupported_1_71,unsupported_1_72,unsupported_1_73,unsupported_1_74,set_scissor,get_scissor,unsupported_1_77,unsupported_1_78,unsupported_1_79,unsupported_1_80,draw_primitive,draw_indexed,draw_primitive_up,draw_indexed_up,unsupported_1_85,unsupported_1_86,unsupported_1_87,unsupported_1_88,set_fvf,get_fvf,unsupported_1_91,set_vertex_shader,get_vertex_shader,unsupported_1_94,unsupported_1_95,unsupported_1_96,unsupported_1_97,unsupported_1_98,unsupported_1_99,stream_source,get_stream_source,unsupported_1_102,unsupported_1_103,set_indices,get_indices,unsupported_1_106,set_pixel_shader,get_pixel_shader,unsupported_1_109,unsupported_1_110,unsupported_1_111,unsupported_1_112,unsupported_1_113,unsupported_1_114,unsupported_1_115,unsupported_1_116,unsupported_1_117,unsupported_1_118};
 static void unsupported_2_4(CPU*c){unsupported(c,"IDirect3DSurface9::SetPrivateData unsupported");}
 static void unsupported_2_5(CPU*c){unsupported(c,"IDirect3DSurface9::GetPrivateData unsupported");}
 static void unsupported_2_6(CPU*c){unsupported(c,"IDirect3DSurface9::FreePrivateData unsupported");}

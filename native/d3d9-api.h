@@ -4,9 +4,10 @@
 enum MoviesD3D9Command { MOVIES_D3D9_CAPS=1, MOVIES_D3D9_CREATE, MOVIES_D3D9_CLEAR,
  MOVIES_D3D9_PRESENT, MOVIES_D3D9_UPLOAD_VERTEX, MOVIES_D3D9_UPLOAD_INDEX,
  MOVIES_D3D9_DRAW, MOVIES_D3D9_RELEASE_RESOURCE, MOVIES_D3D9_DESTROY, MOVIES_D3D9_UPLOAD_TEXTURE,
- MOVIES_D3D9_CREATE_TARGET, MOVIES_D3D9_SET_TARGET, MOVIES_D3D9_READ_TARGET, MOVIES_D3D9_WRITE_TARGET };
+ MOVIES_D3D9_CREATE_TARGET, MOVIES_D3D9_SET_TARGET, MOVIES_D3D9_READ_TARGET, MOVIES_D3D9_WRITE_TARGET, MOVIES_D3D9_COPY_TARGET,
+ MOVIES_D3D9_READ_BACKBUFFER };
 typedef struct MoviesD3D9Request {
- uint32_t command, args[33];
+ uint32_t command, args[64];
  const void *data; uint32_t bytes;
  float matrices[48];
 } MoviesD3D9Request;
@@ -21,6 +22,7 @@ typedef struct MoviesD3D9Reply { uint32_t values[8]; } MoviesD3D9Reply;
  * SET_TARGET args=handle (0 selects the backbuffer); later CLEAR/DRAW use it.
  * READ_TARGET args=handle,width,height fills data (bytes=w*h*4) with guest BGRA.
  * WRITE_TARGET args=handle,width,height uploads RGBA data to the target texture.
+ * COPY_TARGET args=source,destination,width,height copies equal-size targets.
  * No native default backend. UI-thread confined; initialization registers
  * guest metadata05000000..05040000 and trampolines0e020000..0e026000. */
 typedef int (*MoviesD3D9Host)(const MoviesD3D9Request *, MoviesD3D9Reply *,void *);

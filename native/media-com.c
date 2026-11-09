@@ -5,6 +5,8 @@
  * UI-owner STA only; MTA/marshalling and guest-owned filters are not implemented.
  */
 #include "media-com.h"
+#include "dsound-api.h"
+#include "movie-api.h"
 #include "heap-api.h"
 #include <pthread.h>
 #include <limits.h>
@@ -29,7 +31,7 @@
 #define NOTREGISTERED 0x80040154u
 #define WRONGTHREAD 0x8001010eu
 #define ARG(n) R32(c->esp+4+4*(n))
-enum { GRAPH=1,CAPTURE,WRITER,ENUMERATOR,MANAGER,PROFILE,CONFIG_TABLE,READER,HEADER_TABLE,PROPS,SAMPLE };
+enum { GRAPH=1,CAPTURE,WRITER,ENUMERATOR,MANAGER,PROFILE,CONFIG_TABLE,READER,HEADER_TABLE,PROPS,SAMPLE,DSOUND };
 typedef struct Profile {
     uint32_t version,streams,video_number,audio_number;
     uint16_t name[512],description[512];
@@ -51,6 +53,11 @@ static uint32_t sequence,apartment_depth;
 static MoviesMediaReaderHost reader_host;
 static int close_reader(CPU*,Object*);
 static int initialized;static pthread_t owner;static MoviesMediaHost host;
+/* CLSID_DirectSound / CLSID_DirectSound8, IID_IDirectSound / IID_IDirectSound8. */
+static const uint8_t id_class_dsound[16]={0x46,0xd9,0xd4,0x47,0xe8,0x62,0xcf,0x11,0x93,0xbc,0x44,0x45,0x53,0x54,0x0,0x0};
+static const uint8_t id_class_dsound8[16]={0xa3,0x4c,0x08,0x3b,0x6b,0x51,0x6b,0x4f,0x8e,0x2e,0x6a,0x20,0x8b,0xf2,0x8e,0x8d};
+static const uint8_t id_dsound[16]={0x83,0xfa,0x9a,0x27,0x81,0x49,0xce,0x11,0xa5,0x21,0x0,0x20,0xaf,0xb,0xe5,0x60};
+static const uint8_t id_dsound8[16]={0x93,0x7e,0x0a,0xc5,0x95,0xf3,0x34,0x48,0x9e,0xf6,0x7f,0xa9,0x9d,0xe5,0x09,0x66};
 static const uint8_t id_unknown[16]={0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xc0,0x0,0x0,0x0,0x0,0x0,0x0,0x46};
 static const uint8_t id_graph[16]={0xa9,0x68,0xa8,0x56,0xd4,0xa,0xce,0x11,0xb0,0x3a,0x0,0x20,0xaf,0xb,0xa7,0x70};
 static const uint8_t id_filtergraph[16]={0x9f,0x68,0xa8,0x56,0xd4,0xa,0xce,0x11,0xb0,0x3a,0x0,0x20,0xaf,0xb,0xa7,0x70};
@@ -89,7 +96,8 @@ static int supports(unsigned kind,uint32_t iid){return guid(iid,id_unknown)||
     (kind==ENUMERATOR&&guid(iid,id_enumfilters))||
     (kind==MANAGER&&guid(iid,id_manager))||(kind==PROFILE&&guid(iid,id_profile))||
     (kind==READER&&(guid(iid,id_reader)||guid(iid,id_header)||guid(iid,id_header2)||guid(iid,id_header3)))||
-    (kind==PROPS&&(guid(iid,id_props)||guid(iid,id_mediaprops)))||(kind==SAMPLE&&guid(iid,id_buffer));}
+    (kind==PROPS&&(guid(iid,id_props)||guid(iid,id_mediaprops)))||(kind==SAMPLE&&guid(iid,id_buffer))||
+    (kind==DSOUND&&(guid(iid,id_dsound)||guid(iid,id_dsound8)));}
 static Object *allocate(unsigned kind){
     if(sequence>=0xf000u/16)return NULL;
     for(unsigned i=0;i<LIMIT;i++)if(!objects[i].address){Object*o=&objects[i];memset(o,0,sizeof *o);
@@ -114,6 +122,7 @@ EM_JS(int,writer_release_js,(uint32_t token),{
 #endif
 static uint32_t release_object(CPU*c,Object*o){
     if(--o->refs)return o->refs;
+    if(o->kind==GRAPH)movies_movie_graph_release(c,o->address);
     if(o->kind==GRAPH){while(o->count){Object*f=lookup(o->filters[--o->count]);if(f){f->graph=0;release_object(c,f);}}}
     if((o->kind==CAPTURE||o->kind==ENUMERATOR)&&o->graph){Object*g=lookup(o->graph);if(g)release_object(c,g);}
     if(o->kind==WRITER&&o->token){int ok=0;
@@ -136,7 +145,7 @@ int movies_media_set_host(const MoviesMediaHost *provider){
 static void query(CPU*c){Object*o=self(c);if(!o)return;uint32_t iid=ARG(1),out=ARG(2);
     if(!range(out,4)){ret(c,3,E_POINTER);return;}W32(out,0);
     if(!range(iid,16)){ret(c,3,E_POINTER);return;}
-    if(!supports(o->kind,iid)){ret(c,3,E_NOINTERFACE);return;}retain(c,o);W32(out,o->address+((o->kind==WRITER&&guid(iid,id_configwriter))||(o->kind==READER&&(guid(iid,id_header)||guid(iid,id_header2)||guid(iid,id_header3)))?4:0));ret(c,3,0);
+    if(!supports(o->kind,iid)){ret(c,3,o->kind==GRAPH?movies_movie_query(o->address,iid,out):E_NOINTERFACE);return;}retain(c,o);W32(out,o->address+((o->kind==WRITER&&guid(iid,id_configwriter))||(o->kind==READER&&(guid(iid,id_header)||guid(iid,id_header2)||guid(iid,id_header3)))?4:0));ret(c,3,0);
 }
 static void addref(CPU*c){Object*o=self(c);if(o)ret(c,1,retain(c,o));}
 static void release(CPU*c){Object*o=self(c);if(o)ret(c,1,release_object(c,o));}
@@ -174,6 +183,8 @@ static void cocreate(CPU*c){
     if(outer){diagnostic_return(c,"CoCreateInstance",5,0x80040110u);return;} /*CLASS_E_NOAGGREGATION*/
     if(context!=1){diagnostic_return(c,"CoCreateInstance",5,E_NOTIMPL);return;}
     if(guid(cls,id_class_graph))kind=GRAPH;else if(guid(cls,id_class_capture))kind=CAPTURE;else if(guid(cls,id_class_writer))kind=WRITER;
+    else if(guid(cls,id_class_dsound)||guid(cls,id_class_dsound8)){kind=DSOUND;movies_dsound_enable_engine();}
+    if(!kind&&movies_movie_is_reader_clsid(cls)){uint32_t reader=0,hr=movies_movie_create_reader(cls,&reader);if(hr==1){W32(out,reader);hr=0;}diagnostic_return(c,"CoCreateInstance",5,hr);return;}
     if(!kind){diagnostic_return(c,"CoCreateInstance",5,NOTREGISTERED);return;}if(!supports(kind,iid)){diagnostic_return(c,"CoCreateInstance",5,E_NOINTERFACE);return;}
     Object*o=allocate(kind);if(!o){diagnostic_return(c,"CoCreateInstance",5,E_OUTOFMEMORY);return;}
     if(kind==WRITER){uint32_t token=0;int ok=0;
@@ -200,7 +211,9 @@ static void get_graph(CPU*c){Object*b=typed(c,CAPTURE);if(!b)return;uint32_t out
     if(!g){g=allocate(GRAPH);if(!g){ret(c,2,E_OUTOFMEMORY);return;}b->graph=g->address;}
     retain(c,g);W32(out,g->address);ret(c,2,0);
 }
+static void graph_render(CPU*c){Object*g=typed(c,GRAPH);if(!g)return;diagnostic_return(c,"Render",2,movies_movie_render(c,g->address,ARG(1)));}
 static void add_filter(CPU*c){Object*g=typed(c,GRAPH);if(!g)return;Object*f=lookup(ARG(1));uint16_t name[128]={0};
+    if(!f&&ARG(1)){diagnostic_return(c,"AddFilter",3,movies_movie_add_filter(c,g->address,ARG(1),ARG(2)));return;} /* game renderer / virtual ASF reader */
     if(!f||f->kind!=WRITER){diagnostic_return(c,"AddFilter",3,ARG(1)?E_NOINTERFACE:E_POINTER);return;}
     if(f->graph){diagnostic_return(c,"AddFilter",3,E_FAIL);return;}
     if(g->count==FILTERS){diagnostic_return(c,"AddFilter",3,E_OUTOFMEMORY);return;}
@@ -495,15 +508,32 @@ static void sample_set_length(CPU*c){Object*s=typed(c,SAMPLE);if(!s)return;uint3
 static void sample_capacity(CPU*c){Object*s=typed(c,SAMPLE);if(!s)return;uint32_t out=ARG(1);if(!range(out,4)){ret(c,2,E_POINTER);return;}W32(out,s->sample_capacity);ret(c,2,0);}
 static void sample_buffer(CPU*c){Object*s=typed(c,SAMPLE);if(!s)return;uint32_t out=ARG(1);if(!range(out,4)){ret(c,2,E_POINTER);return;}W32(out,s->sample_data);ret(c,2,0);}
 static void sample_buffer_length(CPU*c){Object*s=typed(c,SAMPLE);if(!s)return;uint32_t out=ARG(1),length=ARG(2);if(!range(out,4)||!range(length,4)){ret(c,3,E_POINTER);return;}W32(out,s->sample_data);W32(length,s->sample_length);ret(c,3,0);}
+/* Minimal IDirectSound/IDirectSound8: the statically linked OpenAL router probes
+ * DirectSound (create, Initialize, cooperative level, speaker config) before it
+ * loads OpenAL32.dll/wrap_oal.dll. Playback goes through the OpenAL module
+ * (openal-api.c); DirectSound buffers themselves are not provided.
+ * https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee418035(v=vs.85) */
+#define DSERR_UNSUPPORTED 0x80004001u
+static void ds_log(CPU*c,const char*method){static unsigned logs;if(logs++<24){fprintf(stderr,"[dsound] %s args=%08x,%08x caller=%08x stack:",method,ARG(1),ARG(2),R32(c->esp));for(unsigned k=1;k<64;k++){uint32_t v=R32(c->esp+4*k);if(v>=0x401000u&&v<0xd00000u)fprintf(stderr," +%u:%08x",k*4,v);}fprintf(stderr,"\n");}}
+static void ds_create_buffer(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;if(ARG(3)){if(range(ARG(2),4))W32(ARG(2),0);ret(c,4,0x80040110u);return;}uint32_t hr=movies_dsound_create_buffer(ARG(1),ARG(2));if(hr){static unsigned logs;if(logs++<4)fprintf(stderr,"[dsound] CreateSoundBuffer failed hr=%08x caller=%08x\n",hr,R32(c->esp));}ret(c,4,hr);}
+static void ds_caps(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"GetCaps");uint32_t p=ARG(1);if(!range(p,96)||R32(p)!=96){ret(c,2,E_INVALIDARG);return;}
+ memset(HP(p+4),0,92);W32(p+4,0x1|0x4|0x8|0x400|0x800);W32(p+8,8000);W32(p+12,48000);ret(c,2,0);} /* PRIMARYMONO|PRIMARYSTEREO|PRIMARY16BIT|SECONDARYSTEREO|SECONDARY16BIT */
+static void ds_duplicate(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"DuplicateSoundBuffer");if(range(ARG(2),4))W32(ARG(2),0);ret(c,3,DSERR_UNSUPPORTED);}
+static void ds_cooperative(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"SetCooperativeLevel");ret(c,3,0);}
+static void ds_compact(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"Compact");ret(c,1,0);}
+static void ds_get_speaker(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"GetSpeakerConfig");if(!range(ARG(1),4)){ret(c,2,E_POINTER);return;}W32(ARG(1),4);ret(c,2,0);} /* DSSPEAKER_STEREO */
+static void ds_set_speaker(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"SetSpeakerConfig");ret(c,2,0);}
+static void ds_initialize(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"Initialize");ret(c,2,0);}
+static void ds_verify(CPU*c){Object*o=typed(c,DSOUND);if(!o)return;ds_log(c,"VerifyCertification");if(range(ARG(1),4))W32(ARG(1),0);ret(c,2,0);}
 int movies_media_init(void){
     if(initialized&&!on_owner())return 0;if(apartment_depth)return 0;
     for(unsigned i=0;i<LIMIT;i++)if(objects[i].address)return 0;
     if(MOVIES_MEDIA_END>MOVIES_MEDIA_SPACE||!g_mem)return 0;
     owner=pthread_self();memset(objects,0,sizeof objects);memset(HP(MOVIES_MEDIA_BASE),0,0x10000);sequence=0;
-    GuestFn methods[]={query,addref,release,unsupported,set_graph,get_graph,add_filter,remove_filter,enum_filters,find_filter,enum_next,enum_skip,enum_reset,enum_clone,get_class,stopped,get_state,filter_info,empty_profile,load_profile,profile_version,profile_count,profile_name,profile_set_name,profile_description,profile_set_description,configure_profile,current_profile,reader_close,reader_range,reader_next,header_attribute,reader_output_count,reader_format_count,reader_props,reader_format,reader_output_number,reader_stream_number,reader_max_output,reader_max_stream,reader_open,props_type,props_media,sample_length,sample_set_length,sample_capacity,sample_buffer,sample_buffer_length};
+    GuestFn methods[]={query,addref,release,unsupported,set_graph,get_graph,add_filter,remove_filter,enum_filters,find_filter,enum_next,enum_skip,enum_reset,enum_clone,get_class,stopped,get_state,filter_info,empty_profile,load_profile,profile_version,profile_count,profile_name,profile_set_name,profile_description,profile_set_description,configure_profile,current_profile,reader_close,reader_range,reader_next,header_attribute,reader_output_count,reader_format_count,reader_props,reader_format,reader_output_number,reader_stream_number,reader_max_output,reader_max_stream,reader_open,props_type,props_media,sample_length,sample_set_length,sample_capacity,sample_buffer,sample_buffer_length,ds_create_buffer,ds_caps,ds_duplicate,ds_cooperative,ds_compact,ds_get_speaker,ds_set_speaker,ds_initialize,ds_verify,graph_render};
     for(unsigned i=0;i<sizeof methods/sizeof*methods;i++)register_function(MOVIES_MEDIA_TRAMP+16*i,methods[i]);
-    for(unsigned kind=1;kind<=11;kind++){uint32_t table=MOVIES_MEDIA_BASE+(kind-1)*0x100;for(unsigned i=0;i<32;i++)W32(table+4*i,MOVIES_MEDIA_TRAMP+16*(i<3?i:3));}
-    const unsigned map[][3]={{GRAPH,3,6},{GRAPH,4,7},{GRAPH,5,8},{GRAPH,6,9},{CAPTURE,3,4},{CAPTURE,4,5},{WRITER,3,14},{WRITER,4,15},{WRITER,7,16},{WRITER,12,17},{ENUMERATOR,3,10},{ENUMERATOR,4,11},{ENUMERATOR,5,12},{ENUMERATOR,6,13},{MANAGER,3,18},{MANAGER,5,19},{PROFILE,3,20},{PROFILE,4,22},{PROFILE,5,23},{PROFILE,6,24},{PROFILE,7,25},{PROFILE,8,21},{7,7,26},{7,8,27},{READER,4,28},{READER,5,29},{READER,7,30},{HEADER_TABLE,5,31},{READER,14,32},{READER,17,33},{READER,15,34},{READER,18,35},{READER,19,36},{READER,20,37},{READER,21,38},{READER,22,39},{READER,23,40},{PROPS,3,41},{PROPS,4,42},{SAMPLE,3,43},{SAMPLE,4,44},{SAMPLE,5,45},{SAMPLE,6,46},{SAMPLE,7,47}};
+    for(unsigned kind=1;kind<=12;kind++){uint32_t table=MOVIES_MEDIA_BASE+(kind-1)*0x100;for(unsigned i=0;i<32;i++)W32(table+4*i,MOVIES_MEDIA_TRAMP+16*(i<3?i:3));}
+    const unsigned map[][3]={{GRAPH,12,57},{GRAPH,3,6},{GRAPH,4,7},{GRAPH,5,8},{GRAPH,6,9},{CAPTURE,3,4},{CAPTURE,4,5},{WRITER,3,14},{WRITER,4,15},{WRITER,7,16},{WRITER,12,17},{ENUMERATOR,3,10},{ENUMERATOR,4,11},{ENUMERATOR,5,12},{ENUMERATOR,6,13},{MANAGER,3,18},{MANAGER,5,19},{PROFILE,3,20},{PROFILE,4,22},{PROFILE,5,23},{PROFILE,6,24},{PROFILE,7,25},{PROFILE,8,21},{7,7,26},{7,8,27},{READER,4,28},{READER,5,29},{READER,7,30},{HEADER_TABLE,5,31},{READER,14,32},{READER,17,33},{READER,15,34},{READER,18,35},{READER,19,36},{READER,20,37},{READER,21,38},{READER,22,39},{READER,23,40},{PROPS,3,41},{PROPS,4,42},{SAMPLE,3,43},{SAMPLE,4,44},{SAMPLE,5,45},{SAMPLE,6,46},{SAMPLE,7,47},{DSOUND,3,48},{DSOUND,4,49},{DSOUND,5,50},{DSOUND,6,51},{DSOUND,7,52},{DSOUND,8,53},{DSOUND,9,54},{DSOUND,10,55},{DSOUND,11,56}};
     for(unsigned i=0;i<sizeof map/sizeof*map;i++)W32(MOVIES_MEDIA_BASE+(map[i][0]-1)*0x100+4*map[i][1],MOVIES_MEDIA_TRAMP+16*map[i][2]);
     initialized=1;return 1;
 }

@@ -49,8 +49,13 @@ int main(void) {
         assert(R8(512 + size) == 0xa5);
         if (size == 156) assert(R16(660) == 3 && R8(666) == 1);
     }
+    memset(memory + 512, 0xa5, 300); W32(512, 284);
+    assert(call("KERNEL32.DLL!GetVersionExW", 512, 1) == 1 && R32(516) == 5 && R16(532) == 'S' && R16(532 + 26) == '3' && R16(788) == 3);
+    W32(512, 148); assert(call("KERNEL32.DLL!GetVersionExW", 512, 1) == 0);
+    assert(call("KERNEL32.DLL!IsDebuggerPresent", 0, 0) == 0);
     call("KERNEL32.DLL!SetLastError",123,1);
     assert(movies_get_last_error()==123);
+    W32(136,4);assert(call("KERNEL32.DLL!IsBadReadPtr",0x10000u,2)==0);W32(136,4);assert(call("KERNEL32.DLL!IsBadReadPtr",0u,2)==1);W32(136,0);assert(call("KERNEL32.DLL!IsBadReadPtr",0u,2)==0);
     uint32_t packed=call("KERNEL32.DLL!GetVersion",0,0);
     assert(packed==0x0a280105u);
     assert((packed&255)==R32(516) && ((packed>>8)&255)==R32(520));

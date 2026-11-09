@@ -10,4 +10,6 @@ ImportHandler *movies_text_handlers(uint32_t *count);
 uint16_t movies_cp1252_decode(uint8_t byte);
 int movies_cp1252_encode(uint32_t scalar, int bestfit);
 uint16_t movies_western_upper(uint16_t character);
+/* Guest callback dispatch for EnumSystemLocalesA (runtime lookup_function/guest_call). */
+void movies_text_set_dispatcher(GuestFn (*lookup)(uint32_t),void (*call)(CPU *,GuestFn,int,const uint32_t *));
 #endif

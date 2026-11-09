@@ -19,5 +19,7 @@ void movies_file_set_close_resolver(int (*resolver)(uint32_t));
  * deletion (no tombstones); open SHARE_DELETE files return unsupported (50). */
 /* GetFullPathName is lexical only (ASCII A/W subset, no device namespaces);
  * resolving a Windows path never authorizes backend access to that path. */
+/* Whole-file host read of a guest path; 1 on success, caller frees *data. */
+int movies_file_read_all(const char *guest_path,uint8_t **data,size_t *size,size_t limit);
 ImportHandler *movies_file_handlers(uint32_t *count);
 #endif

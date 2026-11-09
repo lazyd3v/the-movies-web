@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validateCommand} from '../public/graphics-protocol.js';
-test('depth compare/write states are independently typed and limited to implemented modes',()=>{
- for(const depthCompare of ['less-equal','always'])for(const depthWrite of [false,true]) {
+test('depth compare/write states are independently typed; all eight D3DCMP comparisons map to WebGPU',()=>{
+ for(const depthCompare of ['never','less','equal','less-equal','greater','not-equal','greater-equal','always'])for(const depthWrite of [false,true]) {
   assert.equal(validateCommand('drawIndexed',{vertices:1,indices:2,depthTest:true,depthCompare,depthWrite}),0);
  }
- for(const depthCompare of ['less','never',8,null])assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,depthCompare}),/depth comparison/);
+ for(const depthCompare of ['lequal','',8,null])assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,depthCompare}),/depth comparison/);
  for(const depthWrite of [0,1,'false',null])assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,depthWrite}),/depth write/);
 });
 test('blend command exposes only audited source-alpha mode enable, no arbitrary factors',()=>{
@@ -43,4 +43,15 @@ test('render-target commands validate dimensions and nullable texture handles',(
   for(const bad of [{width:0,height:1},{width:1,height:5000},{width:1,height:1,format:21}])assert.throws(()=>validateCommand('createRenderTarget',bad));
   validateCommand('setRenderTarget',{texture:null});validateCommand('setRenderTarget',{texture:7});
   for(const bad of [{},{texture:0},{texture:'7'},{texture:1,extra:1}])assert.throws(()=>validateCommand('setRenderTarget',bad));
+});
+test('render-target copies require two distinct typed handles',()=>{
+  validateCommand('copyRenderTarget',{source:1,destination:2});
+  for(const bad of [{source:1,destination:1},{source:1},{source:0,destination:2},{source:1,destination:2,filter:2}])assert.throws(()=>validateCommand('copyRenderTarget',bad));
+});
+test('depth bias, colour write mask and blend constant are validated',()=>{
+ assert.equal(validateCommand('drawIndexed',{vertices:1,indices:2,depthBias:0.001,slopeScaleDepthBias:-1,colorWriteMask:7,blendConstant:0x80ff0000}),0);
+ assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,depthBias:NaN}),/depthBias/);
+ assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,colorWriteMask:16}),/colour write mask/);
+ assert.throws(()=>validateCommand('drawIndexed',{vertices:1,indices:2,blendFactors:{source:5,destination:6,operation:6}}),/blend operation/);
+ assert.equal(validateCommand('drawIndexed',{vertices:1,indices:2,blend:true,blendFactors:{source:14,destination:15,operation:3,alphaSource:2,alphaDestination:1,alphaOperation:5}}),0);
 });

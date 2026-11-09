@@ -63,12 +63,13 @@ static void tls_set(CPU *c) {
 }
 uint32_t movies_thread_reserve_id(void){pthread_mutex_lock(&registry);uint32_t id=next_thread_id==0xffffffffu?0:next_thread_id++;pthread_mutex_unlock(&registry);return id;}
 void movies_thread_bind_id(uint32_t id){memset(local_generations,0,sizeof local_generations);memset(values,0,sizeof values);thread_id=id;}
-static void current_thread(CPU *c) {
+uint32_t movies_thread_current_id(void) {
     pthread_mutex_lock(&registry);
     if(!thread_id)thread_id=next_thread_id++;
     uint32_t id=thread_id;
-    pthread_mutex_unlock(&registry);ret(c,0,id);
+    pthread_mutex_unlock(&registry);return id;
 }
+static void current_thread(CPU *c) { ret(c,0,movies_thread_current_id()); }
 static Section *find(uint32_t address) {
     for(Section *s=sections;s;s=s->next)if(s->address==address)return s;
     return NULL;

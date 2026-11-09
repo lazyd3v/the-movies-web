@@ -35,7 +35,7 @@ static void drop_slot(unsigned slot){pthread_mutex_lock(&lifecycle);workers[slot
 
 static void ret(CPU*c,unsigned n,uint32_t v){c->eax=v;c->esp+=4+4*n;}
 static void *execute(void*arg){
- Execution*e=arg;current=e;movies_thread_bind_id(e->id);movies_set_last_error(0);g_import_target=0;g_trace=NULL;g_trace_len=g_trace_cap=0;fpu_sync_rounding(&e->cpu);
+ Execution*e=arg;current=e;movies_thread_bind_id(e->id);movies_sync_bind_current_thread(e->completion);movies_set_last_error(0);g_import_target=0;g_trace=NULL;g_trace_len=g_trace_cap=0;fpu_sync_rounding(&e->cpu);
  jmp_buf trap;g_trap_jmp=&trap;
  if(setjmp(trap)){fprintf(stderr,"guest child %u failed: %s\n",e->id,g_trap_msg);pthread_mutex_lock(&lifecycle);if(!first_failure[0])snprintf(first_failure,sizeof first_failure,"thread %u: %.220s",e->id,g_trap_msg);__atomic_store_n(&failure_ready,1,__ATOMIC_RELEASE);pthread_mutex_unlock(&lifecycle);e->exit_code=0xc0000005u;}
  else if(!setjmp(e->exit_boundary)){

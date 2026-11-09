@@ -10,6 +10,8 @@
 #include "text-api.h"
 #include <pthread.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #ifndef MOVIES_REGISTRY_SPACE
 #define MOVIES_REGISTRY_SPACE GUEST_SPACE
 #endif
@@ -24,6 +26,45 @@ static Handle *handles;
 static uint32_t next_handle=0x73000000u;
 static pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
 static void ret(CPU *c,unsigned n,uint32_t result) { c->eax=result;c->esp+=4*(n+1); }
+/* Persistence: the whole tree is rewritten to <userdata>/registry.v1 (temp file +
+ * rename) after every successful mutation and loaded at init. The browser host
+ * mirrors /userdata into persistent storage, so settings survive page reloads.
+ * Format: "MREG1" then per root: key = u32 nameUnits, UTF16 name, u32 values,
+ * {u32 nameUnits, name, u32 type, u32 bytes, data}*, u32 children, key*. */
+static char store_path[512];
+static size_t name_units(const uint16_t *s) { size_t n=0;if(s)while(s[n])n++;return n; }
+static int put32(FILE *f,uint32_t v) { return fwrite(&v,4,1,f)==1; }
+static int put_name(FILE *f,const uint16_t *s) { uint32_t n=(uint32_t)name_units(s);return put32(f,n) && (!n || fwrite(s,2,n,f)==n); }
+static int put_key(FILE *f,const Key *k) {
+    uint32_t values=0,children=0;for(Value *v=k->values;v;v=v->next)values++;for(Key *ch=k->children;ch;ch=ch->next)children++;
+    if(!put_name(f,k->name) || !put32(f,values))return 0;
+    for(Value *v=k->values;v;v=v->next)if(!put_name(f,v->name) || !put32(f,v->type) || !put32(f,v->bytes) || (v->bytes && fwrite(v->data,1,v->bytes,f)!=v->bytes))return 0;
+    if(!put32(f,children))return 0;for(Key *ch=k->children;ch;ch=ch->next)if(!put_key(f,ch))return 0;return 1;
+}
+static void save_locked(void) {
+    if(!store_path[0])return;char tmp[520];snprintf(tmp,sizeof tmp,"%s.tmp",store_path);
+    FILE *f=fopen(tmp,"wb");if(!f)return;int ok=fwrite("MREG1",1,5,f)==5;
+    for(unsigned i=0;i<5 && ok;i++)ok=put_key(f,&roots[i]);
+    if(fclose(f))ok=0;if(ok)rename(tmp,store_path);else remove(tmp);
+}
+static int get32(FILE *f,uint32_t *v) { return fread(v,4,1,f)==1; }
+static int get_name(FILE *f,uint16_t **out) {
+    uint32_t n;if(!get32(f,&n) || n>32767)return 0;uint16_t *s=malloc((n+1)*2);if(!s)return 0;
+    if(n && fread(s,2,n,f)!=n) { free(s);return 0; }s[n]=0;*out=s;return 1;
+}
+static int get_key(FILE *f,Key *k,int depth) {
+    uint32_t values,children;uint16_t *name=NULL;if(depth>64 || !get_name(f,&name))return 0;
+    if(depth) k->name=name;else free(name);
+    if(!get32(f,&values) || values>100000)return 0;
+    for(uint32_t i=0;i<values;i++) {
+        Value *v=calloc(1,sizeof *v);if(!v)return 0;v->next=k->values;k->values=v;
+        if(!get_name(f,&v->name) || !get32(f,&v->type) || !get32(f,&v->bytes) || v->bytes>(1u<<24))return 0;
+        if(v->bytes) { v->data=malloc(v->bytes);if(!v->data || fread(v->data,1,v->bytes,f)!=v->bytes)return 0; }
+    }
+    if(!get32(f,&children) || children>100000)return 0;
+    for(uint32_t i=0;i<children;i++) { Key *ch=calloc(1,sizeof *ch);if(!ch)return 0;ch->next=k->children;k->children=ch;if(!get_key(f,ch,depth+1))return 0; }
+    return 1;
+}
 static int range(uint32_t p,uint64_t n) { return p && (uint64_t)p+n<=MOVIES_REGISTRY_SPACE; }
 static int string_type(uint32_t type) { return type==1 || type==2 || type==7; }
 static int valid_type(uint32_t type) { return type<=5 || type==7 || type==11; }
@@ -97,6 +138,7 @@ static void create_key(CPU *c) {
         if(!key)error=BAD_HANDLE;
         else error=walk(key,name,1,&key,&disposition);
         if(!error)error=add_handle(key,rights,&result);
+        if(!error && disposition==1)save_locked();
         pthread_mutex_unlock(&mutex);
     }
     free(name);
@@ -166,6 +208,7 @@ static void set_value(CPU *c) {
             }
             if(!error) { free(value->data);value->data=stored;stored=NULL;value->type=type;value->bytes=size; }
         }
+        if(!error)save_locked();
         pthread_mutex_unlock(&mutex);
     }
     free(name);free(stored);ret(c,6,error);
@@ -215,6 +258,7 @@ static void delete_value(CPU *c) {
                 Value *old=*p;*p=old->next;free(old->name);free(old->data);free(old);error=OK;break;
             }
         }
+        if(!error)save_locked();
         pthread_mutex_unlock(&mutex);
     }
     free(name);ret(c,2,error);
@@ -231,9 +275,36 @@ static void username(CPU *c) {
 }
 static void free_values(Value *v) { while(v) { Value *next=v->next;free(v->name);free(v->data);free(v);v=next; } }
 static void free_keys(Key *k) { while(k) { Key *next=k->next;free_keys(k->children);free_values(k->values);free(k->name);free(k);k=next; } }
+/* Host policy hook: replace an existing REG_SZ value (never creates keys/values).
+ * Used to record that the previous browser session ended cleanly. */
+int movies_registry_replace_string(uint32_t root_id,const char *path,const char *name,const char *value) {
+    int changed=0;pthread_mutex_lock(&mutex);Key *key=root(root_id);
+    char segment[256];const char *p=path;
+    while(key && *p) {
+        size_t n=0;while(p[n] && p[n]!='\\' && n+1<sizeof segment) { segment[n]=p[n];n++; }segment[n]=0;p+=n;if(*p=='\\')p++;
+        uint16_t wide[256];for(size_t i=0;i<=n;i++)wide[i]=(uint8_t)segment[i];
+        Key *next=NULL;for(Key *ch=key->children;ch;ch=ch->next)if(equal(ch->name,wide)) { next=ch;break; }key=next;
+    }
+    if(key) {
+        uint16_t wname[256];size_t n=0;for(;name[n] && n<255;n++)wname[n]=(uint8_t)name[n];wname[n]=0;
+        Value *v=find_value(key,wname);size_t len=strlen(value);uint8_t *data=v&&v->type==1?malloc((len+1)*2):NULL;
+        if(data) { for(size_t i=0;i<=len;i++) { data[i*2]=(uint8_t)value[i];data[i*2+1]=0; }free(v->data);v->data=data;v->bytes=(uint32_t)((len+1)*2);save_locked();changed=1; }
+    }
+    pthread_mutex_unlock(&mutex);return changed;
+}
 void movies_registry_init(const char *userdata_root) {
-    (void)userdata_root;pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex);
     for(unsigned i=0;i<5;i++) { free_keys(roots[i].children);free_values(roots[i].values);memset(&roots[i],0,sizeof roots[i]); }
+    store_path[0]=0;
+    if(userdata_root && snprintf(store_path,sizeof store_path,"%s/registry.v1",userdata_root)<(int)sizeof store_path) {
+        FILE *f=fopen(store_path,"rb");char magic[5];
+        if(f) {
+            int ok=fread(magic,1,5,f)==5 && !memcmp(magic,"MREG1",5);
+            for(unsigned i=0;i<5 && ok;i++)ok=get_key(f,&roots[i],0);
+            fclose(f);
+            if(!ok)for(unsigned i=0;i<5;i++) { free_keys(roots[i].children);free_values(roots[i].values);memset(&roots[i],0,sizeof roots[i]); }
+        }
+    }else store_path[0]=0;
     while(handles) { Handle *next=handles->next;free(handles);handles=next; }
     /* Keep IDs monotonic even across explicit resets: stale handles stay invalid. */
     pthread_mutex_unlock(&mutex);

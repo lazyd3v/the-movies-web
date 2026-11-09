@@ -23,12 +23,12 @@ EM_JS(int,js_called,(void),{return Module.fixtureCalls.includes('createDevice')&
 uint8_t*g_mem;static GuestFn table[6][119];static _Thread_local jmp_buf trap;
 static int check_finite_vertices;static unsigned last_vertex_bytes,last_index_bytes,last_vertex_fvf;static uint8_t last_vertices[256],last_indices[128];
 static uint8_t uploaded[128];static unsigned uploaded_bytes;
-static unsigned calls[15],next_handle=1;static uint32_t last_target[3],clearargs[33];static int ready=1;static uint32_t drawargs[33];
+static unsigned calls[17],next_handle=1;static uint32_t last_target[3],clearargs[64];static int ready=1;static uint32_t drawargs[64];
 void movies_set_last_error(uint32_t e){(void)e;}
 void register_function(uint32_t a,GuestFn f){assert(a>=0x0e020000&&a<0x0e026000);unsigned t=(a-0x0e020000)/0x1000,slot=((a-0x0e020000)%0x1000)/16;assert(slot<119);table[t][slot]=f;}
 void guest_trap(CPU*c,uint32_t p,const char*s){(void)c;(void)p;(void)s;longjmp(trap,1);}
 int movies_window_get(uint32_t hwnd,MoviesWindowEvent*out){if(hwnd!=42)return 0;memset(out,0,sizeof*out);out->hwnd=42;out->client_width=640;out->client_height=480;return 1;}
-static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)ctx;if(!ready)return 0;assert(q->command>=1&&q->command<=14);calls[q->command]++;
+static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)ctx;if(!ready)return 0;assert(q->command>=1&&q->command<=16);calls[q->command]++;
  if(q->command==MOVIES_D3D9_CAPS){r->values[0]=640;r->values[1]=480;r->values[2]=1;r->values[3]=4<<20;r->values[4]=1;r->values[5]=4096;r->values[6]=3;}
  if(q->command==MOVIES_D3D9_CREATE)assert(q->args[0]==640&&q->args[1]==480&&q->args[2]==42&&q->args[3]==1);
  if(q->command==MOVIES_D3D9_UPLOAD_VERTEX||q->command==MOVIES_D3D9_UPLOAD_INDEX||q->command==MOVIES_D3D9_UPLOAD_TEXTURE){assert(q->data&&q->bytes);r->values[0]=next_handle++;uploaded_bytes=q->bytes;memcpy(uploaded,q->data,q->bytes<128?q->bytes:128);}
@@ -36,8 +36,10 @@ static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)c
  if(q->command==MOVIES_D3D9_UPLOAD_INDEX){last_index_bytes=q->bytes;memcpy(last_indices,q->data,q->bytes<128?q->bytes:128);}
  if(q->command==MOVIES_D3D9_CREATE_TARGET){assert(q->args[0]&&q->args[1]&&!q->data);r->values[0]=next_handle++;}
  if(q->command==MOVIES_D3D9_CLEAR)memcpy(clearargs,q->args,sizeof clearargs);
+ if(q->command==MOVIES_D3D9_COPY_TARGET)assert(q->args[0]&&q->args[1]&&q->args[0]!=q->args[1]);
  if(q->command==MOVIES_D3D9_SET_TARGET)memcpy(last_target,q->args,sizeof last_target);
- if(q->command==MOVIES_D3D9_READ_TARGET){assert(q->bytes==q->args[1]*q->args[2]*4);uint8_t*out=(uint8_t*)q->data;for(uint32_t i=0;i<q->bytes;i+=4){out[i]=0x11;out[i+1]=0x22;out[i+2]=0x33;out[i+3]=0x44;}}
+ if(q->command==MOVIES_D3D9_READ_BACKBUFFER)assert(q->args[1]==640&&q->args[2]==480);
+ if(q->command==MOVIES_D3D9_READ_TARGET||q->command==MOVIES_D3D9_READ_BACKBUFFER){assert(q->bytes==q->args[1]*q->args[2]*4);uint8_t*out=(uint8_t*)q->data;for(uint32_t i=0;i<q->bytes;i+=4){out[i]=0x11;out[i+1]=0x22;out[i+2]=0x33;out[i+3]=0x44;}}
  if(q->command==MOVIES_D3D9_WRITE_TARGET){assert(q->bytes==q->args[1]*q->args[2]*4);uploaded_bytes=q->bytes;memcpy(uploaded,q->data,q->bytes<128?q->bytes:128);}
  if(q->command==MOVIES_D3D9_DRAW){memcpy(drawargs,q->args,sizeof drawargs);assert(q->matrices[0]==1&&q->matrices[16]==1&&q->matrices[32]==1);}
  return 1;
@@ -83,7 +85,10 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  const uint32_t render_defaults[][2]={{7,0x1u},{8,0x3u},{9,0x2u},{14,0x1u},{15,0x0u},{16,0x1u},{19,0x2u},{20,0x1u},{22,0x3u},{23,0x4u},{24,0x0u},{25,0x8u},{26,0x0u},{27,0x0u},{28,0x0u},{29,0x0u},{34,0x0u},{35,0x0u},{36,0x0u},{37,0x3f800000u},{38,0x3f800000u},{48,0x0u},{52,0x0u},{53,0x1u},{54,0x1u},{55,0x1u},{56,0x8u},{57,0x0u},{58,0xffffffffu},{59,0xffffffffu},{60,0xffffffffu},{128,0x0u},{129,0x0u},{130,0x0u},{131,0x0u},{132,0x0u},{133,0x0u},{134,0x0u},{135,0x0u},{136,0x1u},{137,0x1u},{139,0x0u},{140,0x0u},{141,0x1u},{142,0x1u},{143,0x0u},{145,0x1u},{146,0x2u},{147,0x0u},{148,0x0u},{151,0x0u},{152,0x0u},{154,0x3f800000u},{155,0x3f800000u},{156,0x0u},{157,0x0u},{158,0x3f800000u},{159,0x0u},{160,0x0u},{161,0x1u},{162,0xffffffffu},{163,0x0u},{166,0x0u},{167,0x0u},{168,0xfu},{170,0x0u},{171,0x1u},{172,0x3u},{173,0x1u},{174,0x0u},{175,0x0u},{176,0x0u},{178,0x3f800000u},{179,0x3f800000u},{180,0x0u},{181,0x0u},{182,0x3f800000u},{183,0x0u},{184,0x0u},{185,0x0u},{186,0x1u},{187,0x1u},{188,0x1u},{189,0x8u},{190,0xfu},{191,0xfu},{192,0xfu},{193,0xffffffffu},{194,0x0u},{195,0x0u},{198,0x0u},{199,0x0u},{200,0x0u},{201,0x0u},{202,0x0u},{203,0x0u},{204,0x0u},{205,0x0u},{206,0x0u},{207,0x2u},{208,0x1u},{209,0x1u}};
  for(unsigned i=0;i<sizeof(render_defaults)/sizeof(render_defaults[0]);i++){assert(!method(d,58,3,render_defaults[i][0],0x4100u));assert(R32(0x4100)==render_defaults[i][1]);}
  for(unsigned i=0;i<210;i++){int valid=0;for(unsigned j=0;j<sizeof(render_defaults)/sizeof(render_defaults[0]);j++)if(render_defaults[j][0]==i)valid=1;if(!valid)assert(method(d,58,3,i,0x4100u)==0x8876086c);}
- if(!setjmp(trap)){method(d,57,3,206u,1u);assert(0);} /* separate-alpha remains unsupported */
+ assert(!method(d,57,3,206u,1u)&&!method(d,57,3,206u,0u)); /* separate alpha is stored and forwarded */
+ {const float plane[4]={0,1,0,-2};memcpy(HP(0x4700),plane,16);assert(!method(d,55,3,1u,0x4700u));memset(HP(0x4710),0,16);assert(!method(d,56,3,1u,0x4710u)&&!memcmp(HP(0x4700),HP(0x4710),16));assert(method(d,55,3,6u,0x4700u)==0x8876086c);}
+ assert(method(d,57,3,171u,6u)==0x8876086c&&method(d,57,3,20u,12u)==0x8876086c&&method(d,57,3,23u,9u)==0x8876086c); /* invalid enums: INVALIDCALL */
+ if(!setjmp(trap)){method(d,57,3,250u,1u);assert(0);} /* unknown state stops */
  assert(!method(d,57,3,25u,5u));assert(!method(d,57,3,24u,100u));assert(!method(d,58,3,25u,0x4100u)&&R32(0x4100)==5);assert(!method(d,57,3,15u,1u));
  memset(HP(0x4200),0,68);for(unsigned i=0;i<8;i++)WF32(0x4200+i*4,1);assert(!method(d,49,2,0x4200u));assert(!method(d,50,2,0x4300u)&&!memcmp(HP(0x4200),HP(0x4300),68));W32(0x4200,0x7fc00000);assert(method(d,49,2,0x4200u)==0x8876086c);assert(!method(d,50,2,0x4300u)&&RF32(0x4300)==1);
  /* Light state is real queryable storage; lighting-enabled draws still fail. */
@@ -93,7 +98,9 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  const unsigned states[]={1,2,3,4,5,6,7,8,9,10,11,22,23,24,26,27,28,32};
  for(unsigned stage=0;stage<8;stage++)for(unsigned j=0;j<sizeof(states)/sizeof(states[0]);j++){unsigned state=states[j];uint32_t expected=state==1?(stage?1:4):state==4?(stage?1:2):(state==2||state==5)?2:(state==3||state==6||state==26||state==27||state==28)?1:state==11?stage:0;assert(!method(d,66,4,stage,state,0x4100u)&&R32(0x4100)==expected);assert(!method(d,67,4,stage,state,expected));}
  for(unsigned stage=0;stage<16;stage++)for(unsigned state=1;state<=13;state++){uint32_t expected=state<=3||state==5||state==6||state==10;assert(!method(d,68,4,stage,state,0x4100u)&&R32(0x4100)==expected);assert(!method(d,69,4,stage,state,expected));}
- if(!setjmp(trap)){method(d,67,4,1u,1u,4u);assert(0);} /* no enabling unimplemented second stage */
+ assert(!method(d,67,4,1u,1u,4u)&&!method(d,67,4,1u,1u,1u)); /* stage 1 is evaluated by the shader combiner */
+ if(!setjmp(trap)){method(d,67,4,0u,1u,27u);assert(0);} /* D3DTEXTUREOP ends at 26 */
+ if(!setjmp(trap)){method(d,67,4,0u,2u,7u);assert(0);} /* D3DTA selector 7 does not exist */
  if(!setjmp(trap)){method(d,66,4,0u,31u,0x4100u);assert(0);} /* sparse enum hole */
  assert(method(d,66,4,0u,1u,0x054fffffu)==0x8876086c);
  assert(!method(d,69,4,0u,1u,3u));assert(!method(d,68,4,0u,1u,0x4100u)&&R32(0x4100)==3);assert(!method(d,68,4,1u,1u,0x4100u)&&R32(0x4100)==1);
@@ -104,8 +111,9 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(!method(vb,11,5,0u,0u,0x2020u,0u));uint32_t vp=R32(0x2020);for(unsigned i=0;i<3;i++){WF32(vp+i*16,0);WF32(vp+i*16+4,0);WF32(vp+i*16+8,.5f);W32(vp+i*16+12,0xffff0000);}assert(method(vb,11,5,0u,0u,0x2020u,0u)==0x8876086c);assert(!method(vb,12,1));assert(method(vb,11,5,47u,2u,0x2020u,0u)==0x8876086c);
  assert(!method(ib,11,5,0u,0u,0x2020u,0u));uint32_t ip=R32(0x2020);W16(ip,0);W16(ip+2,1);W16(ip+4,2);assert(!method(ib,12,1));
  assert(!method(d,89,2,0x42u));assert(!method(d,92,2,0u)&&!method(d,107,2,0u));assert(!method(d,90,2,0x4100u)&&R32(0x4100)==0x42);assert(!method(d,100,5,0u,vb,0u,16u));assert(!method(d,104,2,ib));assert(!method(d,57,3,137u,0u));assert(!method(d,57,3,22u,1u));assert(!method(d,41,1));
- assert(!method(d,57,3,137u,1u));if(!setjmp(trap)){method(d,82,7,4u,0u,0u,3u,0u,1u);assert(0);}assert(!method(d,57,3,137u,0u));
- assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(calls[MOVIES_D3D9_DRAW]==1&&drawargs[3]==3&&drawargs[5]==1);unsigned uploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==uploads);
+ /* Lighting on an XYZ|DIFFUSE format converts to a lit XYZ|DIFFUSE|TEX1 snapshot. */
+ assert(!method(d,57,3,137u,1u));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&last_vertex_fvf==0x242&&last_vertex_bytes==96);assert(!method(d,57,3,137u,0u));
+ assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(calls[MOVIES_D3D9_DRAW]==2&&drawargs[3]==3&&drawargs[5]==1);unsigned uploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==uploads);
  assert(method(d,82,7,4u,0xffffffffu,0u,3u,0u,1u)==0x8876086c);assert(!method(d,42,1));assert(!method(d,17,5,0u,0u,0u,0u));assert(calls[MOVIES_D3D9_PRESENT]==1);
  /* D3D ignores unused vertices: NaNs outside the referenced span must not
   * reach the host validator. Nonzero stream/start, negative base, INDEX32. */
@@ -128,7 +136,10 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  /* Valid blend state storage is separate from supported drawing equations. */
  assert(!method(d,57,3,19u,3u)&&!method(d,58,3,19u,0x4100u)&&R32(0x4100)==3);
  assert(!method(d,57,3,20u,4u)&&!method(d,58,3,20u,0x4100u)&&R32(0x4100)==4);assert(!method(d,57,3,27u,1u));
- assert(!method(d,57,3,19u,12u));unsigned blend_draws=calls[MOVIES_D3D9_DRAW];if(!setjmp(trap)){method(d,82,7,4u,0u,0u,3u,0u,1u);assert(0);}assert(calls[MOVIES_D3D9_DRAW]==blend_draws);
+ assert(!method(d,57,3,19u,12u));assert(!method(d,41,1));unsigned blend_draws=calls[MOVIES_D3D9_DRAW];assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(calls[MOVIES_D3D9_DRAW]==blend_draws+1&&drawargs[25]==1); /* BOTHSRCALPHA = SRCALPHA/INVSRCALPHA */
+ assert(!method(d,57,3,171u,3u)&&!method(d,57,3,206u,1u)&&!method(d,57,3,207u,2u)&&!method(d,57,3,208u,1u)&&!method(d,57,3,209u,5u));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&drawargs[25]==(256u|0x56u)&&drawargs[56]==(3u|(5u<<4)|(1u<<8)|(2u<<12)|(1u<<16)));
+ assert(!method(d,57,3,171u,1u)&&!method(d,57,3,206u,0u));
+ assert(!method(d,57,3,195u,0x3a83126fu)&&!method(d,57,3,168u,7u));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&drawargs[58]==0x3a83126fu&&drawargs[60]==(0x100u|7u));assert(!method(d,57,3,195u,0u)&&!method(d,57,3,168u,15u));assert(!method(d,42,1));
  assert(!method(d,57,3,27u,0u)&&!method(d,57,3,19u,2u)&&!method(d,57,3,20u,1u));
  /* NOSYSLOCK is orthogonal to the required DYNAMIC usage on VB and IB. */
  assert(!method(vb,11,5,0u,16u,0x2020u,0x800u));assert(!method(vb,12,1));
@@ -186,6 +197,18 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(method(sys,19,5,0u,0x2040u,0x2050u,0x2000u)==0x8876086c);
  assert(method(syssurf,2,1)==1);assert(!method(sys,2,1));
  assert(method(d,23,9,3u,2u,1u,1u,21u,2u,0x2030u,0u)==0x8876086a&&!R32(0x2030));
+ /* Additional sampled formats decode to RGBA8 on upload: R5G6B5, L8, A8L8 and DXT5. */
+ {assert(!method(f,10,7,0u,1u,22u,0u,3u,23u));assert(!method(f,10,7,0u,1u,22u,0u,3u,0x35545844u));
+  assert(!method(d,23,9,2u,1u,1u,0u,23u,1u,0x2030u,0u));uint32_t t565=R32(0x2030);assert(!method(t565,19,5,0u,0x2040u,0u,0x800u));assert(R32(0x2040)==4);
+  W16(R32(0x2044),0xf800);W16(R32(0x2044)+2,0x07e0);assert(!method(t565,20,2,0u));
+  assert(uploaded_bytes==8&&uploaded[0]==255&&uploaded[1]==0&&uploaded[2]==0&&uploaded[3]==255&&uploaded[4]==0&&uploaded[5]==255&&uploaded[6]==0);assert(!method(t565,2,1));
+  assert(!method(d,23,9,2u,1u,1u,0u,50u,1u,0x2030u,0u));uint32_t tl8=R32(0x2030);assert(!method(tl8,19,5,0u,0x2040u,0u,0x800u));assert(R32(0x2040)==2);
+  W8(R32(0x2044),0x40);W8(R32(0x2044)+1,0xc0);assert(!method(tl8,20,2,0u));assert(uploaded[0]==0x40&&uploaded[2]==0x40&&uploaded[3]==255&&uploaded[4]==0xc0);assert(!method(tl8,2,1));
+  assert(!method(d,23,9,1u,1u,1u,0u,51u,1u,0x2030u,0u));uint32_t tal=R32(0x2030);assert(!method(tal,19,5,0u,0x2040u,0u,0x800u));W16(R32(0x2044),0x8020);assert(!method(tal,20,2,0u));
+  assert(uploaded[0]==0x20&&uploaded[1]==0x20&&uploaded[3]==0x80);assert(!method(tal,2,1));
+  assert(!method(d,23,9,4u,4u,1u,0u,0x35545844u,1u,0x2030u,0u));uint32_t t5=R32(0x2030);assert(!method(t5,19,5,0u,0x2040u,0u,0x800u));assert(R32(0x2040)==16);
+  uint32_t b=R32(0x2044);W8(b,200);W8(b+1,100);for(unsigned k=2;k<8;k++)W8(b+k,0);W16(b+8,0xffff);W16(b+10,0);for(unsigned k=12;k<16;k++)W8(b+k,0);assert(!method(t5,20,2,0u));
+  assert(uploaded_bytes==64&&uploaded[0]==255&&uploaded[1]==255&&uploaded[2]==255&&uploaded[3]==200);assert(!method(t5,2,1));}
  /* Exact video texture: one managed A8R8G8B8 level, tight BGRA pitch. */
  assert(method(d,23,9,3u,2u,0u,0u,21u,1u,0x2030u,0u)==0x8876086a);
  assert(!method(d,23,9,3u,2u,1u,0u,21u,1u,0x2030u,0u));uint32_t tx=R32(0x2030);assert(uploaded_bytes==24);
@@ -195,21 +218,21 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  W32(0x2050,1);W32(0x2054,1);W32(0x2058,3);W32(0x205c,2);assert(!method(tx,19,5,0u,0x2040u,0x2050u,0x10u));assert(R32(0x2040)==12&&R32(0x2044)==pixels+16);assert(!method(tx,20,2,0u));W32(0x2050,0xffffffff);assert(method(tx,19,5,0u,0x2040u,0x2050u,0u)==0x8876086c);
  assert(!method(tx,18,3,0u,0x2060u));uint32_t ts=R32(0x2060);assert(!method(ts,13,4,0x2040u,0u,0u));assert(method(tx,19,5,0u,0x2040u,0u,0u)==0x8876086c);assert(!method(ts,14,1));assert(method(ts,2,1)==1);
  assert(!method(d,26,7,72u,0u,0x142u,1u,0x2070u,0u));uint32_t uvb=R32(0x2070);assert(!method(uvb,11,5,0u,0u,0x2020u,0u));uint32_t uvp=R32(0x2020);for(unsigned i=0;i<3;i++){memcpy(HP(uvp+i*24),HP(vp+i*16),16);WF32(uvp+i*24+16,.5f);WF32(uvp+i*24+20,.5f);W32(uvp+i*24+12,0x7f123456);}assert(!method(uvb,12,1));
- assert(!method(d,65,3,0u,tx));assert(!method(d,89,2,0x142u));assert(!method(d,100,5,0u,uvb,0u,24u));assert(!method(d,69,4,0u,1u,3u));assert(!method(d,69,4,0u,2u,3u));assert(!method(d,67,4,0u,1u,2u));assert(!method(d,41,1));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(drawargs[20]==1&&drawargs[21]==5&&drawargs[22]==100);assert(drawargs[12]&&drawargs[16]==2&&drawargs[17]==2&&drawargs[18]==1&&drawargs[19]==0xbf800000u);assert(uploaded_bytes==72&&uploaded[12]==255&&uploaded[13]==255&&uploaded[14]==255&&uploaded[15]==255&&R32(uvp+12)==0x7f123456);assert(!method(d,42,1));
+ assert(!method(d,65,3,0u,tx));assert(!method(d,89,2,0x142u));assert(!method(d,100,5,0u,uvb,0u,24u));assert(!method(d,69,4,0u,1u,3u));assert(!method(d,69,4,0u,2u,3u));assert(!method(d,67,4,0u,1u,2u));assert(!method(d,41,1));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(drawargs[20]==1&&drawargs[21]==5&&drawargs[22]==100);assert(drawargs[12]&&drawargs[16]==2&&drawargs[17]==2&&drawargs[18]==1&&drawargs[19]==0xbf800000u);assert(uploaded_bytes==72&&uploaded[12]==0x56&&uploaded[13]==0x34&&uploaded[14]==0x12&&uploaded[15]==0x7f&&R32(uvp+12)==0x7f123456);assert(drawargs[31]==4&&drawargs[33]==2&&drawargs[34]==2);assert(!method(d,42,1));
  /* Original104 has no diffuse: retain guest24B stride, expand only host
   * snapshot to144/28B with opaque white. Pretransformed input bypasseslighting. */
  assert(!method(d,26,7,120u,0x208u,0x104u,0u,0x2030u,0u));uint32_t rhwvb=R32(0x2030);assert(!method(rhwvb,13,2,0x4000u)&&R32(0x4014)==0x104);
  assert(!method(rhwvb,11,5,0u,0u,0x2020u,0x2800u));uint32_t rhwdata=R32(0x2020);memset(HP(rhwdata),255,120);
  for(unsigned i=2;i<5;i++){uint32_t p=rhwdata+i*24;WF32(p,(float)i*10);WF32(p+4,30);WF32(p+8,.5f);WF32(p+12,.25f);WF32(p+16,.125f);WF32(p+20,.875f);}assert(!method(rhwvb,12,1));
  assert(!method(d,89,2,0x104u)&&!method(d,90,2,0x4100u)&&R32(0x4100)==0x104);assert(!method(d,100,5,0u,rhwvb,24u,24u));assert(!method(d,57,3,137u,1u));assert(!method(d,41,1));
- assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0x144&&last_vertex_bytes==84);
- for(unsigned i=0;i<3;i++){assert(!memcmp(last_vertices+i*28,HP(rhwdata+(i+2)*24),16));uint32_t color;memcpy(&color,last_vertices+i*28+16,4);assert(color==0xffffffff);assert(!memcmp(last_vertices+i*28+20,HP(rhwdata+(i+2)*24+16),8));}
+ assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0x244&&last_vertex_bytes==108);
+ for(unsigned i=0;i<3;i++){assert(!memcmp(last_vertices+i*36,HP(rhwdata+(i+2)*24),16));uint32_t color;memcpy(&color,last_vertices+i*36+16,4);assert(color==0xffffffff);assert(!memcmp(last_vertices+i*36+20,HP(rhwdata+(i+2)*24+16),8));}
  assert(R32(rhwdata)==0xffffffff);unsigned rhwuploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==rhwuploads);
- /* Partial SELECTARG2 setup may be stored but cannot draw as a fake mode. */
- assert(!method(d,67,4,0u,1u,3u));if(!setjmp(trap)){method(d,82,7,4u,1u,0u,3u,0u,1u);assert(0);}
+ /* Any stage setup draws; the raw stage values reach the shader combiner. */
+ assert(!method(d,67,4,0u,1u,3u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[31]==4&&drawargs[33]==3);
  assert(!method(d,67,4,0u,3u,3u));assert(!method(d,67,4,0u,4u,4u));assert(!method(d,67,4,0u,5u,3u));assert(!method(d,67,4,0u,6u,2u));assert(!method(d,57,3,60u,0x80402010u));assert(!method(d,58,3,60u,0x4100u)&&R32(0x4100)==0x80402010);
- assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[31]==1&&drawargs[32]==0x80402010);unsigned factoruploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,57,3,60u,0x10203040u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[32]==0x10203040&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==factoruploads);
- assert(!method(d,67,4,0u,1u,2u));assert(!method(d,67,4,0u,3u,1u));assert(!method(d,67,4,0u,4u,2u));assert(!method(d,67,4,0u,5u,2u));assert(!method(d,67,4,0u,6u,1u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[31]==0);
+ assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[31]==4&&drawargs[33]==3&&drawargs[35]==3&&drawargs[36]==4&&drawargs[37]==3&&drawargs[38]==2&&drawargs[32]==0x80402010);unsigned factoruploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,57,3,60u,0x10203040u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[32]==0x10203040&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==factoruploads);
+ assert(!method(d,67,4,0u,1u,2u));assert(!method(d,67,4,0u,3u,1u));assert(!method(d,67,4,0u,4u,2u));assert(!method(d,67,4,0u,5u,2u));assert(!method(d,67,4,0u,6u,1u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[31]==4&&drawargs[33]==2&&drawargs[39]==1);
  assert(!method(d,100,5,0u,rhwvb,24u,16u));assert(method(d,82,7,4u,1u,0u,3u,0u,1u)==0x8876086c);assert(!method(d,42,1));assert(!method(d,100,5,0u,uvb,0u,24u));assert(!method(rhwvb,2,1));
  /* Original9976BE/9976E3 alternate sprite branch binds144/28B, then
   * shares997ABB with142. Nonzero offset/base tests the referenced snapshot. */
@@ -218,18 +241,69 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  for(unsigned i=2;i<5;i++){uint32_t p=bounddata+i*28;WF32(p,20.f+i);WF32(p+4,30);WF32(p+8,.5f);WF32(p+12,.25f);W32(p+16,0x7f123456);WF32(p+20,.125f);WF32(p+24,.875f);}assert(!method(boundrhw,12,1));
  assert(!method(d,89,2,0x144u)&&!method(d,100,5,0u,boundrhw,28u,28u));assert(!method(d,41,1));
  assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0x144&&last_vertex_bytes==84);
- for(unsigned i=0;i<3;i++){assert(!memcmp(last_vertices+i*28,HP(bounddata+(i+2)*28),16));uint32_t color;memcpy(&color,last_vertices+i*28+16,4);assert(color==0xffffffff);assert(!memcmp(last_vertices+i*28+20,HP(bounddata+(i+2)*28+20),8));}assert(R32(bounddata+2*28+16)==0x7f123456);
+ for(unsigned i=0;i<3;i++){assert(!memcmp(last_vertices+i*28,HP(bounddata+(i+2)*28),16));uint32_t color;memcpy(&color,last_vertices+i*28+16,4);assert(color==0x7f123456);assert(!memcmp(last_vertices+i*28+20,HP(bounddata+(i+2)*28+20),8));}assert(R32(bounddata+2*28+16)==0x7f123456);
  unsigned bounduploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==bounduploads);
+ /* XYZ|NORMAL|TEX1 (32B) is lit on the CPU into an XYZ|DIFFUSE|TEX1 snapshot:
+  * emissive + matAmbient*(globalAmbient+lightAmbient) + matDiffuse*lightDiffuse*max(N.L,0). */
+ {uint32_t saved[7];for(unsigned k=1;k<7;k++){assert(!method(d,66,4,0u,k,0x4200u));saved[k]=R32(0x4200);}
+  assert(!method(d,67,4,0u,1u,4u)&&!method(d,67,4,0u,2u,2u)&&!method(d,67,4,0u,3u,0u)&&!method(d,67,4,0u,4u,4u)&&!method(d,67,4,0u,5u,2u)&&!method(d,67,4,0u,6u,0u));
+  assert(!method(d,26,7,160u,0x208u,0x112u,0u,0x2030u,0u));uint32_t litvb=R32(0x2030);assert(!method(litvb,11,5,0u,0u,0x2020u,0x2800u));uint32_t litdata=R32(0x2020);memset(HP(litdata),0,160);
+  for(unsigned i=1;i<4;i++){uint32_t p=litdata+i*32;WF32(p,(float)i);WF32(p+4,2);WF32(p+8,.5f);WF32(p+20,i==2?1.f:-1.f);WF32(p+24,.25f*i);WF32(p+28,.75f);}assert(!method(litvb,12,1));
+  const float material[17]={1,.5f,.25f,.75f, 1,1,1,1, 0,0,0,0, 0,0,0,0, 0};memcpy(HP(0x4300),material,68);assert(!method(d,49,2,0x4300u));
+  float light[26]={0};light[1]=light[2]=light[3]=light[4]=1;light[18]=1;memcpy(HP(0x4400),light,104);W32(0x4400,3);assert(!method(d,51,3,0u,0x4400u));assert(!method(d,53,3,0u,1u));
+  assert(!method(d,57,3,137u,1u)&&!method(d,57,3,139u,0x00202020u));
+  assert(!method(d,89,2,0x112u)&&!method(d,100,5,0u,litvb,0u,32u));
+  unsigned lituploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0x242&&last_vertex_bytes==96&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==lituploads+1);
+  for(unsigned i=0;i<3;i++){assert(!memcmp(last_vertices+i*32,HP(litdata+(i+1)*32),12));assert(!memcmp(last_vertices+i*32+16,HP(litdata+(i+1)*32+24),8));
+   uint32_t color;memcpy(&color,last_vertices+i*32+12,4);unsigned a=color>>24,r=(color>>16)&255,g=(color>>8)&255,b=color&255;assert(a==191);
+   if(i==1){assert(r==32&&g==32&&b==32);}else{assert(r==255&&g>=159&&g<=161&&b>=95&&b<=97);}}
+  assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==lituploads+1);
+  assert(!method(d,53,3,0u,0u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==lituploads+2);
+  {uint32_t color;memcpy(&color,last_vertices+12,4);assert((color&0xffff)==0x2020);}
+  assert(!method(d,57,3,137u,0u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));{uint32_t color;memcpy(&color,last_vertices+12,4);assert(color==0xffffffff);}
+  assert(!method(d,57,3,22u,3u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(!method(d,57,3,22u,1u));
+  /* General FVF 0x212 (XYZ|NORMAL|TEX2, 40B) through DrawPrimitive as a 2-triangle strip:
+   * converted to 24B XYZ|DIFFUSE|TEX1 (stage-0 coordinate set), strip rebuilt as a list. */
+  {assert(!method(d,26,7,200u,0x208u,0x212u,0u,0x2030u,0u));uint32_t gvb=R32(0x2030);assert(!method(gvb,11,5,0u,0u,0x2020u,0x2800u));uint32_t gdata=R32(0x2020);memset(HP(gdata),0,200);
+   for(unsigned i=0;i<5;i++){uint32_t p=gdata+i*40;WF32(p,(float)i);WF32(p+4,1);WF32(p+8,.5f);WF32(p+20,-1);WF32(p+24,.1f*i);WF32(p+28,.2f*i);WF32(p+32,9);WF32(p+36,9);}assert(!method(gvb,12,1));
+   assert(!method(d,89,2,0x212u)&&!method(d,100,5,0u,gvb,0u,40u));
+   unsigned draws=calls[MOVIES_D3D9_DRAW];assert(!method(d,81,4,5u,1u,2u));
+   assert(calls[MOVIES_D3D9_DRAW]==draws+1&&drawargs[3]==6&&last_vertex_fvf==0x242&&last_vertex_bytes==128&&last_index_bytes==24);
+   float u;memcpy(&u,last_vertices+16,4);assert(u>.09f&&u<.11f); /* vertex 1, coordinate set 0 */
+   assert(!method(d,81,4,2u,0u,1u)&&calls[MOVIES_D3D9_DRAW]==draws+1); /* line list skipped, not drawn */
+   /* D3DTS_TEXTURE0 with a u translation in row 3 and COUNT2: (u,v,1,0) * M. */
+   {float m[16]={1,0,0,0, 0,1,0,0, .5f,0,1,0, 0,0,0,1};memcpy(HP(0x4600),m,64);assert(!method(d,44,3,16u,0x4600u));assert(!method(d,45,3,16u,0x4640u)&&!memcmp(HP(0x4600),HP(0x4640),64));
+    assert(!method(d,67,4,0u,24u,2u));assert(!method(d,81,4,5u,1u,2u));float tu;memcpy(&tu,last_vertices+16,4);assert(tu>.59f&&tu<.61f);
+    assert(!method(d,67,4,0u,24u,0u));}
+   /* DrawPrimitiveUP fan of 3 triangles from caller memory; stream 0 is unbound afterwards. */
+   assert(!method(d,83,5,6u,3u,gdata,40u));assert(calls[MOVIES_D3D9_DRAW]==draws+3&&drawargs[3]==9&&last_vertex_bytes==160);
+   assert(!method(d,101,5,0u,0x4100u,0x4104u,0x4108u)&&!R32(0x4100));
+   /* Stage 1 (lightmap pattern): MODULATE2X(TEXTURE,CURRENT) with coordinate set 1
+    * reaches the draw as texture1 and the second UV of the 32B two-set layout. */
+   {assert(!method(d,64,3,0u,0x4700u));uint32_t t0=R32(0x4700);assert(t0);if(t0){assert(!method(d,100,5,0u,gvb,0u,40u));assert(!method(d,65,3,1u,t0));
+     assert(!method(d,67,4,1u,1u,5u)&&!method(d,67,4,1u,2u,2u)&&!method(d,67,4,1u,3u,1u)&&!method(d,67,4,1u,11u,1u));
+     assert(!method(d,81,4,5u,1u,2u)&&drawargs[45]&&drawargs[39]==5);float s1;memcpy(&s1,last_vertices+24,4);assert(s1==9.f);
+     assert(!method(d,67,4,1u,1u,1u));assert(!method(d,65,3,1u,0u));assert(method(t0,2,1)>=1);assert(!method(d,100,5,0u,0u,0u,0u));}}
+   /* Upload cache: alternating ranges of one buffer upload once each, then hit. */
+   {assert(!method(d,100,5,0u,gvb,0u,40u));unsigned vu=calls[MOVIES_D3D9_UPLOAD_VERTEX];
+    assert(!method(d,81,4,4u,0u,1u)&&!method(d,81,4,4u,2u,1u));assert(calls[MOVIES_D3D9_UPLOAD_VERTEX]==vu+2);
+    assert(!method(d,81,4,4u,0u,1u)&&!method(d,81,4,4u,2u,1u));assert(calls[MOVIES_D3D9_UPLOAD_VERTEX]==vu+2);
+    assert(!method(gvb,11,5,0u,0u,0x2020u,0u)&&!method(gvb,12,1));assert(!method(d,81,4,4u,0u,1u));assert(calls[MOVIES_D3D9_UPLOAD_VERTEX]==vu+3); /* new version re-uploads */
+    assert(!method(d,100,5,0u,0u,0u,0u));}
+   assert(!method(d,89,2,0x144u)&&!method(gvb,2,1));
+   if(!setjmp(trap)){method(d,89,2,0x1006u);assert(0);}} /* XYZB blend weights stay unsupported */
+  assert(!method(d,57,3,137u,1u));for(unsigned k=1;k<7;k++)assert(!method(d,67,4,0u,k,saved[k]));
+  assert(!method(d,89,2,0x144u)&&!method(d,100,5,0u,boundrhw,28u,28u));assert(!method(litvb,2,1));}
  assert(!method(d,65,3,0u,0u));assert(!method(d,67,4,0u,1u,2u)&&!method(d,67,4,0u,2u,0u)&&!method(d,67,4,0u,4u,2u)&&!method(d,67,4,0u,5u,0u));
  assert(!method(d,57,3,27u,1u)&&!method(d,57,3,19u,3u)&&!method(d,57,3,20u,4u));
- assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[25]==2&&drawargs[31]==2&&!drawargs[12]);assert(!memcmp(last_vertices,HP(bounddata+56),84));
- for(unsigned src=1;src<=11;src++)for(unsigned dst=1;dst<=11;dst++){assert(!method(d,57,3,19u,src)&&!method(d,57,3,20u,dst));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));uint32_t encoded=src==5&&dst==6?1:src==3&&dst==4?2:src==1&&dst==3?3:256|(src<<4)|dst;assert(drawargs[25]==encoded&&drawargs[31]==2);}
+ assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[25]==2&&drawargs[31]==4&&!drawargs[12]);/* cached upload reused: no colour mask in the combiner path */
+ for(unsigned src=1;src<=11;src++)for(unsigned dst=1;dst<=11;dst++){assert(!method(d,57,3,19u,src)&&!method(d,57,3,20u,dst));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));uint32_t encoded=src==5&&dst==6?1:src==3&&dst==4?2:src==1&&dst==3?3:256|(src<<4)|dst;assert(drawargs[25]==encoded&&drawargs[31]==4);}
  assert(!method(d,57,3,19u,3u)&&!method(d,57,3,20u,4u));
- assert(!method(d,67,4,0u,5u,2u));unsigned rejectedDraws=calls[MOVIES_D3D9_DRAW];if(!setjmp(trap)){method(d,82,7,4u,1u,0u,3u,0u,1u);assert(0);}assert(calls[MOVIES_D3D9_DRAW]==rejectedDraws);
+ assert(!method(d,67,4,0u,5u,2u));unsigned fallbackDraws=calls[MOVIES_D3D9_DRAW];assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(calls[MOVIES_D3D9_DRAW]==fallbackDraws+1&&drawargs[31]==4&&!drawargs[12]); /*NULL-texture alpha arg falls back to DIFFUSE (D3DTSS docs)*/
  assert(!method(d,65,3,0u,tx)&&!method(d,67,4,0u,2u,2u)&&!method(d,57,3,27u,0u)&&!method(d,57,3,19u,2u)&&!method(d,57,3,20u,1u));
  assert(!method(d,67,4,0u,2u,0u)&&!method(d,57,3,27u,1u)&&!method(d,57,3,19u,1u)&&!method(d,57,3,20u,3u));
- assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[25]==3&&drawargs[31]==3&&drawargs[12]);assert(!memcmp(last_vertices,HP(bounddata+56),84));
- assert(!method(d,67,4,0u,5u,0u));if(!setjmp(trap)){method(d,82,7,4u,1u,0u,3u,0u,1u);assert(0);}assert(!method(d,67,4,0u,5u,2u)&&!method(d,67,4,0u,2u,2u)&&!method(d,57,3,27u,0u)&&!method(d,57,3,19u,2u)&&!method(d,57,3,20u,1u));
+ assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[25]==3&&drawargs[31]==4&&drawargs[12]);/* cached upload reused: no colour mask in the combiner path */
+ assert(!method(d,67,4,0u,5u,0u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[37]==0);assert(!method(d,67,4,0u,5u,2u)&&!method(d,67,4,0u,2u,2u)&&!method(d,57,3,27u,0u)&&!method(d,57,3,19u,2u)&&!method(d,57,3,20u,1u));
  assert(!method(d,100,5,0u,boundrhw,28u,24u));assert(method(d,82,7,4u,1u,0u,3u,0u,1u)==0x8876086c);
  assert(!method(d,42,1)&&!method(d,100,5,0u,uvb,0u,24u)&&!method(boundrhw,2,1));
  /* UP copies only [minimum, minimum+vertices), rebases indices, releases
@@ -239,7 +313,7 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  W16(0x7100,1);W16(0x7102,2);W16(0x7104,3);
  assert(!method(d,57,3,23u,8u)&&!method(d,58,3,23u,0x4100u)&&R32(0x4100)==8);assert(!method(d,57,3,14u,0u)&&!method(d,58,3,14u,0x4100u)&&!R32(0x4100));
  unsigned before_draw=calls[MOVIES_D3D9_DRAW],before_release=calls[MOVIES_D3D9_RELEASE_RESOURCE];
- assert(!method(d,57,3,174u,1u));assert(!method(d,58,3,174u,0x4100u)&&R32(0x4100)==1);assert(!method(d,57,3,27u,1u)&&!method(d,57,3,19u,12u));if(!setjmp(trap)){method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u);assert(0);} /* legacy combined factor remains unsupported */
+ assert(!method(d,57,3,174u,1u));assert(!method(d,58,3,174u,0x4100u)&&R32(0x4100)==1);assert(!method(d,57,3,27u,1u)&&!method(d,57,3,19u,12u));assert(!method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u)&&drawargs[25]==1);before_draw=calls[MOVIES_D3D9_DRAW];before_release=calls[MOVIES_D3D9_RELEASE_RESOURCE]; /* BOTHSRCALPHA draws as SRCALPHA/INVSRCALPHA */
  assert(!method(d,57,3,19u,5u)&&!method(d,57,3,20u,6u));assert(!method(d,58,3,19u,0x4100u)&&R32(0x4100)==5);assert(!method(d,58,3,20u,0x4100u)&&R32(0x4100)==6);
  assert(!method(d,67,4,0u,1u,4u)&&!method(d,67,4,0u,2u,2u)&&!method(d,67,4,0u,3u,0u));
  assert(!method(d,67,4,0u,4u,4u)&&!method(d,67,4,0u,5u,0u)&&!method(d,67,4,0u,6u,2u));
@@ -247,6 +321,16 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(!method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u));
  assert(calls[MOVIES_D3D9_DRAW]==before_draw+1&&calls[MOVIES_D3D9_RELEASE_RESOURCE]==before_release+2&&drawargs[3]==3&&drawargs[4]==0&&drawargs[23]==8&&drawargs[24]==0&&drawargs[25]==1&&drawargs[26]==1&&drawargs[27]==10&&drawargs[28]==20&&drawargs[29]==100&&drawargs[30]==200);
  assert(uploaded_bytes==6&&uploaded[0]==0&&uploaded[2]==1&&uploaded[4]==2);assert(R32(0x7000+28+16)==0x7f123456);
+ /* NULL texture: colour DIFFUSE + alpha TEXTURE falls back to diffuse alpha (D3DTSS docs). */
+ assert(!method(d,64,3,0u,0x4120u));uint32_t saved_tex=R32(0x4120);assert(saved_tex);assert(!method(d,65,3,0u,0u));
+ assert(!method(d,67,4,0u,1u,2u)&&!method(d,67,4,0u,2u,0u)&&!method(d,67,4,0u,4u,2u)&&!method(d,67,4,0u,5u,2u));
+ assert(!method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u)&&drawargs[31]==4&&!drawargs[12]);
+ assert(!method(d,67,4,0u,1u,4u)&&!method(d,67,4,0u,2u,2u)); /*colour MODULATE(TEXTURE,DIFFUSE): cascade stops -> diffuse*/
+ assert(!method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u)&&drawargs[31]==4&&!drawargs[12]);
+ assert(!method(d,67,4,0u,1u,3u)&&!method(d,67,4,0u,3u,3u)&&!method(d,67,4,0u,4u,4u)&&!method(d,67,4,0u,5u,2u)&&!method(d,67,4,0u,6u,3u));
+ {unsigned n=calls[MOVIES_D3D9_DRAW];assert(!method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u));assert(calls[MOVIES_D3D9_DRAW]==n+1&&drawargs[36]==4&&drawargs[38]==3);} /*TFACTOR*diffuse alpha: shader combiner*/
+ assert(!method(d,67,4,0u,1u,4u)&&!method(d,67,4,0u,2u,2u)&&!method(d,67,4,0u,3u,0u)&&!method(d,67,4,0u,4u,4u)&&!method(d,67,4,0u,5u,0u)&&!method(d,67,4,0u,6u,2u));
+ assert(!method(d,65,3,0u,saved_tex));assert(method(saved_tex,2,1)>=1);
  assert(!method(d,101,5,0u,0x4100u,0x4104u,0x4108u)&&!R32(0x4100)&&!R32(0x4104)&&!R32(0x4108));assert(!method(d,105,2,0x4100u)&&!R32(0x4100));
  before_draw=calls[MOVIES_D3D9_DRAW];
  W16(0x7100,0);assert(method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u)==0x8876086c);W16(0x7100,1);
@@ -257,7 +341,7 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(method(d,84,9,4u,0xffffffffu,3u,1u,0x7100u,101u,0x7000u,28u)==0x8876086c);
  WF32(0x7000+28+12,0);assert(method(d,84,9,4u,1u,3u,1u,0x7100u,101u,0x7000u,28u)==0x8876086c);WF32(0x7000+28+12,.5f);
  assert(calls[MOVIES_D3D9_DRAW]==before_draw);assert(!method(d,42,1));assert(!method(d,57,3,27u,0u));assert(!method(d,57,3,174u,0u));assert(!method(d,57,3,23u,4u)&&!method(d,57,3,14u,1u));
- if(!setjmp(trap)){method(d,57,3,171u,2u);assert(0);}assert(method(d,57,3,19u,0u)==0x8876086c);if(!setjmp(trap)){method(d,57,3,23u,2u);assert(0);}if(!setjmp(trap)){method(d,57,3,14u,2u);assert(0);}
+ assert(!method(d,57,3,171u,2u)&&!method(d,57,3,171u,1u));assert(method(d,57,3,19u,0u)==0x8876086c);assert(!method(d,57,3,23u,2u)&&!method(d,57,3,23u,4u));assert(!method(d,57,3,14u,1u));
  assert(!method(d,100,5,0u,uvb,0u,24u));assert(!method(d,104,2,ib));
  if(!setjmp(trap)){method(d,69,4,0u,5u,3u);assert(0);} /* anisotropic filtering not advertised */
  assert(method(tx,2,1)==1);assert(method(uvb,2,1)==1);
@@ -269,7 +353,7 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  }
  const uint32_t invalidFactors[]={0,16,17,18,0x7fffffff,0xffffffff};
  for(unsigned state=19;state<=20;state++)for(unsigned i=0;i<sizeof invalidFactors/sizeof invalidFactors[0];i++){assert(method(d,57,3,state,invalidFactors[i])==0x8876086c);assert(!method(d,58,3,state,0x4100u)&&R32(0x4100)==15);}
- assert(!method(d,57,3,19u,1u)&&!method(d,57,3,20u,2u)&&!method(d,57,3,27u,1u));assert(!method(d,57,3,19u,12u));unsigned blendRejected=calls[MOVIES_D3D9_DRAW];if(!setjmp(trap)){method(d,82,7,4u,0u,0u,3u,0u,1u);assert(0);}assert(calls[MOVIES_D3D9_DRAW]==blendRejected);assert(!method(d,57,3,27u,0u));
+ assert(!method(d,57,3,19u,1u)&&!method(d,57,3,20u,2u)&&!method(d,57,3,27u,1u));assert(!method(d,57,3,19u,12u));unsigned blendRejected=calls[MOVIES_D3D9_DRAW];assert(!method(d,41,1));uint32_t blend_hr=method(d,82,7,4u,0u,0u,3u,0u,1u);assert(!method(d,42,1));assert(!blend_hr||blend_hr==0x8876086c);assert(calls[MOVIES_D3D9_DRAW]<=blendRejected+1);assert(!method(d,57,3,27u,0u));
  /* Render-target textures (observed 99B26D): GPU-only, one level, DEFAULT pool. */
  assert(!method(d,65,3,0u,0u));unsigned targets=calls[MOVIES_D3D9_CREATE_TARGET];
  assert(method(d,23,9,512u,256u,0u,1u,21u,0u,0x2030u,0u)==0x8876086a&&!R32(0x2030)); /*autogen chains not claimed*/
@@ -288,7 +372,12 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  const int32_t full[4]={0,0,512,256},over[4]={0,0,640,480};memcpy(HP(0x4700),over,16);assert(method(d,75,2,0x4700u)==0x8876086c);memcpy(HP(0x4700),full,16);assert(!method(d,75,2,0x4700u));
  /* Clear: TARGET alone keeps depth; area is viewport (∩ scissor when enabled). */
  unsigned clears=calls[MOVIES_D3D9_CLEAR];assert(!method(d,43,7,0u,0u,1u,0u,0x3f800000u,0u));assert(calls[MOVIES_D3D9_CLEAR]==clears+1&&clearargs[2]==1&&!clearargs[26]);
- assert(!method(d,43,7,0u,0u,3u,0u,0x3f800000u,0u)&&clearargs[2]==3);if(!setjmp(trap)){method(d,43,7,0u,0u,2u,0u,0x3f800000u,0u);assert(0);} /*depth-only clear not claimed*/
+ assert(!method(d,43,7,0u,0u,3u,0u,0x3f800000u,0u)&&clearargs[2]==3);assert(!method(d,43,7,0u,0u,2u,0u,0x3f800000u,0u)&&clearargs[2]==2); /* depth-only clear */
+ assert(!method(d,43,7,0u,0u,4u,0u,0x3f800000u,7u)); /* stencil-only: no stencil buffer, no-op */
+ assert(!method(d,43,7,0u,0u,7u,0u,0x3f800000u,0u)&&clearargs[2]==3); /* stencil bit dropped */
+ {int32_t rect[8]={10,20,30,40, 0,0,5,5};memcpy(HP(0x4800),rect,32);unsigned clears=calls[MOVIES_D3D9_CLEAR];assert(!method(d,43,7,2u,0x4800u,1u,0x11223344u,0x3f800000u,0u));
+  assert(calls[MOVIES_D3D9_CLEAR]==clears+2&&clearargs[26]==1&&clearargs[27]==0&&clearargs[29]==5);}
+ assert(method(d,43,7,0u,0u,8u,0u,0x3f800000u,0u)==0x8876086c&&method(d,43,7,1u,0u,1u,0u,0x3f800000u,0u)==0x8876086c);
  W32(0x4100,10);W32(0x4104,20);W32(0x4108,100);W32(0x410c,50);assert(!method(d,47,2,0x4100u));
  assert(!method(d,43,7,0u,0u,1u,0u,0x3f800000u,0u)&&clearargs[26]==1&&clearargs[27]==10&&clearargs[28]==20&&clearargs[29]==110&&clearargs[30]==70);
  const int32_t cut[4]={50,0,512,30};memcpy(HP(0x4700),cut,16);assert(!method(d,75,2,0x4700u)&&!method(d,57,3,174u,1u));
@@ -304,6 +393,30 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(!method(mems,14,1));assert(!method(d,30,5,mems,0u,rts,0u));assert(calls[MOVIES_D3D9_WRITE_TARGET]==1&&uploaded_bytes==512u*256u*4u&&uploaded[0]==0x03&&uploaded[1]==0x02&&uploaded[2]==0x01&&uploaded[3]==0x04);
  if(!setjmp(trap)){method(d,32,3,mems,mems);assert(0);} /*non-RT source unclaimed*/
  if(!setjmp(trap)){method(d,30,5,mems,0x4800u,rts,0u);assert(0);} /*sub-rect unclaimed*/
+ /* D3DX fallback (B0E5F1): lockable CreateRenderTarget, StretchRect, LockRect read. */
+ assert(method(d,28,9,512u,256u,21u,1u,0u,1u,0x2060u,0u)==0x8876086a&&!R32(0x2060)); /*multisampling not claimed*/
+ assert(method(d,28,9,512u,256u,21u,0u,0u,1u,0x2060u,0x4000u)==0x8876086c);
+ unsigned writes=calls[MOVIES_D3D9_WRITE_TARGET],reads=calls[MOVIES_D3D9_READ_TARGET];
+ assert(!method(d,28,9,512u,256u,21u,0u,0u,1u,0x2060u,0u));uint32_t lrt=R32(0x2060);assert(lrt);uint32_t lgpu=next_handle-1;
+ assert(!method(lrt,12,2,0x4000u)&&R32(0x4000)==21&&R32(0x4008)==1&&R32(0x400c)==0&&R32(0x4018)==512&&R32(0x401c)==256);
+ assert(method(d,34,6,rts,0u,lrt,0u,0u)==0&&calls[MOVIES_D3D9_COPY_TARGET]==1);
+ assert(method(d,34,6,rts,0u,rts,0u,0u)==0x8876086c);
+ if(!setjmp(trap)){method(d,34,6,rts,0x4800u,lrt,0u,2u);assert(0);} /*sub-rects unclaimed*/
+ if(!setjmp(trap)){method(d,34,6,rts,0u,mems,0u,0u);assert(0);} /*SYSTEMMEM destination unclaimed*/
+ assert(!method(lrt,13,4,0x2064u,0u,0x10u));assert(calls[MOVIES_D3D9_READ_TARGET]==reads+1&&R32(0x2064)==2048);uint32_t lbits=R32(0x2068);assert(R8(lbits)==0x11&&R8(lbits+3)==0x44);
+ assert(method(lrt,13,4,0x2064u,0u,0u)==0x8876086c); /*already locked*/
+ assert(!method(lrt,14,1));assert(calls[MOVIES_D3D9_WRITE_TARGET]==writes); /*READONLY unlock: no upload*/
+ assert(method(lrt,14,1)==0x8876086c);
+ assert(!method(lrt,13,4,0x2064u,0u,0u));W8(R32(0x2068),0x07);assert(!method(lrt,14,1));assert(calls[MOVIES_D3D9_WRITE_TARGET]==writes+1&&uploaded[2]==0x07);
+ unsigned freed=calls[MOVIES_D3D9_RELEASE_RESOURCE];assert(!method(lrt,2,1));assert(calls[MOVIES_D3D9_RELEASE_RESOURCE]==freed+1);(void)lgpu;
+ /* D3DX lock helper B0E42C locks the implicit backbuffer (caller B0E839): readback in X8R8G8B8. */
+ assert(!method(d,18,5,0u,0u,0u,0x2070u));uint32_t bb=R32(0x2070);assert(bb);
+ assert(!method(bb,13,4,0x2074u,0u,0x10u));assert(calls[MOVIES_D3D9_READ_BACKBUFFER]==1&&R32(0x2074)==2560);uint32_t bbits=R32(0x2078);assert(R8(bbits)==0x11&&R8(bbits+2)==0x33&&R8(bbits+3)==0x44);
+ assert(method(bb,13,4,0x2074u,0u,0x10u)==0x8876086c);assert(!method(bb,14,1));assert(method(bb,14,1)==0x8876086c);
+ W32(0x4800,8);W32(0x4804,2);W32(0x4808,16);W32(0x480c,4);assert(!method(bb,13,4,0x2074u,0x4800u,0u));assert(R32(0x2078)==bbits+2*2560+8*4);assert(!method(bb,14,1));
+ (void)method(bb,2,1);
+ assert(!method(d,40,2,0x2070u));uint32_t dss=R32(0x2070);assert(method(dss,13,4,0x2074u,0u,0x10u)==0x8876086c);(void)method(dss,2,1); /*D16 not lockable*/
+ uint32_t plain;assert(!method(d,28,9,64u,64u,22u,0u,0u,0u,0x2060u,0u));plain=R32(0x2060);assert(method(plain,13,4,0x2064u,0u,0u)==0x8876086c);assert(!method(plain,2,1));
  assert(method(mems,2,1)==1);assert(!method(memt,2,1));
  assert(!method(d,38,3,0u,0x2048u)&&R32(0x2048)==rts);assert(method(rts,2,1)==3); /*caller ref released; app, texture and device keep it*/
  unsigned released=calls[MOVIES_D3D9_RELEASE_RESOURCE];

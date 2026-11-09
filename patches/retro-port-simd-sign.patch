@@ -1,0 +1,13 @@
+--- a/runtime/simd.h	2026-11-08 22:56:33
++++ b/runtime/simd.h	2026-11-08 22:56:33
+@@ -10,7 +10,9 @@
+     switch (lane) {
+     case 1: return sgn ? (int8_t)p[0] : p[0];
+     case 2: { uint16_t v; memcpy(&v, p, 2); return sgn ? (int16_t)v : v; }
+-    case 4: { uint32_t v; memcpy(&v, p, 4); return sgn ? (int32_t)v : v; }
++    /* Both arms must be int64_t: `sgn ? (int32_t)v : v` has type uint32_t and
++     * would never sign-extend (breaks psrad/pcmpgtd/packssdw on dword lanes). */
++    case 4: { uint32_t v; memcpy(&v, p, 4); return sgn ? (int64_t)(int32_t)v : (int64_t)v; }
+     default: { uint64_t v; memcpy(&v, p, 8); return (int64_t)v; }
+     }
+ }

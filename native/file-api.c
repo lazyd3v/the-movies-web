@@ -38,7 +38,7 @@ static int initialized;
 /* Logical contents of private regular files, including sparse gaps and copied
  * assets. Directory metadata and immutable original assets are outside quota.
  * Browser storage is volatile MEMFS, not persistent browser storage or reserved RAM. */
-static uint64_t quota_limit=256ull*1024*1024,quota_used;
+static uint64_t quota_limit=1024ull*1024*1024,quota_used; /* saves + exported movies; persisted to OPFS */
 static int quota_dirty;
 void movies_file_set_quota(uint64_t bytes) { pthread_mutex_lock(&lock);quota_limit=bytes;pthread_mutex_unlock(&lock); }
 
@@ -442,6 +442,24 @@ static void size_file(CPU *c) {
     if(!f)e=6;else if(fstat(f->fd,&st))e=error_code();
     pthread_mutex_unlock(&lock);if(e)fail(c,2,BAD,e);else { if(high)W32(high,(uint32_t)((uint64_t)st.st_size>>32));movies_set_last_error(0);ret(c,2,(uint32_t)st.st_size); }
 }
+/* GetFileTime: FILETIME = 100 ns intervals since 1601-01-01 (Unix epoch offset
+ * 11644473600 s). Creation/access/write all come from the host stat times. */
+static void put_filetime(uint32_t out,time_t t,long nsec) {
+    if(!out)return;uint64_t v=((uint64_t)(t<0?0:t)+11644473600ull)*10000000ull+(uint64_t)(nsec/100);W32(out,(uint32_t)v);W32(out+4,(uint32_t)(v>>32));
+}
+static void file_time(CPU *c) {
+    uint32_t created=arg(c,1),accessed=arg(c,2),written=arg(c,3);
+    if((created && !range(created,8)) || (accessed && !range(accessed,8)) || (written && !range(written,8))) { fail(c,4,0,998);return; }
+    pthread_mutex_lock(&lock);struct File *f=find(arg(c,0));struct stat st;uint32_t e=0;
+    if(!f)e=6;else if(fstat(f->fd,&st))e=error_code();
+    pthread_mutex_unlock(&lock);if(e) { fail(c,4,0,e);return; }
+#ifdef __APPLE__
+    put_filetime(created,st.st_mtimespec.tv_sec,st.st_mtimespec.tv_nsec);put_filetime(accessed,st.st_atimespec.tv_sec,st.st_atimespec.tv_nsec);put_filetime(written,st.st_mtimespec.tv_sec,st.st_mtimespec.tv_nsec);
+#else
+    put_filetime(created,st.st_mtim.tv_sec,st.st_mtim.tv_nsec);put_filetime(accessed,st.st_atim.tv_sec,st.st_atim.tv_nsec);put_filetime(written,st.st_mtim.tv_sec,st.st_mtim.tv_nsec);
+#endif
+    movies_set_last_error(0);ret(c,4,1);
+}
 static void attributes(CPU *c,int wide) {
     char input[CAP],key[CAP],path[CAP];struct stat st;uint32_t e=guest_path(arg(c,0),wide,input);
     pthread_mutex_lock(&lock);if(!e)e=initialized?normalize(input,key):21;if(!e)e=lookup(key,path,&st);pthread_mutex_unlock(&lock);
@@ -746,6 +764,133 @@ static void delete_file(CPU *c,int wide) {
 static void delete_a(CPU *c) { delete_file(c,0); }static void delete_w(CPU *c) { delete_file(c,1); }
 static void temp_name_a(CPU *c) { get_temp_name(c,0); }static void temp_name_w(CPU *c) { get_temp_name(c,1); }
 
+/* Handle-level helpers. https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setendoffile
+ * Locks are advisory and single-process here; times are host-managed. */
+static void flush_file(CPU *c) {
+    pthread_mutex_lock(&lock);struct File *f=find(arg(c,0));uint32_t e=!f?6:(!(f->access&(WRITE|4))?5:0);pthread_mutex_unlock(&lock);
+    if(e)fail(c,1,0,e);else ret(c,1,1);
+}
+static void end_of_file(CPU *c) {
+    pthread_mutex_lock(&lock);struct File *f=find(arg(c,0));uint32_t e=0;
+    if(!f)e=6;else if(!(f->access&WRITE))e=5;
+    else {
+        struct stat st;off_t position=lseek(f->fd,0,SEEK_CUR);
+        if(position<0 || fstat(f->fd,&st))e=error_code();
+        else if(position>st.st_size && (uint64_t)(position-st.st_size)>quota_free())e=112;
+        else if(ftruncate(f->fd,position))e=error_code();
+        else account_size((uint64_t)st.st_size,(uint64_t)position);
+    }
+    pthread_mutex_unlock(&lock);if(e)fail(c,1,0,e);else ret(c,1,1);
+}
+static void valid_handle(CPU *c,unsigned n) {
+    pthread_mutex_lock(&lock);int ok=find(arg(c,0))!=NULL;pthread_mutex_unlock(&lock);
+    if(!ok)fail(c,n,0,6);else ret(c,n,1);
+}
+static void set_file_time(CPU *c) { valid_handle(c,4); }
+static void lock_file_ex(CPU *c) { valid_handle(c,6); }
+static void unlock_file_ex(CPU *c) { valid_handle(c,5); }
+/* Attributes are not stored: existence is checked, read-only/hidden flags ignored. */
+static void set_attributes(CPU *c,int wide) {
+    char input[CAP],key[CAP],path[CAP];struct stat st;uint32_t e=guest_path(arg(c,0),wide,input);
+    pthread_mutex_lock(&lock);if(!e)e=initialized?normalize(input,key):21;if(!e)e=lookup(key,path,&st);pthread_mutex_unlock(&lock);
+    if(e)fail(c,2,0,e);else ret(c,2,1);
+}
+static void set_attrs_a(CPU *c) { set_attributes(c,0); }static void set_attrs_w(CPU *c) { set_attributes(c,1); }
+/* Destination always lands in the private overlay; originals stay immutable, so a
+ * move whose source is an original asset is refused (ERROR_ACCESS_DENIED). */
+static uint32_t destination(const char *input,char *key,char *overlay) {
+    char original[CAP];int oe,we;uint32_t e=normalize(input,key);
+    if(!e && (virtual_dir(key) || prefix(key,"C:\\Windows")))e=5;
+    if(!e)e=paths(key,original,overlay,&oe,&we);
+    if(!e && (oe||we))e=183;
+    if(!e)e=parent_exists(key);
+    if(!e)e=mkdir_parents(overlay);
+    return e;
+}
+static uint32_t open_on(const char *key) {
+    for(unsigned i=0;i<SLOTS;i++)if(files[i].handle && !strcasecmp(files[i].key,key))return 1;
+    return 0;
+}
+static void move_file(CPU *c,int wide) {
+    char from[CAP],to[CAP],fkey[CAP],tkey[CAP],original[CAP],overlay[CAP],target[CAP];int oe,we;
+    uint32_t e=guest_path(arg(c,0),wide,from);if(!e)e=guest_path(arg(c,1),wide,to);
+    pthread_mutex_lock(&lock);
+    if(!e)e=initialized?normalize(from,fkey):21;
+    if(!e)e=paths(fkey,original,overlay,&oe,&we);
+    if(!e && !oe && !we)e=2;
+    if(!e && oe)e=5;
+    if(!e && open_on(fkey))e=32;
+    if(!e)e=destination(to,tkey,target);
+    if(!e && rename(overlay,target))e=error_code();
+    pthread_mutex_unlock(&lock);
+    log_path(wide?"MoveFileW":"MoveFileA",arg(c,0),wide,e?0:1,e);
+    if(e)fail(c,2,0,e);else ret(c,2,1);
+}
+static void move_a(CPU *c) { move_file(c,0); }static void move_w(CPU *c) { move_file(c,1); }
+static void copy_file_a(CPU *c) {
+    char from[CAP],to[CAP],fkey[CAP],tkey[CAP],source[CAP],original[CAP],target[CAP];struct stat st;int oe,we;
+    uint32_t e=guest_path(arg(c,0),0,from);if(!e)e=guest_path(arg(c,1),0,to);
+    pthread_mutex_lock(&lock);
+    if(!e)e=initialized?normalize(from,fkey):21;
+    if(!e)e=lookup(fkey,source,&st);
+    if(!e && (!source[0] || !S_ISREG(st.st_mode)))e=5;
+    if(!e)e=normalize(to,tkey);
+    if(!e && (virtual_dir(tkey) || prefix(tkey,"C:\\Windows")))e=5;
+    if(!e)e=paths(tkey,original,target,&oe,&we);
+    if(!e && (oe||we) && arg(c,2))e=80;
+    if(!e && oe && !we)e=5;
+    if(!e && we) { if(open_on(tkey))e=32; else { struct stat old;if(!lstat(target,&old)){ if(unlink(target))e=error_code(); else account_size((uint64_t)old.st_size,0);} } }
+    if(!e)e=parent_exists(tkey);
+    if(!e)e=mkdir_parents(target);
+    if(!e && quota_dirty)e=refresh_usage();
+    if(!e)e=copy_file(source,target);
+    pthread_mutex_unlock(&lock);
+    if(e)fail(c,3,0,e);else ret(c,3,1);
+}
+static void remove_directory(CPU *c,int wide) {
+    char input[CAP],key[CAP],original[CAP],overlay[CAP];int oe,we;uint32_t e=guest_path(arg(c,0),wide,input);
+    pthread_mutex_lock(&lock);
+    if(!e)e=initialized?normalize(input,key):21;
+    if(!e && virtual_dir(key))e=5;
+    if(!e)e=paths(key,original,overlay,&oe,&we);
+    if(!e && !oe && !we)e=2;
+    if(!e && oe)e=5;
+    if(!e && rmdir(overlay))e=errno==ENOTEMPTY||errno==EEXIST?145:error_code();
+    pthread_mutex_unlock(&lock);if(e)fail(c,1,0,e);else ret(c,1,1);
+}
+static void rmdir_a(CPU *c) { remove_directory(c,0); }static void rmdir_w(CPU *c) { remove_directory(c,1); }
+static void get_cwd_w(CPU *c) {
+    uint32_t n=arg(c,0),out=arg(c,1);pthread_mutex_lock(&lock);size_t length=strlen(cwd);
+    if(n<=length) { pthread_mutex_unlock(&lock);ret(c,2,(uint32_t)length+1);return; }
+    if(!range(out,2*((uint32_t)length+1))) { pthread_mutex_unlock(&lock);fail(c,2,0,87);return; }
+    for(size_t i=0;i<=length;i++)W16(out+2*(uint32_t)i,(uint8_t)cwd[i]);
+    pthread_mutex_unlock(&lock);ret(c,2,(uint32_t)length);
+}
+/* Only the virtual C: drive exists (DRIVE_FIXED = 3, DRIVE_NO_ROOT_DIR = 1). */
+static void drive_type(CPU *c,int wide) {
+    uint32_t p=arg(c,0),first=p&&range(p,2)?(wide?R16(p):R8(p)):0;
+    ret(c,1,!p || first=='C' || first=='c' || first=='\\' ? 3 : 1);
+}
+static void drive_a(CPU *c) { drive_type(c,0); }static void drive_w(CPU *c) { drive_type(c,1); }
+
+/* Host-side whole-file read of a guest path (relative to the guest current
+ * directory), for host services such as movie playback. Caller frees *data. */
+int movies_file_read_all(const char *guest_path,uint8_t **data,size_t *size,size_t limit) {
+    char key[CAP],path[CAP];struct stat st;uint32_t e;
+    *data=NULL;*size=0;
+    pthread_mutex_lock(&lock);
+    e=initialized?normalize(guest_path,key):21;
+    if(!e)e=lookup(key,path,&st);
+    pthread_mutex_unlock(&lock);
+    if(e || !path[0] || !S_ISREG(st.st_mode) || st.st_size<=0 || (size_t)st.st_size>limit)return 0;
+    int fd=open(path,O_RDONLY);if(fd<0)return 0;
+    uint8_t *buffer=malloc((size_t)st.st_size);size_t got=0;
+    while(buffer && got<(size_t)st.st_size) { ssize_t n=read(fd,buffer+got,(size_t)st.st_size-got);if(n<=0)break;got+=(size_t)n; }
+    close(fd);
+    if(!buffer || got!=(size_t)st.st_size) { free(buffer);return 0; }
+    *data=buffer;*size=got;return 1;
+}
+
 /* Lexical Windows path resolution is deliberately separate from normalize(),
  * which authorizes backend I/O. A returned path does not grant host access.
  * https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfullpathnamea */
@@ -821,7 +966,7 @@ ImportHandler *movies_file_handlers(uint32_t *count) {
         {"KERNEL32.DLL!CreateFileA",create_a},{"KERNEL32.DLL!CreateFileW",create_w},
         {"KERNEL32.DLL!ReadFile",read_file},{"KERNEL32.DLL!WriteFile",write_file},
         {"KERNEL32.DLL!CloseHandle",close_file},{"KERNEL32.DLL!SetFilePointer",seek_file},
-        {"KERNEL32.DLL!GetFileSize",size_file},{"KERNEL32.DLL!GetFileAttributesA",attrs_a},
+        {"KERNEL32.DLL!GetFileSize",size_file},{"KERNEL32.DLL!GetFileTime",file_time},{"KERNEL32.DLL!GetFileAttributesA",attrs_a},
         {"KERNEL32.DLL!GetFileAttributesW",attrs_w},{"KERNEL32.DLL!CreateDirectoryA",mkdir_a},
         {"KERNEL32.DLL!CreateDirectoryW",mkdir_w},{"KERNEL32.DLL!GetCurrentDirectoryA",get_cwd},
         {"KERNEL32.DLL!SetCurrentDirectoryA",set_cwd},
@@ -831,6 +976,12 @@ ImportHandler *movies_file_handlers(uint32_t *count) {
         {"KERNEL32.DLL!GetDiskFreeSpaceExA",disk_a},{"KERNEL32.DLL!GetDiskFreeSpaceExW",disk_w},
         {"KERNEL32.DLL!GetTempPathA",temp_path_a},{"KERNEL32.DLL!GetTempPathW",temp_path_w},
         {"KERNEL32.DLL!GetTempFileNameA",temp_name_a},{"KERNEL32.DLL!GetTempFileNameW",temp_name_w},
+        {"KERNEL32.DLL!FlushFileBuffers",flush_file},{"KERNEL32.DLL!SetEndOfFile",end_of_file},
+        {"KERNEL32.DLL!SetFileTime",set_file_time},{"KERNEL32.DLL!LockFileEx",lock_file_ex},{"KERNEL32.DLL!UnlockFileEx",unlock_file_ex},
+        {"KERNEL32.DLL!SetFileAttributesA",set_attrs_a},{"KERNEL32.DLL!SetFileAttributesW",set_attrs_w},
+        {"KERNEL32.DLL!MoveFileA",move_a},{"KERNEL32.DLL!MoveFileW",move_w},{"KERNEL32.DLL!CopyFileA",copy_file_a},
+        {"KERNEL32.DLL!RemoveDirectoryA",rmdir_a},{"KERNEL32.DLL!RemoveDirectoryW",rmdir_w},
+        {"KERNEL32.DLL!GetCurrentDirectoryW",get_cwd_w},{"KERNEL32.DLL!GetDriveTypeA",drive_a},{"KERNEL32.DLL!GetDriveTypeW",drive_w},
         {"KERNEL32.DLL!DeleteFileA",delete_a},{"KERNEL32.DLL!DeleteFileW",delete_w},
         {"KERNEL32.DLL!GetFullPathNameA",full_path_a},{"KERNEL32.DLL!GetFullPathNameW",full_path_w},
     };*count=sizeof h/sizeof h[0];return h;

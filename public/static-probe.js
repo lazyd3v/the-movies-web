@@ -61,13 +61,41 @@ captureMouse.addEventListener('click', async () => {
   try { await host.request(); }
   catch (error) { if (pointerLock === host) mouseStatus.textContent = `Mouse capture unavailable: ${error.message}`; }
 });
-let directInput = null;
+/* Fullscreen covers the game surface only. Entering it also captures the mouse;
+ * Escape releases the mouse (the browser's rule) and shows a bar with a way back
+ * into the game or out of fullscreen. A second Escape leaves fullscreen. */
+const gameSurface = document.getElementById('game-surface');
+const fullscreenButton = document.getElementById('fullscreen');
+const fullscreenBar = document.getElementById('fullscreen-bar');
+const captureNow = () => { pointerLock?.request(); };
+function syncFullscreenBar() {
+  const locked = !!document.pointerLockElement && gameSurface.contains(document.pointerLockElement);
+  fullscreenBar.hidden = locked || document.fullscreenElement !== gameSurface;
+}
+fullscreenButton.addEventListener('click', async () => {
+  try { await gameSurface.requestFullscreen({navigationUI: 'hide'}); captureNow(); }
+  catch (error) { mouseStatus.textContent = `Fullscreen unavailable: ${error.message}`; }
+});
+document.getElementById('fullscreen-capture').addEventListener('click', captureNow);
+document.getElementById('fullscreen-exit').addEventListener('click', () => { document.exitFullscreen?.().catch(() => {}); });
+document.addEventListener?.('fullscreenchange', syncFullscreenBar);
+document.addEventListener?.('pointerlockchange', syncFullscreenBar);
+let directInput = null, droppedInput = 0;
+/* Saved settings/registry/saves: OPFS store, loaded before each run and updated
+ * from the game worker's /userdata changes (public/userdata-store.js). */
+let userdataStorePromise = null;
+const userdataStore = () => userdataStorePromise ??= import('./userdata-store.js').then(({MoviesUserdataStore}) => new MoviesUserdataStore({
+  onError(error, change) { pendingLog += `[userdata] could not save ${change?.op} ${change?.path ?? change?.to ?? ''}: ${error?.message ?? error}\n`; if (logTimer === null) logTimer = setTimeout(flushLog, 50); }}));
 let pendingLog = '';
 let logTimer = null;
 const dialog = document.getElementById('game-dialog');
 let answerDialog = null;
 const surface = new MoviesWindowSurface(document.getElementById('game-surface'), document, event => {
-  if (input && !input.push(event)) finish('Game input queue overflowed.');
+  // A busy game (e.g. loading) stops reading messages; Windows then drops or
+  // coalesces input rather than terminating it. Motion keeps a quarter of the
+  // queue free for buttons and keys.
+  if (input && !input.offer(event, event.message === 0x200 ? input.capacity >> 2 : 0) && droppedInput++ % 500 === 0)
+    pendingLog += `[input] window message queue full; dropped ${droppedInput} input message(s) while the game was busy\n`;
 }, () => cursorSnapshot?.isLocked() ? cursorSnapshot.read() : null);
 // Observe genuine page input before Run creates the guest window. Re-map on
 // geometry updates while page input is active. Blur retains the last virtual
@@ -142,7 +170,8 @@ function flushLog() {
   if (logTimer !== null) clearTimeout(logTimer);
   logTimer = null;
   if (!pendingLog) return;
-  log.textContent = (log.textContent + pendingLog).slice(-1024 * 1024);
+  // Full API traces need far more than the 1 MiB normally kept on the page.
+  log.textContent = (log.textContent + pendingLog).slice(-(document.getElementById('trace-imports')?.checked ? 32 : 1) * 1024 * 1024);
   pendingLog = '';
   log.scrollTop = log.scrollHeight;
 }
@@ -166,8 +195,30 @@ function updateFrameMetrics() {
     inputStats.textContent = `Input: page ${document.hidden ? 'hidden' : 'visible'}, ${focused ? 'focused' : 'unfocused'}; game focus ${hwnd ? '0x' + hwnd.toString(16) : 'none'}; cursor ${cursor}.${minimized ? ' Window minimized — use Restore game window.' : ''}`;
   }
 }
+/* Focus messages. The original (WndProc 00542380 -> 00553f50) keeps an "own window
+ * has focus" flag at [00e52c9c]; 005550b0 clears it each frame while another window
+ * is foreground, and in the menus only WM_SETFOCUS sets it again. Without that,
+ * leaving the page froze the menu cursor for the rest of the run, so every gain of
+ * page focus by the game canvas posts WM_SETFOCUS.
+ * WM_KILLFOCUS is deliberately NOT posted: the original's handler (00542580 ->
+ * 009a5d60) treats it as fullscreen device loss, minimizes the window and loops
+ * until TestCooperativeLevel reports D3DERR_DEVICENOTRESET, then Resets the device.
+ * The browser device is never lost and Reset is not modelled, so the game behaves
+ * like a windowed application that keeps running in the background. */
+let gameFocusHwnd = 0;
+function syncGameFocus() {
+  const target = directInput?.sync() ?? 0;
+  if (!input || target === gameFocusHwnd) return;
+  const previous = gameFocusHwnd;
+  if (target) input.offer({hwnd: target, message: 7, wParam: previous && surface.windows.has(previous) ? previous : 0, lParam: 0,
+    time: Math.floor(performance.timeOrigin + performance.now()) >>> 0, x: 0, y: 0});
+  gameFocusHwnd = target;
+}
+for (const [target, name] of [[globalThis, 'focus'], [globalThis, 'blur'], [document, 'visibilitychange'], [document, 'focusin'], [document, 'focusout']])
+  target.addEventListener?.(name, () => queueMicrotask(syncGameFocus), true);
 setInterval(() => {
   document.getElementById('heartbeat').textContent = `UI heartbeat: ${Math.floor((performance.now() - began) / 1000)} s`;
+  syncGameFocus();
   updateFrameMetrics();
 }, 1000);
 function disposeMediaService() {
@@ -206,7 +257,8 @@ function finish(text) {
   status.textContent = text;
   disposeReaderService();
   pointerLock?.close(); pointerLock = null;
-  captureMouse.disabled = true;
+  captureMouse.disabled = true; fullscreenButton.disabled = true;
+  if (document.fullscreenElement === gameSurface) document.exitFullscreen?.().catch(() => {});
   disposeMediaService();
   graphicsPresenter?.close(); graphicsPresenter = null;
   graphicsPort?.close(); graphicsPort = null;
@@ -215,7 +267,7 @@ function finish(text) {
   worker?.terminate(); worker = null;
   const closingAudio = audioSink; audioSink = null;
   closingAudio?.close().catch(() => {});
-  input = null;
+  input = null; gameFocusHwnd = 0;
   directInput?.dispose(); directInput = null;
   cursorSnapshot?.write(null); cursorSnapshot = null;
   start.disabled = false; stop.disabled = true;
@@ -234,7 +286,7 @@ start.addEventListener('click', async () => {
   worker = new Worker('static-probe-worker.js');
   const cursorBuffer = MoviesPointerSnapshot.create();
   cursorSnapshot = new MoviesPointerSnapshot(cursorBuffer);
-  const inputBuffer = MoviesWindowInput.create();
+  const inputBuffer = MoviesWindowInput.create(1024);
   input = new MoviesWindowInput(inputBuffer);
   const directInputBuffer = MoviesWindowInput.create(1024, MoviesDirectInputFields);
   const directInputControl = new SharedArrayBuffer(MoviesAsyncKeyControlBytes);
@@ -266,9 +318,11 @@ start.addEventListener('click', async () => {
     pointerLock = new MoviesPointerLockHost({snapshot: cursorSnapshot, surface, onStatus({locked, lost, message}) {
       if (worker !== activeWorker) return;
       if (lost) {
+        // Releasing capture clears held buttons/motion but, as on Windows, the
+        // game window keeps focus; moving focus to the page button silenced all input.
         directInput?.blur();
         losePointer();
-        if (!document.hidden) captureMouse.focus?.();
+        directInput?.sync();
       }
       mouseStatus.textContent = message || (locked ? 'Mouse captured — press Escape to release.' : 'Click Capture mouse to control the game; Escape releases it.');
     }});
@@ -276,7 +330,7 @@ start.addEventListener('click', async () => {
     if (worker !== activeWorker) { transport.close(); return; }
     graphicsTransport = transport;
     const channel = new MessageChannel();
-    const ack = new Int32Array(new SharedArrayBuffer(8));
+    const ack = new Int32Array(new SharedArrayBuffer(12)); // serial, success, page-hidden flag
     graphicsPort = channel.port1;
     let firstPresentLogged = false;
     graphicsPresenter = createGraphicsPresenter({ack, profile: profileGraphics, onMetrics: reportGraphicsMetrics, consume(bitmap, serial) {
@@ -300,6 +354,18 @@ start.addEventListener('click', async () => {
     graphicsPort.onmessage = ({data}) => {
       if (worker !== activeWorker) { data.bitmap?.close?.(); return; }
       try {
+        if (data.type === 'graphics-hidden-frame') {
+          ++frameMetrics.count; frameMetrics.lastAt = performance.now();
+          // Occasional unacknowledged snapshot keeps a hidden canvas roughly current.
+          if (data.bitmap) { try { const canvas = surface.windows.size === 1 ? surface.windows.values().next().value : null; if (canvas && canvas.width === data.bitmap.width && canvas.height === data.bitmap.height) canvas.getContext('2d')?.drawImage(data.bitmap, 0, 0); } finally { data.bitmap.close(); } }
+          return;
+        }
+        if (data.type === 'graphics-slow-present') {
+          const ms = k => Number.isFinite(data[k]) ? data[k].toFixed(1) : '?';
+          if (data.dropped) pendingLog += `[graphics] page did not acknowledge frames within 1 s (display asleep or tab throttled); ${data.dropped} frame(s) dropped, game continues\n`; else
+          pendingLog += `[graphics] slow Present serial=${data.serial} preValidate=${ms('preValidateMs')}ms bitmap=${ms('bitmapMs')}ms pageAck=${ms('ackMs')}ms postValidate=${ms('postValidateMs')}ms visibility=${document.visibilityState}\n`;
+          if (logTimer === null) logTimer = setTimeout(flushLog, 50); return;
+        }
         if (data.type !== 'graphics-frame') throw new Error('Unknown GPU presentation message');
         graphicsPresenter.submit(data);
       } catch (error) { finish(`GPU presentation error: ${error.message}`); }
@@ -343,7 +409,7 @@ start.addEventListener('click', async () => {
     reader = {
       worker: new Worker('media-reader-service.js'),
       control: new Int32Array(new SharedArrayBuffer(20)),
-      payload: new SharedArrayBuffer(1048576),
+      payload: new SharedArrayBuffer(3 * 1048576), /* holds one 720x576 BGR24 movie frame */
       port: channel.port2,
     };
     readerService = reader;
@@ -369,7 +435,10 @@ start.addEventListener('click', async () => {
         });
         if (worker === activeWorker) threadFailureWatch = watch; else watch.close();
       } catch (error) { finish(`Thread watchdog error: ${error.message}`); }
-    } else if (data.type === 'status') status.textContent = data.text;
+    } else if (data.type === 'persist') { userdataStore().then(store => store.apply(data.change)); }
+    else if (data.type === 'graphics-trace') { globalThis.__graphicsTrace = data.entries; pendingLog += `[graphics] frame trace captured: ${data.entries.length} command(s)\n`; }
+    else if (data.type === 'dsound') { audioSink?.attachDirectSound(data.memory, data.control, data.slots); pendingLog += `[audio] DirectSound buffers attached to the AudioWorklet (${data.slots} slots)\n`; }
+    else if (data.type === 'status') status.textContent = data.text;
     else if (data.type === 'dialog') {
       try { showDialog(data); }
       catch (error) { finish(`Dialog bridge error: ${error.message}`); }
@@ -385,7 +454,7 @@ start.addEventListener('click', async () => {
         if (event.type === 'create') {
           pointerLock.attach(canvas, event.hwnd);
           directInput.attach(canvas, event.hwnd);
-          captureMouse.disabled = false;
+          captureMouse.disabled = false; fullscreenButton.disabled = false;
         }
         if (event.type === 'show') {
           if (event.visible && !event.minimized) canvas.focus();
@@ -399,10 +468,13 @@ start.addEventListener('click', async () => {
     }
     else if (data.type === 'terminal') finish(`Diagnostic ended: code ${data.code}. ${data.text || ''}`);
   };
-  try { worker.postMessage({type: 'start', traceImports: document.getElementById('trace-imports').checked, traceFiles: document.getElementById('trace-files').checked,
+  let userdata = {files: [], directories: []};
+  try { userdata = await (await userdataStore()).load(); } catch (error) { pendingLog += `[userdata] saved data unavailable: ${error.message}\n`; }
+  const traceAt = typeof URLSearchParams === 'function' && globalThis.location ? Number(new URLSearchParams(location.search).get('traceAt')) || 0 : 0;
+  try { worker.postMessage({type: 'start', traceAt, userdata, traceImports: document.getElementById('trace-imports').checked, traceFiles: document.getElementById('trace-files').checked,
     optimization: Number(optimization.value.split('-')[0]), threads: optimization.value.endsWith('-threads'), inputBuffer, cursorBuffer, directInputBuffer, directInputControl,
     pthreadPort: ownedPthreads?.port, audio: audio.descriptor, graphics, reader: {port: reader.port, controlBuffer: reader.control.buffer, payloadBuffer: reader.payload},
-    media: {port: media.port, controlBuffer: media.control.buffer, payloadBuffer: media.payload}}, [media.port, reader.port, graphics.presentationPort, graphics.commandPort, ...(ownedPthreads ? [ownedPthreads.port] : [])]); }
+    media: {port: media.port, controlBuffer: media.control.buffer, payloadBuffer: media.payload}}, [...userdata.files.map(f => f.bytes), media.port, reader.port, graphics.presentationPort, graphics.commandPort, ...(ownedPthreads ? [ownedPthreads.port] : [])]); }
   catch (error) { finish(`Guest worker start error: ${error.message}`); }
 });
 stop.addEventListener('click', () => finish('Stopped by user.'));

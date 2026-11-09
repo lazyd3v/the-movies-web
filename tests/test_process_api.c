@@ -100,6 +100,92 @@ static void memory_tests(void){
  fixture_budget.free_bytes=fixture_budget.total;fixture_budget.unreserved=fixture_budget.total;call("GlobalMemoryStatus",1,0x4000,0,0);assert(R32(0x4004)==0);fixture_budget.free_bytes=0;fixture_budget.unreserved=0;call("GlobalMemoryStatus",1,0x4000,0,0);assert(R32(0x4004)==100&&R32(0x400c)==0&&R32(0x401c)==0);
  if(!setjmp(trapped)){call("GlobalMemoryStatus",1,0x2100000,0,0);assert(0);}
 }
+
+/* ---- Fixtures for owners outside process-api (sync tagged objects, LocalAlloc,
+ * registered top-level exception filter and translated guest callbacks). */
+static uint32_t tagged_handles[8],tagged_tags[8],tagged_values[8];
+uint32_t movies_sync_create_tagged(uint32_t tag,uint32_t value){for(unsigned i=0;i<8;i++)if(!tagged_handles[i]){tagged_handles[i]=0x0b000100u+i;tagged_tags[i]=tag;tagged_values[i]=value;return tagged_handles[i];}return 0;}
+int movies_sync_tagged_get(uint32_t h,uint32_t tag,uint32_t *v){for(unsigned i=0;i<8;i++)if(h&&tagged_handles[i]==h&&tagged_tags[i]==tag){if(v)*v=tagged_values[i];return 1;}return 0;}
+int movies_sync_tagged_set(uint32_t h,uint32_t tag,uint32_t v){for(unsigned i=0;i<8;i++)if(h&&tagged_handles[i]==h&&tagged_tags[i]==tag){tagged_values[i]=v;return 1;}return 0;}
+int movies_sync_is_process_handle(uint32_t h){return h==UINT32_MAX||h==0x0b000099u;}
+static uint32_t local_next=0x300000,local_fail;
+uint32_t movies_local_alloc(uint32_t n){if(local_fail)return 0;uint32_t a=local_next;local_next+=(n+15)&~15u;memset(HP(a),0,n);return a;}
+static uint32_t registered_filter,filter_seen;
+uint32_t movies_unhandled_exception_filter(void){return registered_filter;}
+static void filter_fn(CPU *c){filter_seen=R32(c->esp+4);c->eax=0xffffffffu;c->esp+=8;}
+GuestFn lookup_function(uint32_t a){return a==0x401234?filter_fn:NULL;}
+void guest_call(CPU *c,GuestFn fn,int argc,const uint32_t *args){for(int i=argc-1;i>=0;i--){c->esp-=4;W32(c->esp,args[i]);}c->esp-=4;W32(c->esp,0xdeadbeef);fn(c);}
+static uint32_t callv(const char *name,unsigned argc,const uint32_t *args){
+    uint32_t count;ImportHandler *h=movies_process_handlers(&count);CPU c={0};c.esp=0x8000;c.ebx=0x12345678;
+    W32(c.esp,0xdeadbeef);for(unsigned i=0;i<argc;i++)W32(c.esp+4+4*i,args[i]);
+    for(unsigned i=0;i<count;i++) if(!strcmp(name,strchr(h[i].name,'!')+1)) {
+        h[i].fn(&c);assert(c.esp==0x8004+4*argc);assert(c.ebx==0x12345678);return c.eax;
+    }
+    assert(0);return 0;
+}
+#define CALLV(name,...) callv(name,sizeof((uint32_t[]){__VA_ARGS__})/4,(uint32_t[]){__VA_ARGS__})
+static uint32_t fmt(uint32_t flags,uint32_t source,uint32_t id,uint32_t out,uint32_t size,uint32_t args){return callv("FormatMessageA",7,(uint32_t[]){flags,source,id,0,out,size,args});}
+static void extra_process_tests(void) {
+    /* Unavailable process creation, pipes and device I/O. */
+    error=0;assert(!callv("CreateProcessA",10,(uint32_t[10]){0})&&error==50);
+    error=0;assert(!CALLV("CreatePipe",0x5000,0x5004,0,0)&&error==50);
+    error=0;assert(!callv("DeviceIoControl",8,(uint32_t[8]){0x1234})&&error==50);
+    error=0;assert(!CALLV("TerminateProcess",0x1234,1)&&error==6);
+    /* Toolhelp: one MoviesSE.exe module at the image base. */
+    W16(0x400000,0x5a4d);W32(0x40003c,0x80);W32(0x400080,0x4550);W32(0x4000d0,0x123000);
+    uint32_t snap=CALLV("CreateToolhelp32Snapshot",8,0);assert(snap&&snap!=UINT32_MAX);
+    assert(CALLV("CreateToolhelp32Snapshot",8,2)==UINT32_MAX&&error==87);
+    memset(HP(0x6000),0xa5,560);W32(0x6000,548);
+    assert(CALLV("Module32First",snap,0x6000)==1);
+    assert(R32(0x6000)==548&&R32(0x6008)==1&&R32(0x6014)==0x400000&&R32(0x6018)==0x123000&&R32(0x601c)==0x400000);
+    assert(!strcmp((char *)HP(0x6020),"MoviesSE.exe")&&!strcmp((char *)HP(0x6120),"C:\\Game Files\\MoviesSE.exe")&&R8(0x6224)==0xa5);
+    assert(!CALLV("Module32Next",snap,0x6000)&&error==18);
+    assert(CALLV("Module32First",snap,0x6000)==1&&!CALLV("Module32Next",snap,0x6000)&&error==18);
+    W32(0x6000,547);assert(!CALLV("Module32First",snap,0x6000)&&error==24);W32(0x6000,548);
+    assert(!CALLV("Module32First",0x1234,0x6000)&&error==6);
+    uint32_t threads=CALLV("CreateToolhelp32Snapshot",4,0);assert(threads&&!CALLV("Module32First",threads,0x6000)&&error==18);
+    /* Pointer probes. */
+    assert(!CALLV("IsBadWritePtr",0x10000,16)&&CALLV("IsBadWritePtr",0,16)&&CALLV("IsBadWritePtr",0xfff0,1)&&!CALLV("IsBadWritePtr",0,0));
+    assert(CALLV("IsBadWritePtr",(uint32_t)(GUEST_SPACE-4),8));
+    assert(!CALLV("IsBadCodePtr",0x401000)&&CALLV("IsBadCodePtr",0)&&CALLV("IsBadCodePtr",0x1000));
+    /* Console surface without a console window. */
+    error=77;assert(CALLV("AllocConsole")==1&&CALLV("FreeConsole")==1&&CALLV("SetConsoleTitleA",0x5000)==1&&error==77);
+    assert(CALLV("GetConsoleMode",MOVIES_STD_INPUT_HANDLE,0x5000)&&R32(0x5000)==7);
+    assert(CALLV("GetConsoleMode",MOVIES_STD_OUTPUT_HANDLE,0x5000)&&R32(0x5000)==3);
+    assert(!CALLV("GetConsoleMode",0x1234,0x5000)&&error==6);assert(!CALLV("GetConsoleMode",MOVIES_STD_OUTPUT_HANDLE,0)&&error==87);
+    assert(CALLV("SetConsoleMode",MOVIES_STD_INPUT_HANDLE,1)&&!CALLV("SetConsoleMode",0x1234,1)&&error==6);
+    /* FormatMessageA from the system table: buffer and LocalAlloc forms. */
+    const char *denied="Access is denied.\r\n";
+    assert(fmt(0x1200,0,5,0x5100,0x100,0)==strlen(denied)&&!strcmp((char *)HP(0x5100),denied));
+    assert(fmt(0x1200,0,0x80070005u,0x5100,0x100,0)==strlen(denied));
+    assert(fmt(0x12ff,0,5,0x5100,0x100,0)==strlen(denied)-2&&!strcmp((char *)HP(0x5100),"Access is denied."));
+    assert(!fmt(0x1200,0,5,0x5100,5,0)&&error==122);
+    W32(0x5000,0);uint32_t length=fmt(0x1300,0,2,0x5000,0,0);assert(length&&R32(0x5000)>=0x300000&&!strcmp((char *)HP(R32(0x5000)),"The system cannot find the file specified.\r\n"));
+    local_fail=1;assert(!fmt(0x1300,0,2,0x5000,0,0)&&error==8);local_fail=0;
+    assert(!fmt(0x1200,0,0xdead,0x5100,0x100,0)&&error==317);
+    assert(!fmt(0x0800,0,5,0x5100,0x100,0)&&error==1813);
+    assert(fmt(0x1200,0,0x80004005u,0x5100,0x100,0)&&!strcmp((char *)HP(0x5100),"Unspecified error\r\n"));
+    /* FROM_STRING inserts: va_list pointer and ARGUMENT_ARRAY, typed conversions, escapes. */
+    strcpy((char *)HP(0x5200),"File %1 has %2!d! items (%3!04X!)%n100%% %4!s!%0ignored");strcpy((char *)HP(0x5300),"save.dat");strcpy((char *)HP(0x5310),"x");
+    W32(0x5400,0x5300);W32(0x5404,(uint32_t)-3);W32(0x5408,0xab);W32(0x540c,0x5310);W32(0x5410,0x5400);
+    const char *expected="File save.dat has -3 items (00AB)\r\n100% x";
+    assert(fmt(0x2400,0x5200,0,0x5500,0x100,0x5400)==strlen(expected)&&!strcmp((char *)HP(0x5500),expected));
+    assert(fmt(0x0400,0x5200,0,0x5500,0x100,0x5410)==strlen(expected)&&!strcmp((char *)HP(0x5500),expected));
+    assert(fmt(0x0600,0x5200,0,0x5500,0x100,0)&&!strncmp((char *)HP(0x5500),"File %1 has",11));
+    assert(!fmt(0x0400,0x5200,0,0x5500,0x100,0)&&error==87);
+    strcpy((char *)HP(0x5200),"%1!*d!");assert(!fmt(0x2400,0x5200,0,0x5500,0x100,0x5400)&&error==87);
+    /* Computer name. */
+    W32(0x5000,32);assert(CALLV("GetComputerNameA",0x5100,0x5000)&&!strcmp((char *)HP(0x5100),"MOVIES-PC")&&R32(0x5000)==9);
+    W32(0x5000,9);assert(!CALLV("GetComputerNameA",0x5100,0x5000)&&error==111&&R32(0x5000)==10);
+    /* UnhandledExceptionFilter: no filter -> EXECUTE_HANDLER; registered filter's disposition returned. */
+    W32(0x5600,0x5700);W32(0x5604,0x5800);W32(0x5700,0xc0000005u);W32(0x570c,0x401000);
+    registered_filter=0;assert(CALLV("UnhandledExceptionFilter",0x5600)==1);
+    registered_filter=0x401234;assert(CALLV("UnhandledExceptionFilter",0x5600)==0xffffffffu&&filter_seen==0x5600);
+    registered_filter=0x409999;if(!setjmp(trapped)){CALLV("UnhandledExceptionFilter",0x5600);assert(0);}registered_filter=0;
+    /* Fatal paths trap with diagnostics. */
+    strcpy((char *)HP(0x5200),"fatal reason");if(!setjmp(trapped)){CALLV("FatalAppExitA",0,0x5200);assert(0);}
+    if(!setjmp(trapped)){CALLV("DebugBreak");assert(0);}
+}
 int main(int argc,char **argv) {
     /* Same actual handler is usable as a linked Node/Wasm child-process probe. */
     if(argc==3 && !strcmp(argv[1],"--exit-code")) {
@@ -111,6 +197,7 @@ int main(int argc,char **argv) {
     W32(MOVIES_PROCESS_DATA_BASE-4,0x12345678);W32(MOVIES_PROCESS_DATA_END,0x87654321);
     const char *path="C:\\Game Files\\MoviesSE.exe";
     assert(movies_process_init(0x400000,path));
+    extra_process_tests();
     error=123;
     for(uint32_t feature=0;feature<64;feature++) {
         assert(call("IsProcessorFeaturePresent",1,feature,0,0)==(feature==2 || feature==8));
@@ -275,6 +362,16 @@ int main(int argc,char **argv) {
         close(pipes[1]);char diagnostic[256]={0};ssize_t n=read(pipes[0],diagnostic,sizeof diagnostic-1);assert(n>0);close(pipes[0]);
         int status;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==1);
         char expected[80];snprintf(expected,sizeof expected,"ExitProcess code=%u (0x%08x)",exits[i],exits[i]);assert(strstr(diagnostic,expected));
+    }
+    {   /* TerminateProcess on the current process (pseudo or duplicated) exits like ExitProcess. */
+        const uint32_t targets[]={UINT32_MAX,0x0b000099u};
+        for(unsigned i=0;i<2;i++) {
+            int pipes[2];assert(!pipe(pipes));fflush(NULL);pid_t child=fork();assert(child>=0);
+            if(!child){close(pipes[0]);assert(dup2(pipes[1],STDERR_FILENO)>=0);close(pipes[1]);call("TerminateProcess",2,targets[i],7,0);_exit(99);}
+            close(pipes[1]);char diagnostic[256]={0};ssize_t n=read(pipes[0],diagnostic,sizeof diagnostic-1);assert(n>0);close(pipes[0]);
+            int status;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==7);
+            assert(strstr(diagnostic,"TerminateProcess code=7"));
+        }
     }
 #endif
     free(g_mem);puts("process ABI tests passed");

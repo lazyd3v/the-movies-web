@@ -42,7 +42,7 @@ def main():
     if bool(result.get('threaded', False)) != args.threads:
         parser.error('Completed build threading profile mismatch')
     if args.threads and (not {'-pthread', '-DMOVIES_GUEST_THREADS=1'}.issubset(result.get('compileFlags', []))
-                        or not {'-pthread', '-sPTHREAD_POOL_SIZE=2', '-sPTHREAD_POOL_SIZE_STRICT=2'}.issubset(result.get('linkFlags', []))
+                        or not {'-pthread', '-sPTHREAD_POOL_SIZE=8', '-sPTHREAD_POOL_SIZE_STRICT=2'}.issubset(result.get('linkFlags', []))
                         or not result.get('threadSafetyPatchSha256')):
         parser.error('Threaded build lacks recorded shared-memory/pool/runtime settings')
     if args.optimization:
@@ -79,9 +79,10 @@ def main():
     flags = [f'-O{args.optimization}', '-lm', '-sALLOW_MEMORY_GROWTH=1', '-sINITIAL_MEMORY=33554432',
              '-sMAXIMUM_MEMORY=2147483648', '-sSTACK_SIZE=16777216',
              '-sENVIRONMENT=worker', '-sMODULARIZE=1', '-sEXPORT_NAME=createMoviesStaticProbe',
-             '-sEXIT_RUNTIME=1', '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,ENV,callMain']
+             '-sEXIT_RUNTIME=1', '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,ENV,callMain',
+             '--profiling-funcs']  # names only (profilers); no codegen change
     if args.threads:
-        flags += ['-pthread', '-sPTHREAD_POOL_SIZE=2', '-sPTHREAD_POOL_SIZE_STRICT=2']
+        flags += ['-pthread', '-sPTHREAD_POOL_SIZE=8', '-sPTHREAD_POOL_SIZE_STRICT=2']
     compiler = ROOT / '.cache/runtime-build/emsdk-main/upstream/emscripten/emcc'
     env = dict(os.environ, EM_CACHE=str(ROOT / '.cache/recomp-full/emscripten-cache'))
     with tempfile.TemporaryDirectory(prefix='static-probe-', dir=output.parent) as temporary:

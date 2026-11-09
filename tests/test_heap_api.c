@@ -25,10 +25,15 @@ static uint32_t call(const char *name,uint32_t a,uint32_t b,uint32_t d,uint32_t 
     uint32_t n; ImportHandler *handlers=movies_heap_handlers(&n);
     CPU c={0}; c.esp=0x100;
     W32(c.esp,0xdeadbeef); W32(c.esp+4,a); W32(c.esp+8,b); W32(c.esp+12,d); W32(c.esp+16,e);
-    for(uint32_t i=0;i<n;i++) if(!strcmp(handlers[i].name+13,name)) {
+    for(uint32_t i=0;i<n;i++) if(!strcmp(strchr(handlers[i].name,'!')+1,name)) {
         handlers[i].fn(&c);
-        unsigned argc=!strcmp(name,"GetProcessHeap")?0:
-            (!strcmp(name,"HeapDestroy")?1:(!strcmp(name,"HeapReAlloc")?4:3));
+        static const struct { const char *name; unsigned argc; } counts[]={
+            {"GetProcessHeap",0},{"HeapDestroy",1},{"HeapReAlloc",4},{"GlobalAlloc",2},{"LocalAlloc",2},
+            {"GlobalFree",1},{"LocalFree",1},{"GlobalLock",1},{"GlobalUnlock",1},{"GlobalSize",1},
+            {"CoTaskMemAlloc",1},{"CoTaskMemFree",1},{"VirtualAlloc",4},{"VirtualFree",3},
+            {"VirtualQuery",3},{"VirtualProtect",4}};
+        unsigned argc=3;
+        for(unsigned k=0;k<sizeof counts/sizeof counts[0];k++)if(!strcmp(counts[k].name,name))argc=counts[k].argc;
         assert(c.esp==0x100+4*(argc+1)); return c.eax;
     }
     assert(0); return 0;
@@ -198,5 +203,21 @@ int main(void) {
     assert(movies_backend_free(backend));movies_heap_budget(&after);assert(after.free_bytes==before.free_bytes);assert(!movies_backend_free(backend));
     uint32_t reused=movies_backend_alloc(1024);assert(reused);assert(movies_backend_free(reused));
     for(unsigned i=0x11000;i<0x12000;i++)assert(g_mem[i]==0xa5);
+    /* System allocators: Global/Local/CoTaskMem and page-granular Virtual regions. */
+    g_mem[0x200]=0;
+    uint32_t g=call("GlobalAlloc",0x42,100,0,0);assert(g && call("GlobalLock",g,0,0,0)==g && call("GlobalSize",g,0,0,0)==100);
+    for(unsigned i=0;i<100;i++)assert(R8(g+i)==0);
+    assert(!call("GlobalUnlock",g,0,0,0) && !error);
+    assert(!call("GlobalFree",g,0,0,0)); assert(call("GlobalFree",g,0,0,0)==g && error==6);
+    uint32_t t=call("CoTaskMemAlloc",64,0,0,0);assert(t); call("CoTaskMemFree",t,0,0,0); call("CoTaskMemFree",0,0,0,0);
+    uint32_t v=call("VirtualAlloc",0,5000,0x3000,4);assert(v && !(v&0xfff));
+    for(unsigned i=0;i<8192;i++)assert(R8(v+i)==0);
+    assert(call("VirtualAlloc",v+4096,100,0x1000,4)==v+4096);
+    assert(!call("VirtualAlloc",0x12345000,100,0x1000,4) && error==487);
+    assert(call("VirtualQuery",v+4100,0x200,28,0)==28 && R32(0x200)==v+4096 && R32(0x204)==v && R32(0x20c)==4096 && R32(0x210)==0x1000);
+    assert(call("VirtualProtect",v,4096,2,0x220) && R32(0x220)==4);
+    assert(call("VirtualFree",v,4096,0x4000,0));
+    assert(!call("VirtualFree",v+4096,0,0x8000,0));
+    assert(call("VirtualFree",v,0,0x8000,0)); assert(!call("VirtualFree",v,0,0x8000,0));
     free(g_mem); puts("heap API tests passed");
 }

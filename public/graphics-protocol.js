@@ -1,10 +1,11 @@
 import {resolveBlend} from './graphics-blend.js';
-import {samplerDescriptor, validateAlphaTest, validateScissor} from './d3d9-gpu.js';
+import {samplerDescriptor, validateAlphaTest, validateScissor, validateStages, DEPTH_COMPARES} from './d3d9-gpu.js';
 /* Bounded graphics worker wire contract. State publication is release/acquire
  * through Atomics: payload/header fields are written before nonzero STATUS. */
-export const GRAPHICS_LIMITS = Object.freeze({headerBytes: 64, maxResponseBytes: 64 * 1024 * 1024, maxUploadBytes: 32 * 1024 * 1024, maxBatchCommands: 32, maxDimension: 4096, maxTimeoutMs: 60000});
+export const GRAPHICS_LIMITS = Object.freeze({headerBytes: 64, maxResponseBytes: 64 * 1024 * 1024, maxUploadBytes: 32 * 1024 * 1024, maxBatchCommands: 512, maxDimension: 4096, maxTimeoutMs: 60000});
 export const HEADER = Object.freeze({status: 0, serial: 1, kind: 2, length: 3, width: 4, height: 5, transportFailure: 6});
-export const COMMANDS = new Set(['setRenderTargetFormat', 'createRenderTarget', 'setRenderTarget', 'readRenderTarget', 'writeRenderTarget', 'clear', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'drawIndexed', 'release', 'readPixels', 'present', 'validate', 'batch', 'dispose']);
+export const VERTEX_FORMATS = Object.freeze(['XYZ_DIFFUSE', 'XYZ_DIFFUSE_UV', 'XYZRHW_DIFFUSE_UV', 'XYZ_DIFFUSE_UV2', 'XYZRHW_DIFFUSE_UV2']);
+export const COMMANDS = new Set(['setRenderTargetFormat', 'createRenderTarget', 'setRenderTarget', 'readRenderTarget', 'writeRenderTarget', 'copyRenderTarget', 'clear', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'drawIndexed', 'release', 'readPixels', 'present', 'validate', 'batch', 'dispose']);
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 function fields(value, allowed) { if (!object(value) || Object.keys(value).some(k => !allowed.includes(k))) throw new TypeError('Invalid graphics command fields'); }
 function integer(value, min, max, name) { if (!Number.isSafeInteger(value) || value < min || value > max) throw new RangeError(`Invalid ${name}`); }
@@ -30,10 +31,16 @@ export function validateCommand(command, args = {}, inBatch = false) {
     if (command === 'uploadTextureRGBA') {
       integer(args.width, 1, GRAPHICS_LIMITS.maxDimension, 'texture width'); integer(args.height, 1, GRAPHICS_LIMITS.maxDimension, 'texture height');
       if (uploadBytes !== args.width * args.height * 4) throw new RangeError('Texture bytes do not match dimensions');
-    } else if (command === 'uploadVertices' && !['XYZ_DIFFUSE', 'XYZ_DIFFUSE_UV', 'XYZRHW_DIFFUSE_UV'].includes(args.format)) throw new Error('Unsupported vertex format');
+    } else if (command === 'uploadVertices' && !VERTEX_FORMATS.includes(args.format)) throw new Error('Unsupported vertex format');
     else if (command === 'uploadIndices' && !['uint16', 'uint32'].includes(args.format)) throw new Error('Unsupported index format');
   } else if (command === 'drawIndexed') {
-    fields(args, ['vertices', 'indices', 'firstIndex', 'indexCount', 'baseVertex', 'world', 'view', 'projection', 'texture', 'depthTest', 'depthCompare', 'depthWrite', 'blend', 'blendMode', 'blendFactors', 'scissor', 'viewport', 'sampler', 'alphaTest', 'textureEquation', 'textureFactor']);
+    fields(args, ['vertices', 'indices', 'firstIndex', 'indexCount', 'baseVertex', 'world', 'view', 'projection', 'texture', 'depthTest', 'depthCompare', 'depthWrite', 'blend', 'blendMode', 'blendFactors', 'scissor', 'viewport', 'sampler', 'alphaTest', 'textureEquation', 'textureFactor', 'stages', 'texture1', 'sampler1', 'depthBias', 'slopeScaleDepthBias', 'colorWriteMask', 'blendConstant']);
+    for (const key of ['depthBias', 'slopeScaleDepthBias']) if (args[key] !== undefined && !Number.isFinite(args[key])) throw new TypeError(`Invalid ${key}`);
+    if (args.colorWriteMask !== undefined) integer(args.colorWriteMask, 0, 15, 'colour write mask');
+    if (args.blendConstant !== undefined) integer(args.blendConstant, 0, 0xffffffff, 'blend constant');
+    if (args.texture1 != null) integer(args.texture1, 1, 0x7fffffff, 'texture1');
+    if (args.sampler1 !== undefined) samplerDescriptor(args.sampler1);
+    if (args.stages !== undefined) validateStages(args.stages);
     if(args.textureEquation!==undefined&&!['modulate','factor-rgb-texture-alpha','diffuse','diffuse-rgb-texture-alpha'].includes(args.textureEquation))throw new TypeError('Unsupported texture equation');
     if(args.textureEquation==='factor-rgb-texture-alpha'&&!args.texture)throw new TypeError('Factor texture equation requires texture');
     resolveBlend(args);
@@ -49,7 +56,7 @@ export function validateCommand(command, args = {}, inBatch = false) {
     if (args.baseVertex !== undefined) integer(args.baseVertex, -0x80000000, 0x7fffffff, 'base vertex');
     if(args.scissor!==undefined)validateScissor(args.scissor,GRAPHICS_LIMITS.maxDimension,GRAPHICS_LIMITS.maxDimension);
     if(args.blend!==undefined&&typeof args.blend!=='boolean')throw new TypeError('Invalid blend enable');
-    if(args.depthCompare!==undefined&&!['less-equal','always'].includes(args.depthCompare))throw new TypeError('Unsupported depth comparison');
+    if(args.depthCompare!==undefined&&!DEPTH_COMPARES.includes(args.depthCompare))throw new TypeError('Unsupported depth comparison');
     if(args.depthWrite!==undefined&&typeof args.depthWrite!=='boolean')throw new TypeError('Invalid depth write');
     if (args.depthTest !== undefined && typeof args.depthTest !== 'boolean') throw new TypeError('Invalid depth test');
     if (args.viewport != null) {
@@ -58,6 +65,9 @@ export function validateCommand(command, args = {}, inBatch = false) {
     }
   } else if (command === 'createRenderTarget') {
     fields(args, ['width', 'height']); integer(args.width, 1, GRAPHICS_LIMITS.maxDimension, 'render target width'); integer(args.height, 1, GRAPHICS_LIMITS.maxDimension, 'render target height');
+  } else if (command === 'copyRenderTarget') {
+    fields(args, ['source', 'destination']); integer(args.source, 1, 0x7fffffff, 'source render target'); integer(args.destination, 1, 0x7fffffff, 'destination render target');
+    if (args.source === args.destination) throw new RangeError('Render target copy requires distinct targets');
   } else if (command === 'readRenderTarget') {
     fields(args, ['texture']); integer(args.texture, 1, 0x7fffffff, 'render target texture');
   } else if (command === 'writeRenderTarget') {
@@ -70,8 +80,9 @@ export function validateCommand(command, args = {}, inBatch = false) {
   } else if (command === 'setRenderTargetFormat') {
     fields(args, ['format']); if (![22,25].includes(args.format)) throw new RangeError('Unsupported logical target format');
   } else if (command === 'clear') {
-    fields(args, ['color', 'depth', 'scissor', 'zbuffer']);
+    fields(args, ['color', 'depth', 'scissor', 'zbuffer', 'target']);
     if (args.zbuffer !== undefined && typeof args.zbuffer !== 'boolean') throw new TypeError('Invalid clear zbuffer flag');
+    if (args.target !== undefined && typeof args.target !== 'boolean') throw new TypeError('Invalid clear target flag');
     if(args.scissor!==undefined)validateScissor(args.scissor,GRAPHICS_LIMITS.maxDimension,GRAPHICS_LIMITS.maxDimension);
     if (args.color !== undefined) integer(args.color, 0, 0xffffffff, 'clear color');
     if (args.depth !== undefined && (!Number.isFinite(args.depth) || args.depth < 0 || args.depth > 1)) throw new RangeError('Invalid clear depth');

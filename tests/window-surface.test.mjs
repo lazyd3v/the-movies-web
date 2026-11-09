@@ -27,9 +27,13 @@ test('window acknowledgment follows actual surface lifecycle and cursor mutation
   assert.equal(canvas.hidden, false);
   assert.equal(canvas.width, 1024); assert.equal(canvas.height, 768);
   surface.apply({type: 'cursor', hwnd: 42, cursor: 'none'});
+  assert.equal(canvas.style.cursor, 'default', 'released mouse keeps the system cursor visible');
+  surface.document.pointerLockElement = canvas; surface.syncCursor();
   assert.equal(canvas.style.cursor, 'none');
   assert.throws(() => surface.apply({type: 'cursor', hwnd: 42, cursor: 'url(remote)'}));
   assert.equal(canvas.style.cursor, 'none');
+  surface.document.pointerLockElement = null; surface.syncCursor();
+  assert.equal(canvas.style.cursor, 'default');
   surface.apply({type: 'destroy', hwnd: 42});
   assert.equal(children.length, 0);
   assert.throws(() => surface.apply({type: 'show', hwnd: 42, visible: true}));
@@ -81,4 +85,13 @@ test('minimized windows request native restore before showing the canvas', () =>
   assert.equal(canvas.hidden,false); assert.equal(restore.hidden,true);
   restore.listeners.click(); assert.equal(events.length,1);
   surface.clear(); assert.equal(children.length,0);
+});
+test('keyboard events become WM_KEYDOWN/WM_KEYUP with virtual-key and scan-code lParam', async () => {
+  globalThis.MoviesDirectInputKeys ??= {KeyA: 30, ArrowRight: 205};
+  if (!globalThis.MoviesKeyMessage) await import('../public/window-surface.js');
+  const down = globalThis.MoviesKeyMessage({code: 'KeyA', type: 'keydown', repeat: false}, 7, 1, 2);
+  assert.equal(down.message, 0x100); assert.equal(down.wParam, 0x41); assert.equal(down.lParam, (1 | (30 << 16)) >>> 0);
+  const up = globalThis.MoviesKeyMessage({code: 'ArrowRight', type: 'keyup', repeat: false}, 7);
+  assert.equal(up.message, 0x101); assert.equal(up.wParam, 0x27); assert.equal(up.lParam, (1 | ((205 & 0x7f) << 16) | (1 << 24) | (1 << 30) | (1 << 31)) >>> 0);
+  assert.equal(globalThis.MoviesKeyMessage({code: 'Unidentified', type: 'keydown'}, 7), null);
 });

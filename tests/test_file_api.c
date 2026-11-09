@@ -111,11 +111,36 @@ int main(void) {
     assert(!call("WriteFile",5,h,0x2000u,1u,0x3000u,0u)&&error==5);
     assert(!call("ReadFile",5,h,0x2000u,1u,0x3000u,1u)&&error==50);
     assert(call("GetFileSize",2,h,0x3000u)==8 && !R32(0x3000));
+    /* GetFileTime: FILETIME after 1601 epoch offset (>= 1970 in 100 ns units). */
+    {memset(HP(0x3100),0,24);assert(call("GetFileTime",4,h,0x3100u,0x3108u,0x3110u));uint64_t ft=(uint64_t)R32(0x3110)|((uint64_t)R32(0x3114)<<32);assert(ft>=116444736000000000ull);assert(call("GetFileTime",4,h,0u,0u,0x3110u));assert(!call("GetFileTime",4,0x1234u,0u,0u,0x3110u));}
     assert(call("SetFilePointer",4,h,0xfffffff0u,0u,0u)==0xffffffff && error==131);
     assert(call("CloseHandle",1,h));assert(!call("CloseHandle",1,h)&&error==6);
     h=open_guest("data/asset.dat",4,3,3,0);assert(h!=0xffffffff);
     assert(call("SetFilePointer",4,h,0u,0u,0u)==0);W8(0x2000,'+');assert(call("WriteFile",5,h,0x2000u,1u,0x3000u,0u));assert(call("GetFileSize",2,h,0u)==9);assert(call("CloseHandle",1,h));
     assert(open_guest("data/asset.dat",0x40000000u,3,1,0)==0xffffffff && error==80);
+    /* SetEndOfFile/Flush/Move/Copy/RemoveDirectory in the private overlay. */
+    {
+        uint32_t t=open_guest("data/trunc.bin",0xc0000000u,3,2,0);assert(t!=0xffffffff);
+        memcpy(HP(0x2000),"abcdefgh",8);assert(call("WriteFile",5,t,0x2000u,8u,0x3000u,0u));
+        assert(call("SetFilePointer",4,t,3u,0u,0u)==3 && call("SetEndOfFile",1,t) && call("GetFileSize",2,t,0u)==3);
+        assert(call("FlushFileBuffers",1,t) && call("SetFileTime",4,t,0u,0u,0u) && call("LockFileEx",6,t,0u,0u,1u,0u,0u) && call("UnlockFileEx",5,t,0u,1u,0u,0u));
+        assert(call("CloseHandle",1,t));assert(!call("SetEndOfFile",1,t) && error==6);
+        assert(call("SetFileAttributesA",2,path("data/trunc.bin",0),1u));
+        W8(0x1800,0);strcpy((char *)HP(0x1800),"data\\moved.bin");
+        assert(call("MoveFileA",2,path("data/trunc.bin",0),0x1800u));
+        assert(call("GetFileAttributesA",1,path("data/trunc.bin",0))==0xffffffff && error==2);
+        strcpy((char *)HP(0x1800),"data\\asset.dat");assert(!call("MoveFileA",2,path("data/moved.bin",0),0x1800u) && error==183);
+        strcpy((char *)HP(0x1800),"C:\\Games\\TheMovies\\data\\copy.dat");
+        assert(call("CopyFileA",3,path("data/moved.bin",0),0x1800u,1u));
+        assert(!call("CopyFileA",3,path("data/moved.bin",0),0x1800u,1u) && error==80);
+        assert(call("CopyFileA",3,path("data/moved.bin",0),0x1800u,0u));
+        assert(!call("MoveFileA",2,path("data/asset.dat",0),0x1800u) && error==5);
+        assert(call("DeleteFileA",1,path("data/copy.dat",0)) && call("DeleteFileA",1,path("data/moved.bin",0)));
+        assert(call("CreateDirectoryA",2,path("data/tmpdir",0),0u) && call("RemoveDirectoryA",1,path("data/tmpdir",0)));
+        assert(!call("RemoveDirectoryA",1,path("data/tmpdir",0)) && error==2);
+        assert(call("GetDriveTypeA",1,path("C:\\",0))==3 && call("GetDriveTypeA",1,path("D:\\",0))==1);
+        assert(call("GetCurrentDirectoryW",2,260u,0x2000u)==18 && R16(0x2000)=='C');
+    }
     h=open_guest("data/asset.dat",0x40000000u,3,2,0);assert(h!=0xffffffff && error==183);assert(!call("GetFileSize",2,h,0u));assert(call("CloseHandle",1,h));host_read(file,"original");
     assert(open_guest("../game/Data/Asset.DAT",0x40000000u,3,2,0)==0xffffffff && error==5);
     assert(open_guest("missing/new.dat",0x40000000u,3,2,0)==0xffffffff && error==3);

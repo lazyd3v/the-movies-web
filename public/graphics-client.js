@@ -17,7 +17,7 @@ function prepare(command, args, budget = {remaining: GRAPHICS_LIMITS.maxUploadBy
 }
 function transfers(command, args) { return command.startsWith('upload') || command === 'writeRenderTarget' ? [args.bytes] : command === 'batch' ? args.commands.flatMap(e => transfers(e.command, e.args)) : []; }
 export class MoviesGraphicsClient {
-  #worker; #views; #serial = 0; #closed = false; #busy = false; #timeout; #metrics = null; #onMetrics = null;
+  #worker; #views; #serial = 0; #closed = false; #busy = false; #timeout; #metrics = null; #onMetrics = null; #pending = null;
   constructor({width = 256, height = 256, presentationPort, presentationAck, timeoutMs = 15000,
     responseBytes = Math.max(1024 * 1024, width * height * 4), workerURL = new URL('./graphics-worker.js', import.meta.url), commandPort = null, responseBuffer = null, profile = false, onMetrics = null} = {}) {
     if (typeof document !== 'undefined') throw new Error('Synchronous graphics client must run in a guest worker');
@@ -26,10 +26,10 @@ export class MoviesGraphicsClient {
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > GRAPHICS_LIMITS.maxTimeoutMs) throw new RangeError('Invalid graphics timeout');
     for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > GRAPHICS_LIMITS.maxDimension) throw new RangeError('Invalid target dimensions');
     if (!Number.isInteger(responseBytes) || responseBytes < Math.max(1024, width * height * 4) || responseBytes > GRAPHICS_LIMITS.maxResponseBytes) throw new RangeError('Invalid response budget');
-    if (!(presentationAck instanceof SharedArrayBuffer) || presentationAck.byteLength !== 8 || !presentationPort?.postMessage) throw new TypeError('Dedicated presentation port and8-byte SAB required');
+    if (!(presentationAck instanceof SharedArrayBuffer) || ![8, 12].includes(presentationAck.byteLength) || !presentationPort?.postMessage) throw new TypeError('Dedicated presentation port and 8- or 12-byte SAB required');
     if (typeof profile !== 'boolean' || (onMetrics !== null && typeof onMetrics !== 'function')) throw new TypeError('Invalid graphics profiling options');
     this.#onMetrics = onMetrics;
-    if (profile) this.#metrics = new GraphicsMetrics(['frameMs', 'bridgeMs', 'uploadBytes', ...['setRenderTargetFormat','createRenderTarget','setRenderTarget','readRenderTarget','writeRenderTarget','clear','uploadVertices','uploadIndices','uploadTextureRGBA','drawIndexed','release','readPixels','present','validate','batch','dispose'].map(n => n + 'Ms')]);
+    if (profile) this.#metrics = new GraphicsMetrics(['frameMs', 'bridgeMs', 'uploadBytes', ...['setRenderTargetFormat','createRenderTarget','setRenderTarget','readRenderTarget','writeRenderTarget','copyRenderTarget','clear','uploadVertices','uploadIndices','uploadTextureRGBA','drawIndexed','release','readPixels','present','validate','batch','dispose'].map(n => n + 'Ms')]);
     this.#timeout = timeoutMs;
     const response = responseBuffer ?? new SharedArrayBuffer(GRAPHICS_LIMITS.headerBytes + responseBytes); this.#views = responseViews(response);
     if (this.#views.payload.length < width * height * 4) throw new RangeError('Response cannot hold target pixels');
@@ -38,7 +38,36 @@ export class MoviesGraphicsClient {
     try { this.capabilities = this.#exchange('init', {width, height, timeoutMs, response, presentationAck, presentationPort, profile}, [presentationPort]); }
     catch (error) { this.close(); throw error; }
   }
+  /* Pipelined request: send without waiting. Its reply is awaited and handed to
+   * `check` at the start of the next exchange or post (one request in flight). */
+  post(command, args = {}, check = null, {owned: transferable = false} = {}) {
+    this.#settle();
+    // `owned`: the caller built these args from fresh, unshared buffers and already
+    // validated each command, so they are transferred as-is (no second copy).
+    const owned = transferable ? args : prepare(command, args); validateCommand(command, owned);
+    if (this.#closed) throw new Error('Graphics client closed');
+    if (++this.#serial > 0x7fffffff) { this.close(); throw new Error('Graphics serial exhausted'); }
+    if (Atomics.load(this.#views.header, HEADER.transportFailure)) throw new Error('Graphics host reported a worker startup/runtime failure');
+    Atomics.store(this.#views.header, HEADER.serial, this.#serial);
+    Atomics.store(this.#views.header, HEADER.status, 0);
+    this.#worker.postMessage({serial: this.#serial, command, args: owned}, transfers(command, owned));
+    this.#pending = {serial: this.#serial, command, check};
+  }
+  #settle() {
+    const pending = this.#pending; if (!pending) return; this.#pending = null;
+    try {
+      const deadline = performance.now() + this.#timeout;
+      while (Atomics.load(this.#views.header, HEADER.status) === 0) {
+        if (Atomics.load(this.#views.header, HEADER.transportFailure)) throw new Error('Graphics host reported a worker failure');
+        const remaining = deadline - performance.now();
+        if (remaining <= 0) throw new Error(`Graphics worker timeout during ${pending.command}`);
+        Atomics.wait(this.#views.header, HEADER.status, 0, remaining);
+      }
+      pending.check?.(consumeResponse(this.#views, pending.serial));
+    } catch (error) { this.close(); throw error; }
+  }
   #exchange(command, args, transfer = []) {
+    this.#settle();
     if (this.#closed || this.#busy) throw new Error('Graphics client closed or reentrant');
     if (++this.#serial > 0x7fffffff) { this.close(); throw new Error('Graphics serial exhausted'); }
     this.#busy = true;

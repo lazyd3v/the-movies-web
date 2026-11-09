@@ -6,7 +6,41 @@ in-app Chromium browser. There is no Wine or Boxedwine in these executions.
 No original game bytes were modified. The executable SHA-256 remains
 `48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a`.
 
-## Latest threaded browser checkpoint (branch `static-port/playable`)
+## Original main menu reached (O1 threads, November 8)
+
+The statically translated game now reaches the original **main menu** (Game,
+Online, Movie Player, Options, Credits, Quit), rendered through WebGPU at about
+17–19 presented frames/s, after about 6,200 presentations. No Wine/Boxedwine is
+involved. Fixes since the render-target checkpoint below:
+
+- D3DX surface-copy fallback (`0x00b0e5f1`): lockable `CreateRenderTarget`,
+  whole same-size `StretchRect` between render targets (GPU copy), and LockRect
+  on lockable render targets (GPU readback on lock, upload on non-READONLY
+  unlock). The shared compositing target is copied out repeatedly during load.
+- NULL texture on stage 0 (`0x00a24ee7`): per the D3DTSS_COLORARG1 docs, a colour
+  argument naming TEXTURE stops the cascade (output = diffuse) and an alpha
+  argument naming TEXTURE falls back to DIFFUSE. Only cases whose result is
+  exactly diffuse RGBA are accepted; others still trap.
+- Hidden pages: rAF-paced acknowledgement stalled Present for 15 s
+  (instrumented: `pageAck=15010ms`), and the game then entered its device-lost
+  loop and minimized itself (`0x009a5dd3`). The page now publishes a shared
+  hidden flag; while hidden, the GPU worker completes Present itself and
+  forwards an occasional snapshot. Visible pages keep rAF pacing.
+- Diagnostics: graphics-bridge failures print the underlying JS error; slow
+  presents (>2 s) report per-phase timings; the game worker flushes its log at
+  least once per second.
+
+**Input is the current blocker.** The game reads the mouse only through
+buffered DirectInput (`GetDeviceData` at `0x00a96274`), calling `Acquire` every
+update (`0x00a96249`). Acquisition requires the canvas to be the focused element
+of a visible document that has `document.hasFocus()`. In the Claude desktop
+browser pane, driven by the agent, the document is reported hidden/unfocused,
+so a live run logged `kind=2 GetDeviceData calls=2400 notAcquired=2399
+eventsDelivered=0`. Pointer lock is also refused there ("root document … not
+valid for pointer lock"). Menu interaction must be verified by a person in a
+focused window (preferably desktop Chrome, where pointer lock works).
+
+## Render-target checkpoint (branch `static-port/playable`)
 
 **DefWindowProcA input messages.** The previous stop at `0x0054262a` was the
 original WndProc `0x00542380` forwarding host-injected input to DefWindowProcA.
@@ -984,3 +1018,283 @@ and remain outside this proof. No threaded original-game run has yet been
 verified. Reproduction and limits are in
 [thread filesystem probe](../../scripts/thread-fs-probe/README.md) and
 [thread failure probe](../../scripts/thread-failure-probe/README.md).
+
+## DirectInput cooperative-level fix (November 8)
+
+A user-driven Chrome run logged `SetCooperativeLevel kind=1/2 hwnd=00000000 flags=5 result=80070057`:
+the original configures DirectInput at `00a95fa0` using the window global `0x105beb0` before the
+D3D9 setup at `009a7ae1` stores it, ignores the failure, and then calls `Acquire` every update.
+Real DirectInput (and Wine) keep the default `DISCL_NONEXCLUSIVE|DISCL_BACKGROUND` level in that
+case, so `Acquire` succeeds. `native/directinput-api.c` now models that default (hwnd 0 = background,
+no window-focus requirement); the page still emits events only while the game canvas is focused.
+The page host also re-derives focus once per second (`MoviesDirectInputHost.sync`).
+Verification of menu interaction pending a focused-browser run.
+
+## Menu, New Game and the lit-geometry stop (November 8)
+
+Verified in a user-driven Chrome run (O1 + guest threads): main menu after ~2,600 frames, mouse
+hover/click work, **Game → New Game** reaches the studio-lot loading screen ("Lot Management" tip,
+progress bar advancing) at ~17 fps in menus and well under 1 fps while loading.
+
+Input fixes in this round:
+- Full input queues drop motion instead of ending the run (`MoviesWindowInput.offer` with a quarter
+  of the ring reserved for buttons/keys; same for the DirectInput host). A busy game previously
+  ended the run with "Game input queue overflowed."
+- Releasing pointer lock no longer moves keyboard focus to the page's Capture-mouse button; that
+  left the game without focus (`GetForegroundWindow` 0), so it ignored all input.
+
+The load then stopped at `00a51610`: `SetFVF 0x112` (`XYZ|NORMAL|TEX1`, 32-byte vertices), i.e. the
+3D lot's lit geometry. `native/d3d9-api.c` now accepts that format and evaluates D3D9 fixed-function
+lighting on the CPU per draw (directional/point/spot lights, attenuation, global + light ambient,
+material emissive/ambient/diffuse; no vertex colours exist in this format, so every material source
+resolves to the material). The result is uploaded as an `XYZ|DIFFUSE|TEX1` snapshot, cached by a hash
+of world matrix, material, enabled lights and lighting states. Not modelled: specular (logged once),
+`D3DCULL_CW/CCW` (drawn as CULL_NONE; depth testing hides back faces of closed meshes). Lighting is
+evaluated in world space, which equals D3D9's camera-space result for an orthonormal view.
+Moving lighting to WGSL is the obvious performance follow-up if per-draw re-lighting shows up in
+profiles.
+
+d3d9-webgl (MIT, ~3.5k lines, one game) was assessed and not adopted: it would mean dropping the
+WebGPU worker for main-thread WebGL, still needs our guest-pointer trampolines, and its lighting
+(type ignored, ≤3 point lights) and Lock/state-block semantics are weaker than what this needs.
+Its pixel-format swizzles and fog formula remain useful references.
+
+### Menu cursor freezing after leaving the page (November 8)
+
+The original keeps an "own window has focus" byte at `[00e52c9c]`: WndProc `00542380` sets it on
+`WM_SETFOCUS` and clears it on `WM_KILLFOCUS` (both via `00553f50`), and the per-frame `005550b0`
+clears it whenever `GetForegroundWindow()` is not the game window. While clear, the game ignores
+mouse input. The page never sent focus messages, so switching away from the browser during the long
+startup cleared the flag permanently: in the main menu the float gate `[0104ccdc]` is 0 (measured),
+so `005550b0`'s own re-acquire path (cursor inside the window → set flag, recentre with
+`SetCursorPos`) never runs. Runs where the user stayed in the browser worked; runs where they
+switched away did not.
+
+`public/static-probe.js` now posts `WM_KILLFOCUS`/`WM_SETFOCUS` on every page-level focus transition
+of the game canvas (window focus/blur, visibility, focusin/focusout, plus the 1 s resync), and
+`native/window-api.c` accepts messages 7/8 from the host queue (`lParam` 0, `wParam` 0 or a live hwnd).
+A temporary diagnostic line `[dinput] mouse gate ...` reports the gate, the flag, the cursor point and
+the foreground window every 1,200 mouse polls.
+Follow-up the same day: posting `WM_KILLFOCUS` made the original minimize its fullscreen window
+(`00542580 -> 009a5d60`, `ShowWindow(SW_SHOWMINNOACTIVE)`) and loop on `TestCooperativeLevel` +
+`Sleep(200)` until `D3DERR_DEVICENOTRESET`, i.e. the fullscreen device-lost/Reset protocol. Our device
+is never lost and `Reset` (vtable slot 16) is not modelled, so the run hung. The page now posts only
+`WM_SETFOCUS` (on every gain); losing focus is left to `005550b0`'s own foreground check. Modelling
+device loss + Reset would be needed only if a pause-on-Alt-Tab behaviour is wanted.
+
+## Load-time profiling and the allocator fix (November 8)
+
+`scripts/bench/startup-bench.mjs` drives a separate headless Chrome over the DevTools protocol:
+trusted clicks for Run/OK, synthetic relative mouse motion for the menus (the game scales DirectInput
+deltas by ~1.6 and clamps at the corner), screenshots, and per-worker CPU profiles. The staged module
+is linked with `--profiling-funcs`, so profiles show `f_<guest address>` and host function names.
+
+First profile (O1 + guest threads, startup): the main game thread spent **50.5%** in `allocate`
+(`native/heap-api.c`), which walked the address-ordered list of all blocks (live and free) for every
+`HeapAlloc`. Free extents are now indexed per pool in an address-keyed treap augmented with subtree
+maximum capacity, giving the same lowest-address first-fit choice in O(log n); the old scan remains
+only as a fallback for allocations that must span adjacent extents of different pools. All heap tests
+(including exact first-fit address checks) pass.
+
+| Headless Chrome, O1 + threads | before | after |
+|---|---|---|
+| Run → first frame | 62 s | 8 s |
+| Run → main menu | ~5 min (user runs) | 83–87 s |
+| New Game → lot code | ~10 min (user run) | ~60 s |
+
+Also: the D3D9 host can defer reply-less commands (clear/draw/release/uploads/render-target switches)
+into one `batch` per synchronous point, predicting worker-assigned handles and verifying them on the
+reply (`deferred:true` in the static probe; batch limit raised to 512). This did not change load time
+measurably, which is CPU-bound in game code (`f_00b25079`, `f_00b24af9`, `f_00ac8360`), and its
+effect on frame rate is not yet measured.
+
+The lot now stops at `00991730`: `SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE)`.
+
+## Studio lot rendering, input and persistence (November 8)
+
+Headless-Chrome runs (`scripts/bench/startup-bench.mjs --until lot --lot-clicks ...`) now reach the
+studio lot ~87 s after New Game, render it with lighting, lightmaps and shadows, and advance the
+tutorial on clicks (~15-20 presented fps). Graphics work in this round, all in the C D3D9 layer plus
+the WebGPU backend:
+
+- **General texture-stage cascade** for stages 0-1 in WGSL (D3DTOP 1..26, D3DTA selectors and
+  COMPLEMENT/ALPHAREPLICATE; NULL-texture rules from the D3DTSS docs). Not modelled: arg0 ops,
+  bump mapping, RESULTARG TEMP, stages >= 2 (logged once as "texture-stage approximation").
+- **Second texture + second UV set** (lightmaps): converted vertices use `XYZ|DIFFUSE|TEX2` /
+  `XYZRHW|DIFFUSE|TEX2` GPU layouts; stage 1 gets its own coordinate index, texgen and matrix.
+- **Any non-skinned FVF** (normal, point size, diffuse, specular, 0..8 sets of 1..4 floats) is
+  converted on upload; fixed-function lighting honours `*MATERIALSOURCE` with vertex colours.
+- **Texture coordinate processing**: `D3DTS_TEXTURE0..7`, `TEXTURETRANSFORMFLAGS` COUNTn/PROJECTED
+  (per-vertex divide), camera-space normal/position/reflection/sphere-map texgen.
+- **Topologies**: strips/fans become lists; `DrawPrimitive`, `DrawPrimitiveUP` and general
+  `DrawIndexedPrimitiveUP`; point/line primitives are skipped (logged once).
+- **Texture formats**: R5G6B5, X8R8G8B8, R8G8B8, X1R5G5B5, A1R5G5B5, A8R3G3B2, A8, L8, A8L8, DXT1-5
+  decoded to RGBA8 and reported by `CheckDeviceFormat`. The black lot ground was caused by this:
+  with only four formats advertised, the game's lot-lighting bake fell back to an all-zero
+  A4R4G4B4 map that four DESTCOLOR*SRCCOLOR ground decals multiplied onto the terrain; with L8
+  available the bake produces real lighting.
+- Culling modes CW/CCW are drawn as CULL_NONE (depth testing hides back faces).
+
+Input/focus: the page posts only `WM_SETFOCUS` (the original's flag at `[00e52c9c]`);
+`WM_KILLFOCUS` would trigger its fullscreen device-lost/minimize loop. Presentation no longer kills
+the game when the page stops acknowledging frames (sleeping display, throttled tab): after 1 s the
+frame is dropped and logged.
+
+Persistence: `/userdata` (game-overlay copies of game files, shell folders, `registry.v1`) is
+mirrored write-through from the game worker's MEMFS to OPFS (`public/userdata-store.js`) and
+restored before the next run. The in-memory registry is serialised to `registry.v1` after every
+mutation. At startup `Game running:` is reset to empty (the original's clean-exit value), because a
+browser session ends by closing the tab; otherwise every start warned "not closed properly".
+`ShellExecuteA` (e.g. "view the Readme") is logged and reported as successful.
+
+Diagnostics kept (off by default): `?traceAt=<frame>` records one frame of D3D bridge commands
+(`d3d9-host.js`), and `globalThis.moviesDrawLimit` / `moviesSkipDraws` in the graphics worker limit
+or skip draws for bisecting rendering bugs.
+
+Known gaps toward a good play experience: the main-menu background movie (DirectShow video:
+`AddFilter` returns E_NOINTERFACE, so the menu background is black); frame rate (~15-20 fps; nearly
+every draw re-uploads its vertex range because each buffer caches only its last uploaded span);
+specular lighting; point/line primitives.
+
+### Lot frame-time work (November 8)
+
+Profiles of the studio lot (main game thread, 25 s windows):
+
+| Change | Waiting on graphics worker | Note |
+|---|---|---|
+| baseline | 45% (`#exchange`) | Present blocked twice per frame on `onSubmittedWorkDone` + `setTimeout(0)` |
+| non-blocking per-frame health check in `present` | 34% | GPU errors still surface via `uncapturederror` / device loss |
+| pipelined batch flush (`client.post`, verified at next exchange) | ~20% | worker executes batch N while the guest builds N+1 |
+
+Lot load also dropped from ~87 s to ~79 s. Each vertex/index buffer now keeps a 4-entry upload
+cache (`UploadEntry`), but the engine streams most geometry through 4 MB dynamic buffers rewritten
+every frame, so most draws still upload fresh data. The largest remaining cost is
+`convert_vertices` (~20%: CPU fixed-function lighting/texgen + layout conversion; host layer is now
+compiled at -O3). The structural fix is GPU-side vertex processing: upload guest vertex data as-is
+with WebGPU attributes at the FVF offsets/stride and evaluate lighting and texgen in WGSL.
+
+## User-reported issues and coverage audit (November 8, later)
+
+- Right-click stop: `SetRenderState(D3DRS_DEPTHBIAS)`. Render state is now stored for every
+  documented state (invalid enums return INVALIDCALL; unknown states still stop). Drawn: all eight
+  depth comparisons, depth bias/slope bias, colour write mask, blend operations 1..5, separate
+  alpha blending, BOTHSRCALPHA/BOTHINVSRCALPHA, BLENDFACTOR constants. Logged once, not drawn: fog,
+  stencil, wireframe/point fill, flat shading, user clip planes (SetClipPlane is stored).
+- New Game `Clear` stop: any TARGET/ZBUFFER/STENCIL combination and rectangle lists are supported
+  (stencil is a no-op: there is no stencil buffer); depth-only clears preserve colour.
+- A coverage audit (imports, COM, data files; report kept at /tmp/movies-coverage-audit.md during
+  the session) found 172 unimplemented imports, mostly developer/crash/online paths. Fixed from it:
+  `IsBadReadPtr` (C++ typeid in save serialisers), `GetFileTime` (save list), `GetDoubleClickTime`,
+  `PlaySoundA` (logged), `SetClipPlane`/`GetClipPlane`, 1 GB user-data quota, keyboard text entry
+  (page posts WM_KEYDOWN/WM_KEYUP with VK + scan code; `ToUnicode`/`ToAscii` for the US layout).
+  Verified headless: Escape opens the pause menu, Save Game accepts a typed name, and the `.jad`
+  save is written and persisted to OPFS.
+- Presentation robustness: a superseded frame is dropped instead of failing the run, and a page
+  without animation frames presents after the timeout instead of erroring.
+- Sound (in progress): the game's own driver creates DirectSound through COM (`0xc10240`:
+  Initialize, SetCooperativeLevel(PRIORITY), GetSpeakerConfig); a minimal IDirectSound object now
+  satisfies that. The 3D provider is a statically linked OpenAL router (device classes at
+  `0xc144d0`/`0xc14bc0`, loader `0xc13750`: `GetCurrentDirectoryA` + `/OpenAL32.dll`, then
+  `/wrap_oal.dll`) using 31 `al*`/`alc*` exports plus EAXGet/EAXSet. No sound buffers or OpenAL
+  loads have been observed yet; the remaining work is an OpenAL (and possibly DirectSound buffer)
+  implementation with a software mixer feeding the AudioWorklet sink, plus MP2-over-ACM for the
+  1,703 speech clips.
+- Not yet started: menu background video (`Data/intro/frontend_loop.wmv`, WMV3/WMA2).
+
+## Sound, import coverage and a runtime SIMD fix (2026-11-08)
+
+- **Import coverage:** all 330 imports of MoviesSE.exe now have host handlers, except 29 WS2_32 ordinals (online play) and the waveIn/mixer entries (OpenAL/microphone paths, unreachable).
+  - New: Virtual*/Global*/Local*/CoTaskMem* (heap-api); file move/copy/truncate/attributes (file-api); ANSI locale, compare, wsprintf and date/time formatting (text-api); GetVersionExW and IsDebuggerPresent (startup-api).
+  - Added by the helper agent: window/GDI, resources, process/console, file mappings, DuplicateHandle, timeSetEvent and OLEAUT32.
+  - Also new: ACM MPEG Layer II streams (acm-api + mp2-decode, 75 dB SNR against ffmpeg) for user WAVs.
+- **Audio path** (map in /tmp/movies-audio-map.md, summarized):
+  - The Lionhead engine creates its mixer only when its CPU-detection byte `[0x10d5e12]` (MMX) is set. We set it when DirectSound is created; SSE/SSE2 stay off, so the MMX mixer is used.
+  - `dsound.dll!DllGetClassObject` provides an IKsPropertySet whose calls return E_NOTIMPL, so the hardware-acceleration probe selects plain DirectSound.
+  - The engine streams one looping 17,920-byte secondary buffer (44.1 kHz stereo) and polls the play cursor.
+  - native/dsound-api.c keeps that ring in guest memory. The AudioWorklet reads it straight from shared Wasm memory and publishes the cursor (DMA model). If there is no renderer heartbeat, the cursor follows the wall clock.
+  - Audio engine threads needed a larger guest-thread pool (2 → 8). Alertable waits are now treated as plain waits (no APC sources are imported).
+- **Runtime bug fixed (patches/retro-port-simd-sign.patch):**
+  - In simd.h, `v_get` for dword lanes returned `sgn ? (int32_t)v : v`, which C promotes to uint32_t, so 32-bit signed reads were never sign-extended.
+  - Every `psrad`/`pcmpgtd`/`packssdw` on dword lanes was wrong, and the audio mixer produced white noise.
+  - Verified with a native harness running the translated mixer block (`-1000 → -500` after the fix). This forces a full rebuild.
+
+## Lock-free guest memory and movie playback (2026-11-09)
+
+- **Guest memory without a global lock** (patches/retro-port-lockfree-access.patch, applied after the thread-safety patch):
+  - The thread-safety patch made every R*/W*/memcpy on guest memory take one global spinlock plus a TLS depth counter.
+  - With the audio engine's threads running, that lock bounced between cores on every access. Lot loading went from 156 s to 599 s.
+  - Plain accesses are now ordinary Wasm loads and stores. Aligned ones are single-copy atomic, like x86.
+  - The only reachable translated atomics are 36 `xchg mem, reg` groups (lock xadd/cmpxchg are translator traps). build-bootstrap.py rewrites them to `guest_xchg8/32` (real `__atomic_exchange_n`) in a private copy of the translated sources (`translated-lockfree/`, hashes recorded as `rewrittenTranslationSha256`).
+  - Interlocked* imports already used host atomics.
+  - Result with audio running: main menu 43 s (was 76–99 s), lot 73 s (was 156–599 s), lot ~20 fps headless, menu 31–34 fps.
+- **Movies** (native/movie-api.c, map in /tmp/movies-video-map.md):
+  - Every .wmv (logo, frontend intro and loop, credits, tutorials) goes through one `VideoTexture`/`MoviePlayer`. It builds FilterGraph + the game's own CBaseVideoRenderer ("Texture Renderer", RGB24 only) + CLSID_WMAsfReader, then polls `IMediaPosition::get_CurrentPosition`.
+  - The ASF reader is virtual. `IFileSourceFilter::Load` sends the original file to the page's FFmpeg reader service, which uses the shipped core's wmv3 decoder (no transcoding). Each request returns one bottom-up BGR24 frame (`-vf vflip -pix_fmt bgr24`); the request payload is now 3 MB.
+  - `Render(videoPin)` calls the guest pin's `ReceiveConnection` with an RGB24 VIDEOINFOHEADER, then `NotifyAllocator` with our allocator.
+  - `get_CurrentPosition` drives a wall clock and pushes the newest due frame through the guest `IMemInputPin::Receive`. Movie audio (the WMAv2 reader) plays on a host-owned DirectSound streaming voice with `IBasicAudio` volume.
+  - Verified headless: the logo plays all 323 frames; the frontend intro, then `frontend_loop.wmv` play and loop (end, then Stop, put_CurrentPosition(0), Run).
+  - tests/test_movie_api.c checks the stdcall pop count of every exercised COM slot. A `this`-counting mistake corrupted the game's stack in the first build.
+
+## Dropping people into rooms (translator entry-order fix)
+
+Symptom: in a new game a hopeful could be picked up and dragged over the Stage
+School or Staff Office, but clicking never dropped them (no hire).
+
+Cause: the translator emits a function's instructions in address order. Seven
+functions have a Ghidra tail-jump chunk *below* their entry, so the generated C
+function started executing that chunk instead of the entry. One of them,
+`009dd0d0`, computes a model's bounding sphere at load; it skipped the per-mesh
+pass, leaving every model's bounds at zero. The pick proxies of the buildings
+(`fac_stageschool`, `fac_gatehouse`, `fac_trailer2`, flagged pickable while a
+person is held) then failed the frustum test, never became pick candidates, and
+the drop validation (`0053a560` → `0052d7c0`) saw no building under the cursor.
+
+Fix: `fix_entry_order()` in `scripts/build-bootstrap.py` inserts `goto L_<entry>`
+in exactly those seven functions (00510440, 0058f440, 005b3d10, 0070f640,
+008600e0, 0087feb0, 009dd0d0), placing the label on the one unlabelled block that
+follows a terminator. Fixed copies go to `translated-fixed/` and are recorded in
+`rewrittenTranslationSha256`. Verified headlessly: pick up, hover Create Actor
+(tooltip appears), click → "Congratulations, you've just hired your first Star!".
+
+Game behaviour to know: after the hold that picks someone up, the first release
+only ends the pickup; the next left click drops them.
+
+## Draw batching and the 16-bit resolve (particle frame-rate drops)
+
+The game's backbuffer is logical A1R5G5B5. The GPU backend used to run a
+full-screen RGB5/A1 resolve pass after *every* draw so the next blend read
+quantized destination colour: ~345 full-screen passes per lot frame, plus one per
+particle batch (sparkles and smoke are blended draws), with a separate command
+encoder, render pass and submit per draw.
+
+`public/d3d9-gpu.js` now:
+- records consecutive draws to the same colour/depth attachments into one render
+  pass and one submit (per-draw uniforms live in a 1024-slot ring buffer);
+- resolves the 16-bit target only before it is observed (present, readback,
+  copy, target switch, clear) or before a draw whose blend reads destination alpha.
+  Non-blended draws still quantize in the shader; blended ones accumulate in RGBA8;
+- recycles vertex/index buffers by size class after their last use is submitted;
+- adopts the worker's transferred upload bytes instead of copying them, and checks
+  vertices with a Float32Array loop. The client no longer re-copies and
+  re-validates batches built by the D3D9 host.
+
+Headless lot (same tutorial frame), presented fps: 13.7 → 25.4; while carrying a
+person: 11.8 → 25.5. Per frame: 345 draws in 5 passes with 5 resolves (was 345/345).
+Remaining game-thread hot spot: CPU vertex lighting/conversion (`convert_vertices`, ~25%).
+
+## Backbuffer LockRect (D3DX lock helper B0E42C)
+
+After about 8.5 minutes of play a run stopped at `00b0e839: D3D9 back/depth surface LockRect unsupported`. That address is inside the statically linked D3DX helper B0E42C. The helper locks a source surface directly and falls back to copies only if the lock fails. The game reaches it through 0099aa95, 0099bcc5, 009a57b6 and 009a5c3a. The source was the implicit backbuffer, which had no implementation; earlier work had covered locks of textures and lockable render targets only. The backbuffer lock now reads the last rendered image back (`readPixels`, bridge command 16). The image is returned in the backbuffer's own format: 22 is X8R8G8B8 and 25 is A1R5G5B5. Guest writes are not uploaded on unlock, and a non-READONLY unlock is logged. Locking the D16 depth surface returns INVALIDCALL, matching Windows. The fix is covered by `tests/test_d3d9_api.c`; the in-game trigger has not been reproduced.
+
+## No recording device; startup logos skipped
+
+- **Recording (WINMM `waveIn*`) and the mixer (`mixer*`):** the game probes `waveInGetDevCapsA(WAVE_MAPPER)` at A347A5. The browser build now reports no capture device and no mixer, as on a PC without a microphone.
+  - Device-ID calls return MMSYSERR_BADDEVICEID.
+  - Handle calls return MMSYSERR_INVALHANDLE.
+  - `mixerGetNumDevs` returns 0.
+  - Voice-over recording is therefore unavailable.
+- **Startup logos:** `scripts/build-bootstrap.py` `skip_intro` patches the translated sequence update 0045E3F0.
+  - The sequence covers the Lionhead logo, the Activision video, the Intel and ATI splashes, and the legal screen.
+  - The patch finishes the sequence from state 0, before anything has been loaded.
+  - In a headless run the menu appears about 28 s after start (about 75 s with the logos).
+  - The main menu's own intro (frontend_intro.wmv) still plays.

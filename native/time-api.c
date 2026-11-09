@@ -88,6 +88,11 @@ static void local_time(CPU *c) {
     if(ticks>=0x8000000000000000ull) { guest_trap(c,R32(c->esp),"GetLocalTime realtime clock overflow");return; }
     uint16_t f[8];decode(ticks,f);write_system(out,f);c->esp+=8;
 }
+/* Host timers already have millisecond-or-better resolution; the request is
+ * accepted without changing scheduling. Periods outside [1,1000000] are
+ * TIMERR_NOCANDO (97), the documented wPeriodMin/wPeriodMax bounds.
+ * https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod */
+static void time_period(CPU *c) { uint32_t period=ARG(0);ret(c,1,period>=1 && period<=1000000u?0:97); }
 ImportHandler *movies_time_handlers(uint32_t *count) {
     static ImportHandler handlers[]={
         {"KERNEL32.DLL!FileTimeToLocalFileTime",utc_identity},
@@ -96,7 +101,8 @@ ImportHandler *movies_time_handlers(uint32_t *count) {
         {"KERNEL32.DLL!SystemTimeToFileTime",system_to_file},
         {"KERNEL32.DLL!CompareFileTime",compare_file},
         {"KERNEL32.DLL!GetTimeZoneInformation",timezone_info},
-        {"KERNEL32.DLL!GetLocalTime",local_time}
+        {"KERNEL32.DLL!GetLocalTime",local_time},
+        {"WINMM.DLL!timeBeginPeriod",time_period},{"WINMM.DLL!timeEndPeriod",time_period}
     };
     *count=sizeof handlers/sizeof handlers[0];return handlers;
 }

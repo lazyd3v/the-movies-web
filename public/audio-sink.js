@@ -12,6 +12,6 @@ export async function createMoviesAudioSink({channels=2,capacityFrames=32768,gai
   node=new AudioWorkletNode(context,'movies-pcm-sink',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[channels],processorOptions:descriptor});
   const volume=context.createGain();volume.gain.value=gain;node.connect(volume);volume.connect(context.destination);
   let error=null,closed=false;node.onprocessorerror=()=>{error=Error('AudioWorklet processing failed');producer.close();onError(error);};
-  return {context,descriptor,producer,get error(){return error;},async close(){if(closed)return [];closed=true;const cancelled=producer.close();node.disconnect();volume.disconnect();await context.close();return cancelled;}};
+  return {context,descriptor,producer,attachDirectSound(memory,control,slots){node.port.postMessage({type:'dsound',memory,control,slots});},get error(){return error;},async close(){if(closed)return [];closed=true;const cancelled=producer.close();node.disconnect();volume.disconnect();await context.close();return cancelled;}};
  }catch(error){node?.disconnect();await context.close();throw error;}
 }

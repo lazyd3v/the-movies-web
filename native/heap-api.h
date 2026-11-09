@@ -15,5 +15,7 @@ typedef struct MoviesHeapBudget { uint32_t total,free_bytes,unreserved; } Movies
 void movies_heap_budget(MoviesHeapBudget *out);
 uint32_t movies_backend_alloc(uint32_t bytes);
 int movies_backend_free(uint32_t address);
+/* Zeroed LocalAlloc-heap block (released by guest LocalFree); zero on OOM. */
+uint32_t movies_local_alloc(uint32_t bytes);
 void movies_set_last_error(uint32_t error);
 #endif

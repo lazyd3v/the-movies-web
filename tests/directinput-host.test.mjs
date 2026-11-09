@@ -98,3 +98,25 @@ test('pointer snapshot requires genuine input and publishes signed coherent POIN
  const state=new Int32Array(buffer);Atomics.add(state,0,1);assert.equal(snapshot.read(),undefined);Atomics.add(state,0,1);
  snapshot.write(null);assert.equal(snapshot.read(),null);assert.throws(()=>snapshot.write({x:2147483648,y:0}),/Invalid/);
 });
+
+test('sync recovers focus missed by events and clears it when the page loses focus',()=>{
+ const env=new Target(),doc=new Target(),canvas=new Target();let browserFocused=false;
+ Object.assign(doc,{activeElement:canvas,hidden:false,hasFocus:()=>browserFocused});env.document=doc;
+ Object.assign(canvas,{hidden:false,width:8,height:8,getBoundingClientRect:()=>({width:8,height:8})});
+ const control=new SharedArrayBuffer(8),state=new Int32Array(control),host=new MoviesDirectInputHost(MoviesWindowInput.create(16,MoviesDirectInputFields),control,()=>assert.fail('overflow'),env);
+ host.attach(canvas,42);canvas.fire('focus');assert.equal(state[1],0);
+ browserFocused=true;assert.equal(host.sync(),42);assert.equal(state[1],42);
+ browserFocused=false;assert.equal(host.sync(),0);assert.equal(state[1],0);
+ browserFocused=true;doc.activeElement={};assert.equal(host.sync(),0);host.dispose();
+});
+
+test('full input queues drop events instead of poisoning the consumer, reserving room for buttons',()=>{
+ const buffer=MoviesWindowInput.create(8,MoviesDirectInputFields),queue=new MoviesWindowInput(buffer,MoviesDirectInputFields),reader=new MoviesWindowInput(buffer,MoviesDirectInputFields);
+ const e=(offset)=>({deviceKind:2,offset,data:1,time:1});
+ let accepted=0;for(let i=0;i<20;i++)if(queue.offer(e(0),2))accepted++;
+ assert.equal(accepted,6);
+ assert.ok(queue.offer(e(12)));assert.ok(queue.offer(e(12)));assert.equal(queue.offer(e(12)),false);
+ const drained=reader.drain(16);assert.equal(drained.length,8);assert.deepEqual(drained.slice(-2).map(x=>x.offset),[12,12]);
+ assert.ok(queue.offer(e(0),2));assert.equal(reader.drain(16).length,1);
+ assert.throws(()=>queue.offer(e(0),8),/reserve/);
+});

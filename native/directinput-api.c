@@ -10,6 +10,7 @@
 #include "window-api.h"
 #include "process-api.h"
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -75,9 +76,17 @@ static int focused(uint32_t hwnd){if(host.focused)return host.focused(context,hw
  return 0;
 #endif
 }
+/* hwnd==0 is DirectInput's default cooperative level, DISCL_NONEXCLUSIVE|
+ * DISCL_BACKGROUND, kept when SetCooperativeLevel is never called or fails
+ * (Wine dinput device.c initialises dwCoopLevel the same way). The original
+ * calls SetCooperativeLevel(*0x105beb0) at 00a9600e before 009a7ae1 stores
+ * its window, ignores the E_INVALIDARG, and relies on background Acquire.
+ * Background devices need no window focus; the page still produces events
+ * only while the game canvas is focused. */
+static int still_owned(Object*o){return available()&&(!o->hwnd||focused(o->hwnd));}
 static void lose(Object*o){o->acquired=0;o->lost=1;clear(o);}
 static void pump(CPU*c){
- for(unsigned i=0;i<LIMIT;i++)if(objects[i].acquired&&(!available()||!focused(objects[i].hwnd)))lose(&objects[i]);
+ for(unsigned i=0;i<LIMIT;i++)if(objects[i].acquired&&!still_owned(&objects[i]))lose(&objects[i]);
  if(host.pump){host.pump(context);return;}
 #ifdef __EMSCRIPTEN__
  /* Drain the bounded host ring before acquisition changes. One batch is
@@ -98,7 +107,7 @@ int movies_directinput_push_event(uint32_t kind,uint32_t off,uint32_t data,uint3
  if((kind!=1&&kind!=2)||(kind==1&&(off>=256||(data!=0&&data!=128)))||(kind==2&&off!=0&&off!=4&&off!=8&&!(off>=12&&off<=15))||(kind==2&&off>=12&&data!=0&&data!=128))return 0;
  uint32_t seq=sequence++;
  for(unsigned i=0;i<LIMIT;i++){Object*o=&objects[i];if(o->kind!=kind||!o->acquired)continue;
- if(!available()||!focused(o->hwnd)){lose(o);continue;}if(!o->buffer)continue;
+ if(!still_owned(o)){lose(o);continue;}if(!o->buffer)continue;
  if(o->count==127){o->overflow=1;continue;}o->events[(o->head+o->count++)%127]=(Event){off,data,time,seq,0};}
  return 1;
 }
@@ -108,7 +117,9 @@ static void addref(CPU*c){Object*o=self(c);ret(c,1,++o->refs);}
 static void release(CPU*c){Object*o=self(c);uint32_t refs=--o->refs;if(!refs){W32(o->address,0);memset(o,0,sizeof *o);}ret(c,1,refs);}
 static void factory(CPU*c){if(initialized)check_owner(c);uint32_t out=ARG(3);if(!range(out,4)){ret(c,5,INVALID);return;}W32(out,0);if(!initialized){ret(c,5,NOTINIT);return;}if(ARG(4)){ret(c,5,0x80040110);return;}if(ARG(1)!=0x800||!guid(ARG(2),iid_input)){ret(c,5,ARG(1)!=0x800?INVALID:0x80004002);return;}Object*o=allocate(0);if(o)W32(out,o->address);ret(c,5,o?0:0x8007000e);}
 static void create(CPU*c){Object*o=self(c);uint32_t out=ARG(2);if(o->kind||!range(out,4)){ret(c,4,INVALID);return;}W32(out,0);if(ARG(3)){ret(c,4,0x80040110);return;}unsigned kind=guid(ARG(1),sys_keyboard)?1:guid(ARG(1),sys_mouse)?2:0;if(!kind){ret(c,4,0x80040154);return;}Object*d=allocate(kind);if(d)W32(out,d->address);ret(c,4,d?0:0x8007000e);}
-static void format(CPU*c){Object*o=self(c);uint32_t p=ARG(1);if(o->acquired){ret(c,2,ACQUIRED);return;}unsigned count=o->kind==1?256:7;
+static void format_checked(CPU*c);
+static void format(CPU*c){Object*o=self(c);uint32_t caller=R32(c->esp);format_checked(c);fprintf(stderr,"[dinput] SetDataFormat kind=%u result=%08x caller=%08x\n",o->kind,c->eax,caller);}
+static void format_checked(CPU*c){Object*o=self(c);uint32_t p=ARG(1);if(o->acquired){ret(c,2,ACQUIRED);return;}unsigned count=o->kind==1?256:7;
  if(!o->kind||!range(p,24)||R32(p)!=24||R32(p+4)!=16||R32(p+8)!=2||R32(p+12)!=(o->kind==1?256:16)||R32(p+16)!=count||!range(R32(p+20),count*16)){ret(c,2,INVALID);return;}
  p=R32(p+20);for(unsigned i=0;i<count;i++,p+=16){uint32_t g=R32(p),off=R32(p+4),type=R32(p+8);int ok;
  if(o->kind==1)ok=guid(g,key_guid)&&off==i&&type==(0x8000000cu|(i<<8));
@@ -117,12 +128,29 @@ static void format(CPU*c){Object*o=self(c);uint32_t p=ARG(1);if(o->acquired){ret
  o->format=1;clear(o);ret(c,2,0);
 }
 static void coop(CPU*c){Object*o=self(c);uint32_t hwnd=ARG(1);MoviesWindowEvent state;int valid=host.valid_window?host.valid_window(context,hwnd):movies_window_get(hwnd,&state);
- if(o->acquired){ret(c,3,ACQUIRED);return;}if(!o->kind||ARG(2)!=5||!valid){ret(c,3,INVALID);return;}o->hwnd=hwnd;ret(c,3,0);}
+ uint32_t r=o->acquired?ACQUIRED:(!o->kind||ARG(2)!=5||!valid)?INVALID:0;if(!r)o->hwnd=hwnd;
+ fprintf(stderr,"[dinput] SetCooperativeLevel kind=%u hwnd=%08x flags=%x valid=%d result=%08x caller=%08x\n",o->kind,hwnd,ARG(2),valid,r,R32(c->esp));ret(c,3,r);}
 static void property(CPU*c){Object*o=self(c);uint32_t p=ARG(2);if(o->acquired){ret(c,3,ACQUIRED);return;}if(ARG(1)!=1){guest_trap(c,R32(c->esp),"unsupported DirectInput property");return;}
  if(!o->kind||!range(p,20)||R32(p)!=20||R32(p+4)!=16||R32(p+8)||R32(p+12)||R32(p+16)!=128){ret(c,3,INVALID);return;}o->buffer=128;clear(o);ret(c,3,0);}
-static void acquire(CPU*c){Object*o=self(c);pump(c);if(!o->kind||!o->format||!o->hwnd){ret(c,1,INVALID);return;}if(!available()){ret(c,1,NOTINIT);return;}if(!focused(o->hwnd)){ret(c,1,0x80070005);return;}if(o->acquired){ret(c,1,1);return;}o->acquired=1;o->lost=0;clear(o);ret(c,1,0);}
+/* Bounded diagnostics: acquisition transitions and a periodic mouse summary. */
+static unsigned diag_acquire_logs,diag_calls[3],diag_failed[3],diag_events[3];
+static unsigned diag_acquire_failures;
+static uint32_t foreground_hwnd(void){
+#ifdef __EMSCRIPTEN__
+ return (uint32_t)EM_ASM_INT({return typeof Module.moviesForegroundWindow==='function'?Module.moviesForegroundWindow()>>>0:0;});
+#else
+ return 0;
+#endif
+}
+static void acquire_failed(CPU*c,Object*o,uint32_t r){
+ if(diag_acquire_failures++<8||diag_acquire_failures%600==0)fprintf(stderr,"[dinput] Acquire failed kind=%u result=%08x format=%u hwnd=%08x available=%d focusedHwnd=%08x failures=%u caller=%08x\n",o->kind,r,o->format,o->hwnd,available(),foreground_hwnd(),diag_acquire_failures,R32(c->esp));
+ ret(c,1,r);}
+static void acquire(CPU*c){Object*o=self(c);pump(c);if(!o->kind||!o->format){acquire_failed(c,o,INVALID);return;}if(!available()){acquire_failed(c,o,NOTINIT);return;}if(o->hwnd&&!focused(o->hwnd)){acquire_failed(c,o,0x80070005);return;}if(o->acquired){ret(c,1,1);return;}
+ if(diag_acquire_logs++<16)fprintf(stderr,"[dinput] acquired kind=%u caller=%08x\n",o->kind,R32(c->esp));o->acquired=1;o->lost=0;clear(o);ret(c,1,0);}
 static void unacquire(CPU*c){Object*o=self(c);uint32_t result=o->acquired?0:1;o->acquired=o->lost=0;clear(o);ret(c,1,result);}
-static void getdata(CPU*c){Object*o=self(c);uint32_t out=ARG(2),count=ARG(3),flags=ARG(4);if(ARG(1)!=20||!range(count,4)||flags>1){ret(c,5,INVALID);return;}pump(c);if(!o->acquired){ret(c,5,o->lost?INPUTLOST:NOTACQUIRED);return;}if(!o->buffer){ret(c,5,0x80040207);return;}uint32_t n=R32(count);if(n>o->count)n=o->count;if(out&&!range(out,(uint64_t)n*20)){ret(c,5,INVALID);return;}for(unsigned i=0;out&&i<n;i++){Event*e=&o->events[(o->head+i)%127];W32(out+i*20,e->offset);W32(out+i*20+4,e->data);W32(out+i*20+8,e->time);W32(out+i*20+12,e->sequence);W32(out+i*20+16,e->app);}W32(count,n);uint32_t result=o->overflow?1:0;if(!flags){o->head=(o->head+n)%127;o->count-=n;o->overflow=0;}ret(c,5,result);}
+static void getdata(CPU*c){Object*o=self(c);uint32_t out=ARG(2),count=ARG(3),flags=ARG(4);if(ARG(1)!=20||!range(count,4)||flags>1){ret(c,5,INVALID);return;}pump(c);
+ unsigned k=o->kind<3?o->kind:0;if(++diag_calls[k]%1200==0){fprintf(stderr,"[dinput] kind=%u GetDeviceData calls=%u notAcquired=%u eventsDelivered=%u acquired=%u\n",k,diag_calls[k],diag_failed[k],diag_events[k],o->acquired);}
+ if(!o->acquired){diag_failed[k]++;ret(c,5,o->lost?INPUTLOST:NOTACQUIRED);return;}if(out&&o->count)diag_events[k]+=R32(count)<o->count?R32(count):o->count;if(!o->buffer){ret(c,5,0x80040207);return;}uint32_t n=R32(count);if(n>o->count)n=o->count;if(out&&!range(out,(uint64_t)n*20)){ret(c,5,INVALID);return;}for(unsigned i=0;out&&i<n;i++){Event*e=&o->events[(o->head+i)%127];W32(out+i*20,e->offset);W32(out+i*20+4,e->data);W32(out+i*20+8,e->time);W32(out+i*20+12,e->sequence);W32(out+i*20+16,e->app);}W32(count,n);uint32_t result=o->overflow?1:0;if(!flags){o->head=(o->head+n)%127;o->count-=n;o->overflow=0;}ret(c,5,result);}
 static void unsupported(CPU*c){guest_trap(c,R32(c->esp),"unsupported DirectInput vtable method");}
 int movies_directinput_init(void){if(initialized&&!on_owner())return 0;owner=pthread_self();if((uint64_t)BASE+0x10000>MOVIES_DI_SPACE)return 0;memset(objects,0,sizeof objects);memset(HP(BASE),0,0x10000);sequence=0;GuestFn f[]={query,addref,release,create,property,acquire,unacquire,getdata,format,coop,unsupported};for(unsigned i=0;i<sizeof f/sizeof*f;i++)register_function(TRAMP+i*16,f[i]);for(unsigned i=0;i<11;i++)W32(BASE+i*4,TRAMP+10*16);for(unsigned i=0;i<32;i++)W32(BASE+0x100+i*4,TRAMP+10*16);for(unsigned i=0;i<3;i++){W32(BASE+i*4,TRAMP+i*16);W32(BASE+0x100+i*4,TRAMP+i*16);}W32(BASE+12,TRAMP+3*16);unsigned slots[]={6,7,8,10,11,13};for(unsigned i=0;i<6;i++)W32(BASE+0x100+slots[i]*4,TRAMP+(i+4)*16);initialized=1;return 1;}
 void movies_directinput_set_host(const MoviesDirectInputHost*h,void*ctx){if(initialized&&!on_owner())abort();memset(&host,0,sizeof host);if(h)host=*h;context=ctx;for(unsigned i=0;i<LIMIT;i++)if(objects[i].acquired)lose(&objects[i]);}

@@ -58,13 +58,26 @@
           (typeof doc.hasFocus==='function' && !doc.hasFocus())) { this.blur(); return; }
       Atomics.store(this.control, 1, hwnd);
     }
+    // Re-derive focus from current DOM state; focus events can be missed
+    // (e.g. returning to the window while the canvas is already active).
+    sync() {
+      const doc=this.env.document,current=Atomics.load(this.control,1);
+      let target=0;
+      if(!doc.hidden && (typeof doc.hasFocus!=='function' || doc.hasFocus()))
+        for(const [hwnd,canvas] of this.windows) if(doc.activeElement===canvas && !canvas.hidden) target=hwnd;
+      if(target===current) return target;
+      if(target) Atomics.store(this.control,1,target); else this.blur();
+      return target;
+    }
     blur() {
       Atomics.store(this.control, 1, 0); this.held.clear();for(const reset of this.motionResets)reset();
       for(let slot=2;slot<Math.min(14,this.control.length);slot++)Atomics.store(this.control,slot,0);
     }
     emit(deviceKind, offset, data) {
       const time = Math.floor(performance.timeOrigin + performance.now()) >>> 0;
-      if (!this.queue.push({deviceKind, offset, data: data >>> 0, time})) this.failed('DirectInput host queue overflowed.');
+      // DirectInput loses buffered data on overflow (DI_BUFFEROVERFLOW); it never
+      // terminates the application. Motion keeps room for button/key edges.
+      if (!this.queue.offer({deviceKind, offset, data: data >>> 0, time}, deviceKind === 2 && offset < 12 ? this.queue.capacity >> 2 : 0)) this.dropped = (this.dropped || 0) + 1;
     }
     attach(canvas, hwnd) {
       this.windows.set(hwnd,canvas);

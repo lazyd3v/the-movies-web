@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 uint8_t *g_mem;
@@ -10,13 +11,13 @@ static uint32_t error;
 void movies_set_last_error(uint32_t value) { error=value; }
 void guest_trap(CPU *c,uint32_t at,const char *why) { (void)c;(void)at;(void)why;abort(); }
 static uint32_t call(unsigned index,uint32_t csidl,uint32_t token,uint32_t flags,uint32_t out) {
-    uint32_t count;ImportHandler *h=movies_shell_handlers(&count);assert(count==6);
+    uint32_t count;ImportHandler *h=movies_shell_handlers(&count);assert(count==7);
     CPU c={0};c.esp=0x100;c.ebx=99;
     W32(c.esp,0x1234);W32(c.esp+4,0);W32(c.esp+8,csidl);W32(c.esp+12,token);W32(c.esp+16,flags);W32(c.esp+20,out);
     h[index].fn(&c);assert(c.esp==0x118 && c.ebx==99);return c.eax;
 }
 static uint32_t special(int wide,uint32_t csidl,uint32_t create,uint32_t out) {
-    uint32_t count;ImportHandler *h=movies_shell_handlers(&count);assert(count==6);
+    uint32_t count;ImportHandler *h=movies_shell_handlers(&count);assert(count==7);
     CPU c={0};c.esp=0x100;c.ebx=99;
     W32(c.esp,0x1234);W32(c.esp+4,0);W32(c.esp+8,out);W32(c.esp+12,csidl);W32(c.esp+16,create);
     h[4+wide].fn(&c);assert(c.esp==0x114 && c.ebx==99);return c.eax;
@@ -81,5 +82,10 @@ int main(void) {
     assert(!call(0,0x8005,0,0,0x1000));assert(!rmdir(backend));
     last=strrchr(backend,'/');*last=0;assert(!rmdir(backend));last=strrchr(backend,'/');*last=0;assert(!rmdir(backend));assert(!rmdir(temporary));
     assert(!movies_shell_init("/") && !movies_shell_init("relative"));
+    /* ShellExecuteA is logged and reported as success (>32); stdcall pops 6 args. */
+    {uint32_t count;ImportHandler *h=movies_shell_handlers(&count);assert(!strcmp(h[6].name,"SHELL32.DLL!ShellExecuteA"));
+     strcpy((char *)HP(0x800),"open");strcpy((char *)HP(0x820),"Readme.txt");
+     CPU c={0};c.esp=0x100;W32(c.esp,0x1234);W32(c.esp+4,0);W32(c.esp+8,0x800);W32(c.esp+12,0x820);W32(c.esp+16,0);W32(c.esp+20,0);W32(c.esp+24,1);
+     h[6].fn(&c);assert(c.eax==42&&c.esp==0x11c);}
     free(g_mem);puts("shell folder ABI and backend tests passed");
 }

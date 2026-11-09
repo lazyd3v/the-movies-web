@@ -31,15 +31,15 @@ EM_JS(void,setup_bridge,(),{Module.writerTest=new Set();Module.moviesMediaCreate
 #endif
 EM_JS(int,bridge_empty,(),{return Module.writerTest.size===0;});
 #endif
-uint8_t*g_mem;static GuestFn methods[48];static jmp_buf trapped;static unsigned allocated,released;static int available=1;
-void register_function(uint32_t p,GuestFn fn){assert(p>=MOVIES_MEDIA_TRAMP&&(p-MOVIES_MEDIA_TRAMP)/16<48);methods[(p-MOVIES_MEDIA_TRAMP)/16]=fn;}
+uint8_t*g_mem;static GuestFn methods[58];static jmp_buf trapped;static unsigned allocated,released;static int available=1;
+void register_function(uint32_t p,GuestFn fn){assert(p>=MOVIES_MEDIA_TRAMP&&(p-MOVIES_MEDIA_TRAMP)/16<58);methods[(p-MOVIES_MEDIA_TRAMP)/16]=fn;}
 void guest_trap(CPU*c,uint32_t p,const char*why){(void)c;(void)p;(void)why;longjmp(trapped,1);}
 static int create_backend(uint32_t*out){if(!available)return 0;*out=++allocated;return 1;}
 static int release_backend(uint32_t token){assert(token&&token<=allocated);released++;return 1;}
 static uint32_t invoke(GuestFn f,unsigned n,const uint32_t*a){CPU c={0};c.esp=0x800;c.ebx=123;W32(c.esp,0x123456);for(unsigned i=0;i<n;i++)W32(c.esp+4+4*i,a[i]);f(&c);assert(c.esp==0x804+4*n&&c.ebx==123);return c.eax;}
 static uint32_t api(const char*name,unsigned n,const uint32_t*a){uint32_t count;ImportHandler*h=movies_media_handlers(&count);for(unsigned i=0;i<count;i++)if(!strcmp(strchr(h[i].name,'!')+1,name))return invoke(h[i].fn,n,a);assert(0);return 0;}
 #define API(name,...) api(name,sizeof((uint32_t[]){__VA_ARGS__})/4,(uint32_t[]){__VA_ARGS__})
-static uint32_t method(uint32_t o,unsigned slot,unsigned n,const uint32_t*a){uint32_t args[8]={o};assert(n<8);for(unsigned i=0;i<n;i++)args[i+1]=a[i];uint32_t p=R32(R32(o)+slot*4);assert(p>=MOVIES_MEDIA_TRAMP&&p<MOVIES_MEDIA_TRAMP+48*16);return invoke(methods[(p-MOVIES_MEDIA_TRAMP)/16],n+1,args);}
+static uint32_t method(uint32_t o,unsigned slot,unsigned n,const uint32_t*a){uint32_t args[8]={o};assert(n<8);for(unsigned i=0;i<n;i++)args[i+1]=a[i];uint32_t p=R32(R32(o)+slot*4);assert(p>=MOVIES_MEDIA_TRAMP&&p<MOVIES_MEDIA_TRAMP+58*16);return invoke(methods[(p-MOVIES_MEDIA_TRAMP)/16],n+1,args);}
 #define M(o,s,...) method(o,s,sizeof((uint32_t[]){__VA_ARGS__})/4,(uint32_t[]){__VA_ARGS__})
 static void guid(uint32_t p,uint32_t a,uint16_t b,uint16_t c,const uint8_t d[8]){W32(p,a);W16(p+4,b);W16(p+6,c);memcpy(HP(p+8),d,8);}
 static void ids(unsigned kind){
@@ -48,6 +48,7 @@ static void ids(unsigned kind){
  if(kind==1){guid(0x1100,0xe436ebb3,0x524f,0x11ce,direct);guid(0x1200,0x56a868a9,0x0ad4,0x11ce,iface);}
  if(kind==2){uint8_t cl[]={0xb3,0xf0,0,0xaa,0,0x37,0x61,0xc5},ii[]={0xab,0xfa,0,0xa0,0xc9,0xc6,0xe3,0x8d};guid(0x1100,0xbf87b6e1,0x8c27,0x11d0,cl);guid(0x1200,0x93e5a4e0,0x2d50,0x11d2,ii);}
  if(kind==3){uint8_t cl[]={0x8b,0x16,0,0xc0,0x4f,0xb6,0xbd,0x3d};guid(0x1100,0x7c23220e,0x55bb,0x11d3,cl);guid(0x1200,0x56a86895,0x0ad4,0x11ce,iface);}
+ if(kind==12){uint8_t cl[]={0x93,0xbc,0x44,0x45,0x53,0x54,0,0},ii[]={0xa5,0x21,0,0x20,0xaf,0x0b,0xe5,0x60};guid(0x1100,0x47d4d946,0x62e8,0x11cf,cl);guid(0x1200,0x279afa83,0x4981,0x11ce,ii);}
 }
 static uint32_t make(unsigned kind){ids(kind);assert(!API("CoCreateInstance",0x1100,0,1,0x1200,0x2000));return R32(0x2000);}
 static void name(const char*s){unsigned i=0;for(;s[i];i++)W16(0x3000+i*2,s[i]);W16(0x3000+i*2,0);}
@@ -207,6 +208,9 @@ int main(void){
 #ifdef __EMSCRIPTEN__
  setup_bridge();assert(!API("CoInitialize",0));writer=make(3);assert(!bridge_empty());uint32_t manager_object=manager(),p=profile(manager_object),cfg=config_interface(writer);assert(!M(cfg,7,p));M(cfg,2);M(p,2);M(manager_object,2);assert(M(writer,2)==0&&bridge_empty());API("CoUninitialize");
 #endif
+ /* DirectSound probe object used by the OpenAL router: create, Initialize, cooperative level, speaker config. */
+ {assert(API("CoInitialize",0)<=1);uint32_t ds=make(12);assert(ds);assert(!M(ds,10,0u));assert(!M(ds,6,0x1234u,2u));W32(0x2100,0);assert(!M(ds,8,0x2100u)&&R32(0x2100)==4);
+  W32(0x2200,96);assert(!M(ds,4,0x2200u));W32(0x2300,0xdead);assert(M(ds,3,0x2400u,0x2300u,0u)==0x80004001u&&R32(0x2300)==0);(void)0;}
  #ifdef __EMSCRIPTEN__
  restore_reader_provider();
  #endif

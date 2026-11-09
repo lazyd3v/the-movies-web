@@ -1,0 +1,45 @@
+--- a/runtime/cpu.h	2026-11-08 23:34:53
++++ b/runtime/cpu.h	2026-11-08 23:35:07
+@@ -49,8 +49,12 @@
+ #ifdef MOVIES_GUEST_THREADS
+ static inline void guest_lock(void);
+ static inline void guest_unlock(void);
+-#define GUEST_READ_BODY(type,n) type v;guest_lock();memcpy(&v,g_mem+a,n);guest_unlock();return v;
+-#define GUEST_WRITE_BODY(n) guest_lock();memcpy(g_mem+a,&v,n);guest_unlock();
++/* Lock-free scalar accesses: aligned Wasm loads/stores are single-copy atomic,
++ * like x86 aligned accesses; unaligned ones may tear, as across x86 cache lines.
++ * The only reachable translated atomics (xchg with memory) are rewritten at build
++ * time to guest_xchg8/32 (real atomic exchange); Interlocked* use host atomics. */
++#define GUEST_READ_BODY(type,n) type v;__builtin_memcpy(&v,g_mem+a,n);return v;
++#define GUEST_WRITE_BODY(n) __builtin_memcpy(g_mem+a,&v,n);
+ #else
+ #define GUEST_READ_BODY(type,n) type v;memcpy(&v,g_mem+a,n);return v;
+ #define GUEST_WRITE_BODY(n) memcpy(g_mem+a,&v,n);
+@@ -88,6 +92,12 @@
+ #endif
+ 
+ 
++static inline uint32_t guest_xchg32(uint32_t a, uint32_t v) {
++    if (!(a & 3)) return __atomic_exchange_n((uint32_t *)(g_mem + a), v, __ATOMIC_SEQ_CST);
++    guest_lock(); uint32_t old; __builtin_memcpy(&old, g_mem + a, 4); __builtin_memcpy(g_mem + a, &v, 4); guest_unlock(); return old;
++}
++static inline uint8_t guest_xchg8(uint32_t a, uint8_t v) { return __atomic_exchange_n(g_mem + a, v, __ATOMIC_SEQ_CST); }
++
+ static inline void PUSH32(CPU *c, uint32_t v) { c->esp -= 4; W32(c->esp, v); }
+ static inline uint32_t POP32(CPU *c) { uint32_t v = R32(c->esp); c->esp += 4; return v; }
+ 
+--- a/runtime/runtime.h	2026-11-08 23:34:53
++++ b/runtime/runtime.h	2026-11-08 23:35:07
+@@ -39,9 +39,9 @@
+  * Host-only copies avoid the guest lock. Blocking I/O is deliberately not held
+  * under this lock; those buffers remain governed by the Windows caller contract. */
+ static inline int guest_host_pointer(const void *p) {uintptr_t v=(uintptr_t)p,b=(uintptr_t)g_mem;return g_mem&&v>=b&&v-b<GUEST_SPACE;}
+-static inline void *movies_guest_memcpy(void *d,const void *s,size_t n){int lock=guest_host_pointer(d)||guest_host_pointer(s);if(lock)guest_lock();void*r=__builtin_memcpy(d,s,n);if(lock)guest_unlock();return r;}
+-static inline void *movies_guest_memmove(void *d,const void *s,size_t n){int lock=guest_host_pointer(d)||guest_host_pointer(s);if(lock)guest_lock();void*r=__builtin_memmove(d,s,n);if(lock)guest_unlock();return r;}
+-static inline void *movies_guest_memset(void *d,int value,size_t n){int lock=guest_host_pointer(d);if(lock)guest_lock();void*r=__builtin_memset(d,value,n);if(lock)guest_unlock();return r;}
++static inline void *movies_guest_memcpy(void *d,const void *s,size_t n){return __builtin_memcpy(d,s,n);}
++static inline void *movies_guest_memmove(void *d,const void *s,size_t n){return __builtin_memmove(d,s,n);}
++static inline void *movies_guest_memset(void *d,int value,size_t n){return __builtin_memset(d,value,n);}
+ #define memcpy movies_guest_memcpy
+ #define memmove movies_guest_memmove
+ #define memset movies_guest_memset

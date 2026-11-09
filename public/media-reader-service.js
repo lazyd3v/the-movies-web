@@ -1,6 +1,6 @@
 importScripts('media-reader-core.js');
 let control,payload,assetBase,warm=null,initialized=false,totalInput=0,nextToken=1;const sessions=new Map();
-const MAX_INPUT=32*1024*1024,MAX_TOTAL=64*1024*1024;
+const MAX_INPUT=32*1024*1024,MAX_TOTAL=128*1024*1024,MAX_SESSIONS=4;
 function signal(d){for(const wake of d.waiters)wake();}
 function waitFor(d,predicate,timeout=60000){return new Promise((resolve,reject)=>{let timer;const check=()=>{if(d.error){cleanup();reject(Error(d.error));}else if(predicate()){cleanup();resolve();}};function cleanup(){clearTimeout(timer);d.waiters.delete(check);}d.waiters.add(check);timer=setTimeout(()=>{cleanup();reject(Error('Reader decoder deadline'));},timeout);check();});}
 /* Some embedded Chromium builds reject URL-backed workers created inside a worker
@@ -10,7 +10,7 @@ const DECODER_BASE=new URL('./',location.href).href;
 const DECODER_BOOT=URL.createObjectURL(new Blob([`self.MOVIES_DECODER_BASE=${JSON.stringify(DECODER_BASE)};importScripts(${JSON.stringify(new URL('media-reader-decoder.js',DECODER_BASE).href)});`],{type:'text/javascript'}));
 function spawn(){
  const d={worker:new Worker(DECODER_BOOT),waiters:new Set(),ready:false,metadata:null,pending:null,eos:false,error:null,control:new Int32Array(new SharedArrayBuffer(4)),slot:new Uint8Array(new SharedArrayBuffer(8192))};
- d.worker.onmessage=({data})=>{if(d.closed)return;if(data.type==='ready')d.ready=true;else if(data.type==='opened')d.metadata=data.metadata;else if(data.type==='sample'){if(d.pending)d.error='PCM queue overflow';else d.pending={length:data.length,timing:data.timing,offset:0};}else if(data.type==='eos'){d.eos=true;d.stats=data.stats;d.wasmHeapBytes=data.wasmHeapBytes;}else if(data.type==='error')d.error=data.error;signal(d);};
+ d.worker.onmessage=({data})=>{if(d.closed)return;if(data.type==='ready')d.ready=true;else if(data.type==='opened')d.metadata=data.metadata;else if(data.type==='sample'){if(d.pending)d.error='PCM queue overflow';else d.pending={length:data.length,timing:data.timing,offset:0};}else if(data.type==='frame'){if(d.pending)d.error='Video frame queue overflow';else d.pending={length:data.length,index:data.index,offset:0};}else if(data.type==='eos'){d.eos=true;d.stats=data.stats;d.wasmHeapBytes=data.wasmHeapBytes;}else if(data.type==='error')d.error=data.error;signal(d);};
  d.worker.onerror=e=>{d.error=e.message||'Decoder worker error';signal(d);};d.worker.postMessage({op:'initialize',assetBase});return d;
 }
 function dispose(d){if(!d||d.closed)return;d.closed=true;d.error='Reader decoder closed';Atomics.store(d.control,0,-1);Atomics.notify(d.control,0);d.worker.terminate();signal(d);}
@@ -20,10 +20,18 @@ async function openDecoder(s){
  try{await waitFor(d,()=>d.ready);d.worker.postMessage({op:'open',input:s.input.buffer,control:d.control.buffer,slot:d.slot.buffer});await waitFor(d,()=>d.metadata!==null);s.state='opened';s.started=false;return d.metadata;}
  catch(e){dispose(d);s.state='failed';throw e;}
 }
+async function openVideoDecoder(s,start){
+ const d=warm||spawn();warm=null;s.decoder=d;
+ try{await waitFor(d,()=>d.ready);d.worker.postMessage({op:'openVideo',input:s.input.buffer,control:d.control.buffer});await waitFor(d,()=>d.metadata!==null);
+  s.kind='video';s.state='opened';s.started=false;s.videoStart=start;
+  if(!s.frameSlot||s.frameSlot.length<d.metadata.frameBytes)s.frameSlot=new Uint8Array(new SharedArrayBuffer(d.metadata.frameBytes));
+  return d.metadata;}
+ catch(e){dispose(d);s.state='failed';throw e;}
+}
 async function request(c,bytes){
- if(c.op==='capabilities')return {ready:initialized,codec:'wmav2',sampleRate:44100,channels:2,bitsPerSample:16,maxSampleBytes:8192,maxInputBytes:MAX_INPUT,maxReaders:2};
+ if(c.op==='capabilities')return {ready:initialized,codec:'wmav2',sampleRate:44100,channels:2,bitsPerSample:16,maxSampleBytes:8192,maxInputBytes:MAX_INPUT,maxReaders:MAX_SESSIONS,video:true};
  if(c.op==='createReader'){
-  if(!Number.isSafeInteger(c.size)||c.size<=0||c.size>MAX_INPUT||sessions.size>=2||c.size>MAX_TOTAL-totalInput)throw Error('Compressed input quota exceeded or invalid declared size');
+  if(!Number.isSafeInteger(c.size)||c.size<=0||c.size>MAX_INPUT||sessions.size>=MAX_SESSIONS||c.size>MAX_TOTAL-totalInput)throw Error('Compressed input quota exceeded or invalid declared size');
   const token=nextToken++;if(token>0x7fffffff)throw Error('Reader token exhausted');const input=new Uint8Array(c.size);sessions.set(token,{input,offset:0,state:'uploading',decoder:null,range:{start100ns:0,duration100ns:null}});totalInput+=c.size;return {token};
  }
  const s=session(c.token);
@@ -31,6 +39,26 @@ async function request(c,bytes){
  if(c.op==='appendInput'){
   if(s.state!=='uploading'||c.offset!==s.offset||!bytes.length||bytes.length>s.input.length-s.offset)throw Error('Input append must be consecutive and within declared size');
   s.input.set(bytes,s.offset);s.offset+=bytes.length;return {acceptedBytes:bytes.length,received:s.offset};
+ }
+ /* Video sessions: bottom-up BGR24 frames, one in flight, restartable from a time. */
+ if(c.op==='openVideo'){
+  if(s.state!=='uploading'||s.offset!==s.input.length)throw Error('Video input incomplete or already opened');
+  return {metadata:await openVideoDecoder(s,0)};
+ }
+ if(c.op==='seekVideo'){
+  if(s.state!=='opened'||s.kind!=='video'||!(c.start>=0&&c.start<=3600))throw Error('Video not opened or invalid seek');
+  const d=s.decoder;
+  /* A finished or not-yet-started decode keeps its core and input: restart in place. */
+  if(!s.started||(d.eos&&!d.pending)){d.eos=false;d.pending=null;s.started=false;s.videoStart=c.start;return {metadata:d.metadata};}
+  dispose(d);if(!warm)warm=spawn();return {metadata:await openVideoDecoder(s,c.start)};
+ }
+ if(c.op==='readFrame'){
+  if(s.state!=='opened'||s.kind!=='video')throw Error('Video not opened');
+  const d=s.decoder;if(!s.started){s.started=true;d.worker.postMessage({op:'decodeVideo',metadata:d.metadata,start:s.videoStart,slot:s.frameSlot.buffer});}
+  try{await waitFor(d,()=>d.pending!==null||d.eos,60000);}catch(e){s.state='failed';dispose(d);throw e;}
+  if(!d.pending)return {eos:true,bytes:new Uint8Array()};
+  const p=d.pending,bytes=s.frameSlot.slice(0,p.length);d.pending=null;Atomics.store(d.control,0,0);Atomics.notify(d.control,0);
+  return {eos:false,index:p.index,bytes};
  }
  if(c.op==='openReader'){if(s.state!=='uploading'||s.offset!==s.input.length)throw Error('Reader input incomplete or already opened');return {metadata:await openDecoder(s)};}
  if(c.op==='metadata'){if(s.state!=='opened')throw Error('Reader not opened');return {metadata:s.decoder.metadata};}

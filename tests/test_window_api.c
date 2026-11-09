@@ -4,6 +4,7 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 EM_JS(void,set_cursor_fixture,(int ready),{Module.moviesCursorPosition=()=>ready?{x:-5,y:23}:null;});
@@ -83,6 +84,92 @@ static void setup(void) {
     strcpy((char *)HP(0x6000),"The Movies");strcpy((char *)HP(0x6100),"The Movies\x80");
 }
 static uint32_t create(uint32_t cl) { return CALL("CreateWindowExA",0,cl,0x6100,0xca0000,12,12,808,631,0,0,0x400000,0x1234); }
+
+/* ---- Shared wait core and thread-id fixtures for MsgWaitForMultipleObjects. */
+static uint32_t wait_result=258,wait_error,wait_calls,wait_max_timeout,wait_last_count;
+uint32_t movies_sync_wait(CPU *c,uint32_t count,const uint32_t *ids,int all,uint32_t timeout,uint32_t *e){
+    (void)c;(void)all;wait_calls++;wait_last_count=count;if(timeout>wait_max_timeout)wait_max_timeout=timeout;
+    if(count)assert(ids[0]==0x0b000001u);
+    if(timeout && wait_result==258){struct timespec d={0,(long)timeout*1000000L};nanosleep(&d,NULL);}
+    *e=wait_error;return wait_result;
+}
+uint32_t movies_thread_current_id(void){return 0x100;}
+static void extended_tests(void) {
+    setup();uint32_t atom=CALL("RegisterClassA",0x5000);uint32_t hwnd=create(atom);assert(hwnd);assert(!CALL("ShowWindow",hwnd,1));
+    /* ClientToScreen is the inverse of ScreenToClient. */
+    W32(0x1000,0);W32(0x1004,0);error=123;assert(CALL("ClientToScreen",hwnd,0x1000)&&R32(0x1000)==16&&R32(0x1004)==39&&error==123);
+    assert(!CALL("ClientToScreen",999,0x1000)&&error==1400);assert(!CALL("ClientToScreen",hwnd,0xfffc)&&error==87);
+    /* ClipCursor confines later virtual warps; NULL releases. */
+    movies_window_set_cursor_warp_host(cursor_warp);warp_locked=1;
+    W32(0x1000,100);W32(0x1004,100);W32(0x1008,200);W32(0x100c,200);assert(CALL("ClipCursor",0x1000));
+    assert(CALL("SetCursorPos",0u,0u)&&warp_x==100&&warp_y==100);
+    assert(CALL("SetCursorPos",500u,500u)&&warp_x==199&&warp_y==199);
+    assert(CALL("ClipCursor",0)&&CALL("SetCursorPos",500u,500u)&&warp_x==500&&warp_y==500);
+    assert(!CALL("ClipCursor",0xfff8)&&error==87);
+    movies_window_set_cursor_warp_host(NULL);warp_locked=0;
+    /* Capture bookkeeping. */
+    assert(!CALL("SetCapture",hwnd)&&CALL("SetCapture",hwnd)==hwnd&&CALL("ReleaseCapture")==1&&!CALL("SetCapture",hwnd));
+    assert(!CALL("SetCapture",999)&&error==1400);CALL("ReleaseCapture");
+    /* DCs and device capabilities of the virtual 1024x768x32 display. */
+    uint32_t screen=CALL("GetDC",0),window=CALL("GetDC",hwnd);assert(screen&&window&&screen!=window);
+    assert(!CALL("GetDC",999)&&error==1400);
+    assert(CALL("GetDeviceCaps",window,8)==1024&&CALL("GetDeviceCaps",screen,10)==768&&CALL("GetDeviceCaps",screen,12)==32);
+    assert(CALL("GetDeviceCaps",screen,14)==1&&CALL("GetDeviceCaps",screen,88)==96&&CALL("GetDeviceCaps",screen,90)==96);
+    assert(CALL("GetDeviceCaps",screen,116)==60&&CALL("GetDeviceCaps",screen,24)==0&&CALL("GetDeviceCaps",0,8)==0);
+    assert(!CALL("DeleteObject",0x4242)&&error==6);
+    /* Rect helpers. */
+    memset(HP(0x1000),0xa5,20);assert(CALL("SetRectEmpty",0x1000)&&!R32(0x1000)&&!R32(0x100c)&&R32(0x1010)==0xa5a5a5a5);
+    assert(!CALL("SetRectEmpty",0)&&error==87);
+    error=123;assert(CALL("ValidateRect",hwnd,0)&&CALL("ValidateRect",0,0x1000)&&error==123);assert(!CALL("ValidateRect",999,0)&&error==1400);
+    /* Caption text is stored (CP1252 to UTF-8). */
+    strcpy((char *)HP(0x6200),"New \x80 title");assert(CALL("SetWindowTextA",hwnd,0x6200));
+    MoviesWindowEvent state;assert(movies_window_get(hwnd,&state)&&!strcmp(state.title,"New \xe2\x82\xac title"));
+    assert(!CALL("SetWindowTextA",999,0x6200)&&error==1400);
+    /* Registered messages are stable and case-insensitive. */
+    strcpy((char *)HP(0x6300),"MoviesPing");strcpy((char *)HP(0x6320),"MOVIESPING");strcpy((char *)HP(0x6340),"Other");W8(0x6360,0);
+    uint32_t ping=CALL("RegisterWindowMessageA",0x6300);assert(ping>=0xc000&&ping<=0xffff);
+    assert(CALL("RegisterWindowMessageA",0x6320)==ping);uint32_t other=CALL("RegisterWindowMessageA",0x6340);assert(other&&other!=ping&&other>=0xc000);
+    assert(!CALL("RegisterWindowMessageA",0)&&error==87);assert(!CALL("RegisterWindowMessageA",0x6360)&&error==87);
+    /* Title bar: caption rect in screen space, minimize/close present, maximize/help absent. */
+    memset(HP(0x7000),0xa5,48);W32(0x7000,44);assert(CALL("GetTitleBarInfo",hwnd,0x7000));
+    assert(R32(0x7004)==16&&R32(0x7008)==16&&R32(0x700c)==816&&R32(0x7010)==39);
+    assert(R32(0x7014)==0x100000&&R32(0x701c)==0&&R32(0x7020)==0x8000&&R32(0x7024)==0x8000&&R32(0x7028)==0&&R32(0x702c)==0xa5a5a5a5);
+    W32(0x7000,40);assert(!CALL("GetTitleBarInfo",hwnd,0x7000)&&error==87);assert(!CALL("GetTitleBarInfo",999,0x7000)&&error==1400);
+    /* UnregisterClassA: busy class, wrong instance, removal and slot reuse. */
+    assert(!CALL("UnregisterClassA",atom,0x400000)&&error==1412);assert(!CALL("UnregisterClassA",atom,0x500000)&&error==1411);
+    strcpy((char *)HP(0x6400),"Second");memcpy(HP(0x5100),HP(0x5000),40);W32(0x5124,0x6400);
+    uint32_t second=CALL("RegisterClassA",0x5100);assert(second&&second!=atom);
+    assert(CALL("UnregisterClassA",second,0x400000)); /* fixture memory is below 64K: names here are atoms */
+    assert(!CALL("UnregisterClassA",second,0x400000)&&error==1411);
+    assert(!CALL("CreateWindowExA",0,second,0x6100,0xca0000,12,12,808,631,0,0,0x400000,0x1234)&&error==1407);
+    assert(CALL("RegisterClassA",0x5100)==second);
+    /* Queue status: present (high) and new-since-last-query (low) classes. */
+    while(CALL("PeekMessageA",0x3000,0,0,0,1)){}
+    assert(CALL("GetQueueStatus",0x4ff)==0);
+    assert(CALL("PostMessageA",hwnd,ping,1,2));
+    assert(CALL("GetQueueStatus",0x4ff)==0x00080008u);assert(CALL("GetQueueStatus",0x5ff)==0x01080100u);assert(CALL("GetQueueStatus",0x5ff)==0x01080000u);
+    assert(CALL("GetQueueStatus",1)==0);
+    /* MsgWait: queued input satisfies the wake mask; sent-message-only masks ignore it. */
+    error=123;wait_calls=0;assert(CALL("MsgWaitForMultipleObjects",0,0,0,0,0x4ff)==0&&wait_calls==0);
+    assert(CALL("MsgWaitForMultipleObjects",0,0,0,0,0x40)==258&&wait_calls==0&&error==123);
+    assert(CALL("PeekMessageA",0x3000,0,0,0,1)&&R32(0x3004)==ping);
+    /* Thread messages to the UI thread's own id. */
+    assert(CALL("PostThreadMessageA",0x100,other,3,4));assert(!CALL("PostThreadMessageA",0x101,other,3,4)&&error==1444);
+    assert(!CALL("PostThreadMessageA",0x100,0xc,0,0)&&error==50);
+    assert(CALL("PeekMessageA",0x3000,0xffffffffu,0,0,1)&&!R32(0x3000)&&R32(0x3004)==other&&R32(0x3008)==3&&R32(0x300c)==4);
+    /* Object waits: signaled handle wins, timeout slices are <=10ms, failures pass LastError. */
+    W32(0x7100,0x0b000001u);wait_result=0;wait_calls=0;assert(CALL("MsgWaitForMultipleObjects",1,0x7100,0,1000,0x4ff)==0&&wait_calls==1);
+    wait_result=258;wait_calls=0;wait_max_timeout=0;struct timespec a,b;clock_gettime(CLOCK_MONOTONIC,&a);
+    assert(CALL("MsgWaitForMultipleObjects",1,0x7100,0,30,0x4ff)==258);clock_gettime(CLOCK_MONOTONIC,&b);
+    assert(wait_calls>=3&&wait_max_timeout<=10&&(b.tv_sec-a.tv_sec)*1000+(b.tv_nsec-a.tv_nsec)/1000000>=25);
+    wait_calls=0;assert(CALL("MsgWaitForMultipleObjects",0,0,0,20,0x4ff)==258&&wait_calls>=2&&wait_last_count==0);
+    assert(CALL("PostMessageA",hwnd,0x401,0,0));wait_calls=0;assert(CALL("MsgWaitForMultipleObjects",1,0x7100,0,1000,0x4ff)==1&&wait_calls==1);
+    wait_result=0xffffffffu;wait_error=6;assert(CALL("MsgWaitForMultipleObjects",1,0x7100,0,0,0x4ff)==0xffffffffu&&error==6);
+    wait_result=258;wait_error=0;
+    assert(CALL("MsgWaitForMultipleObjects",1,0,0,0,0x4ff)==0xffffffffu&&error==87);
+    assert(CALL("MsgWaitForMultipleObjects",0,0,0,0,0x1000)==0xffffffffu&&error==87);
+    while(CALL("PeekMessageA",0x3000,0,0,0,1)){}
+}
 int main(void) {
     uint32_t mapped=0;
     assert(movies_window_map_input_time(1000,2000,1750,&mapped) && mapped==750);
@@ -244,5 +331,16 @@ int main(void) {
     assert(!create(atom) && error==31 && message_count==0);
     setup();atom=CALL("RegisterClassA",0x5000);movies_window_set_host(NULL);
     if(!setjmp(trapped)) { create(atom);assert(0); }
+    /* ToUnicode/ToAscii (US layout) from a caller key-state array: shift, caps lock, ctrl. */
+    {const uint32_t ks=0x6000;memset(HP(ks),0,256);
+     assert(CALL("ToUnicode",0x41,0x1e,ks,0x6200,4,0)==1&&R16(0x6200)=='a'&&R16(0x6202)==0);
+     W8(ks+0x10,0x80);assert(CALL("ToUnicode",0x41,0x1e,ks,0x6200,4,0)==1&&R16(0x6200)=='A');
+     assert(CALL("ToUnicode",0x31,0x02,ks,0x6200,4,0)==1&&R16(0x6200)=='!');
+     W8(ks+0x10,0);W8(ks+0x14,1);assert(CALL("ToAscii",0x42,0x30,ks,0x6200,0)==1&&R16(0x6200)=='B');
+     W8(ks+0x14,0);assert(CALL("ToAscii",0x20,0x39,ks,0x6200,0)==1&&R16(0x6200)==' ');
+     assert(CALL("ToUnicode",0x25,0x4b,ks,0x6200,4,0)==0); /* arrow: no character */
+     W8(ks+0x11,0x80);assert(CALL("ToUnicode",0x41,0x1e,ks,0x6200,4,0)==0); /* ctrl chord */
+     assert(CALL("GetDoubleClickTime")==500);}
+    extended_tests();
     free(g_mem);puts("window lifecycle, real callbacks, host acknowledgement and geometry tests passed");
 }

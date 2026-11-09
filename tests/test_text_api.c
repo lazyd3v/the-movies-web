@@ -9,11 +9,18 @@ static uint32_t error;
 static jmp_buf trap;
 void movies_set_last_error(uint32_t e) { error=e; }
 void guest_trap(CPU *c,uint32_t a,const char *m) { (void)c;(void)a;(void)m;longjmp(trap,1); }
+static uint32_t enumerated;
+static void locale_callback(CPU *c) { enumerated=R32(c->esp+4);c->eax=1;c->esp+=8; }
+static GuestFn lookup(uint32_t addr) { return addr==0x7777?locale_callback:NULL; }
+static void dispatch(CPU *c,GuestFn fn,int nargs,const uint32_t *args) {
+    for(int i=nargs-1;i>=0;i--) { c->esp-=4;W32(c->esp,args[i]); }
+    c->esp-=4;W32(c->esp,0);fn(c);
+}
 static uint32_t call(const char *name,unsigned argc,const uint32_t *args) {
     CPU c={0};c.esp=0x100;W32(c.esp,0xdeadbeef);
     for(unsigned i=0;i<argc;i++)W32(c.esp+4+4*i,args[i]);
     uint32_t n;ImportHandler *h=movies_text_handlers(&n);
-    for(unsigned i=0;i<n;i++)if(!strcmp(h[i].name+13,name)) {
+    for(unsigned i=0;i<n;i++)if(!strcmp(strchr(h[i].name,'!')+1,name)) {
         h[i].fn(&c);assert(c.esp==0x104+4*argc);return c.eax;
     }
     assert(0);return 0;
@@ -21,7 +28,7 @@ static uint32_t call(const char *name,unsigned argc,const uint32_t *args) {
 #define MB(cp,f,s,n,d,z) call("MultiByteToWideChar",6,(uint32_t[]){cp,f,s,n,d,z})
 #define WC(cp,f,s,n,d,z,b,u) call("WideCharToMultiByte",8,(uint32_t[]){cp,f,s,n,d,z,b,u})
 int main(void) {
-    g_mem=malloc(65536);assert(g_mem);memset(g_mem,0xa5,65536);
+    g_mem=malloc(65536);assert(g_mem);memset(g_mem,0xa5,65536);movies_text_set_dispatcher(lookup,dispatch);
     assert(call("GetACP",0,NULL)==1252);
     for(unsigned i=0;i<256;i++)W8(0x1000+i,i);
     error=777;
@@ -183,5 +190,37 @@ int main(void) {
     W16(0x2000,0x0191);W8(0x4000,'!');
     assert(WC(1252,0,0x2000,1,0,0,0x4000,0x4004)==1 && R32(0x4004)==0);
     assert(WC(1252,0x400,0x2000,1,0x3000,1,0x4000,0x4004)==1 && R8(0x3000)=='!' && R32(0x4004)==1);
+    /* ANSI/locale helpers. */
+    strcpy((char *)HP(0x1000),"aZ1 ");assert(call("GetStringTypeA",5,(uint32_t[]){0x409,1,0x1000,4,0x2000}));
+    assert((R16(0x2000)&2) && (R16(0x2002)&1) && (R16(0x2004)&4) && (R16(0x2006)&8));
+    strcpy((char *)HP(0x1000),"Hello\xe9");assert(call("LCMapStringA",6,(uint32_t[]){0x409,0x200,0x1000,6,0x3000,6})==6 && !memcmp(HP(0x3000),"HELLO\xc9",6));
+    strcpy((char *)HP(0x1000),"abc");strcpy((char *)HP(0x1100),"ABD");
+    assert(call("CompareStringA",6,(uint32_t[]){0x409,1,0x1000,(uint32_t)-1,0x1100,(uint32_t)-1})==1);
+    assert(call("CompareStringA",6,(uint32_t[]){0x409,1,0x1000,2,0x1100,2})==2);
+    assert(call("CompareStringA",6,(uint32_t[]){0x409,0,0x1000,2,0x1100,2})==3);
+    assert(call("lstrcmpiA",2,(uint32_t[]){0x1000,0x1000})==0 && call("lstrcmpiA",2,(uint32_t[]){0x1000,0x1100})==(uint32_t)-1);
+    W16(0x1200,'b');W16(0x1202,0);W16(0x1204,'a');W16(0x1206,0);
+    assert(call("CompareStringW",6,(uint32_t[]){0x409,0,0x1200,(uint32_t)-1,0x1204,(uint32_t)-1})==3);
+    assert(call("GetLocaleInfoA",4,(uint32_t[]){0x409,0x1004,0x3000,16})==5 && !strcmp((char *)HP(0x3000),"1252"));
+    assert(call("GetLocaleInfoA",4,(uint32_t[]){0x409,0x1004,0,0})==5);
+    assert(!call("GetLocaleInfoA",4,(uint32_t[]){0x409,0x1004,0x3000,2}) && error==122);
+    assert(call("GetLocaleInfoW",4,(uint32_t[]){0x409,0x80000003,0x3000,16})==4 && R16(0x3000)=='E' && R16(0x3006)==0);
+    assert(call("GetLocaleInfoA",4,(uint32_t[]){0x409,0x20000001,0x3000,4})==4 && R32(0x3000)==0x409);
+    assert(!call("GetLocaleInfoA",4,(uint32_t[]){0x409,0x7777,0x3000,16}) && error==1004);
+    assert(call("GetThreadLocale",0,NULL)==0x409 && call("IsValidLocale",2,(uint32_t[]){0x409,2}) && !call("IsValidLocale",2,(uint32_t[]){0x411,2}));
+    assert(call("EnumSystemLocalesA",2,(uint32_t[]){0x7777,2}) && !strcmp((char *)HP(enumerated),"00000409"));
+    assert(call("GetOEMCP",0,NULL)==437 && !call("IsDBCSLeadByteEx",2,(uint32_t[]){1252,0x81}));
+    strcpy((char *)HP(0x1000),"%s=%5d|%-3x|%04u|%c|%S|%%|%.3d");strcpy((char *)HP(0x1100),"k");W16(0x1200,'w');W16(0x1202,0);
+    W32(0x1400,0x1100);W32(0x1404,42);W32(0x1408,0xab);W32(0x140c,7);W32(0x1410,'Z');W32(0x1414,0x1200);W32(0x1418,5);
+    assert(call("wvsprintfA",3,(uint32_t[]){0x3000,0x1000,0x1400})==26 && !strcmp((char *)HP(0x3000),"k=   42|ab |0007|Z|w|%|005"));
+    {CPU c={0};c.esp=0x100;W32(0x100,0xdeadbeef);W32(0x104,0x3000);W32(0x108,0x1500);strcpy((char *)HP(0x1500),"n%dx");W32(0x10c,(uint32_t)-3);
+     uint32_t n;ImportHandler *h=movies_text_handlers(&n);for(unsigned i=0;i<n;i++)if(!strcmp(h[i].name,"USER32.DLL!wsprintfA"))h[i].fn(&c);
+     assert(c.esp==0x104 && c.eax==4 && !strcmp((char *)HP(0x3000),"n-3x"));}
+    {uint16_t st[8]={2006,11,2,7,15,4,9,0};memcpy(HP(0x1600),st,16);
+     strcpy((char *)HP(0x1700),"dddd, MMMM d yyyy 'at'");
+     assert(call("GetDateFormatA",6,(uint32_t[]){0x409,0,0x1600,0x1700,0x3000,64})==28 && !strcmp((char *)HP(0x3000),"Tuesday, November 7 2006 at"));
+     assert(call("GetDateFormatA",6,(uint32_t[]){0x409,1,0x1600,0,0x3000,64}) && !strcmp((char *)HP(0x3000),"11/7/2006"));
+     assert(call("GetTimeFormatA",6,(uint32_t[]){0x409,0,0x1600,0,0x3000,64}) && !strcmp((char *)HP(0x3000),"3:04:09 PM"));
+     assert(!call("GetTimeFormatA",6,(uint32_t[]){0x409,0,0x1600,0,0x3000,4}) && error==122);}
     free(g_mem);puts("text API tests passed");
 }

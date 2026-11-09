@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 static uint8_t memory[0x20000];
 uint8_t *g_mem=memory;
 static uint32_t last_error;
@@ -95,5 +97,21 @@ int main(void) {
     assert(CALL("GetUserNameA",2,0x4000,0x910) && !strcmp((char *)HP(0x4000),"Player"));
     movies_registry_init("/this/path/is/not/accessed");
     assert(CALL("RegCloseKey",1,other)==6);
+    /* Persistence: a tree written under one init is reloaded by the next init from the
+     * same userdata root (registry.v1), including values on created subkeys. */
+    {char dir[]="/tmp/movies-registry-XXXXXX";assert(mkdtemp(dir));
+     movies_registry_init(dir);uint32_t k=create("Software\\Lionhead\\Persist",0xf003f,1);
+     ansi(0x1100,"Quality");W32(0x1200,3);assert(CALL("RegSetValueExA",6,k,0x1100,0,4,0x1200,4)==0);
+     movies_registry_init(dir);ansi(0x1000,"Software\\Lionhead\\Persist");assert(CALL("RegOpenKeyExA",5,0x80000001,0x1000,0,0x20019,0x900)==0);
+     W32(0x910,4);W32(0x914,0);W32(0x1300,0);assert(CALL("RegQueryValueExA",6,R32(0x900),0x1100,0,0x914,0x1300,0x910)==0);
+     assert(R32(0x914)==4&&R32(0x1300)==3&&R32(0x910)==4);
+     /* Host clean-exit policy replaces an existing string value only. */
+     uint32_t w=create("Software\\Lionhead\\Persist",0xf003f,2);ansi(0x1100,"Game running:");ansi(0x1200,"Yes");assert(CALL("RegSetValueExA",6,w,0x1100,0,1,0x1200,4)==0);
+     assert(movies_registry_replace_string(0x80000001u,"Software\\Lionhead\\Persist","Game running:","No"));
+     assert(!movies_registry_replace_string(0x80000001u,"Software\\Lionhead\\Persist","Absent:","No"));
+     assert(!movies_registry_replace_string(0x80000001u,"Software\\Missing","Game running:","No"));
+     movies_registry_init(dir);ansi(0x1000,"Software\\Lionhead\\Persist");assert(CALL("RegOpenKeyExA",5,0x80000001,0x1000,0,0x20019,0x900)==0);
+     W32(0x910,16);assert(CALL("RegQueryValueExA",6,R32(0x900),0x1100,0,0x914,0x1300,0x910)==0);assert(R32(0x914)==1&&!strcmp((char *)HP(0x1300),"No"));
+     char path[600];snprintf(path,sizeof path,"%s/registry.v1",dir);remove(path);rmdir(dir);movies_registry_init(NULL);}
     puts("registry API tests passed");
 }

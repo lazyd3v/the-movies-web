@@ -75,5 +75,10 @@ int main(void) {
     assert(unix_seconds>=(uint64_t)before && unix_seconds<=(uint64_t)after);
     if(!setjmp(trapped)) { call("CompareFileTime",2,0,0x2000);assert(0); }
     if(!setjmp(trapped)) { call("GetLocalTime",1,0,0);assert(0); }
+    /* timeBeginPeriod/timeEndPeriod: TIMERR_NOERROR within [1,1000000], else TIMERR_NOCANDO. */
+    {uint32_t count;ImportHandler *h=movies_time_handlers(&count);const char *names[]={"WINMM.DLL!timeBeginPeriod","WINMM.DLL!timeEndPeriod"};
+     for(unsigned n=0;n<2;n++){GuestFn fn=NULL;for(unsigned i=0;i<count;i++)if(!strcmp(h[i].name,names[n]))fn=h[i].fn;assert(fn);
+      const uint32_t periods[]={1,10,1000000,0,1000001};const uint32_t expected[]={0,0,0,97,97};
+      for(unsigned i=0;i<5;i++){CPU c={0};c.esp=0x100;W32(0x100,0xdeadbeef);W32(0x104,periods[i]);error=55;fn(&c);assert(c.esp==0x108&&c.eax==expected[i]&&error==55);}}}
     free(g_mem);puts("UTC FILETIME, Gregorian calendar, bounds and timezone tests passed");
 }

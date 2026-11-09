@@ -7,4 +7,6 @@ ImportHandler *movies_thread_handlers(uint32_t *count);
  * values/generations. Call once before each original guest start routine. */
 uint32_t movies_thread_reserve_id(void);
 void movies_thread_bind_id(uint32_t id);
+/* GetCurrentThreadId of the calling host thread (assigned on first use). */
+uint32_t movies_thread_current_id(void);
 #endif

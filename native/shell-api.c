@@ -119,6 +119,17 @@ static void special_path(CPU *c,int wide) {
 static void special_a(CPU *c) { special_path(c,0); }
 static void special_w(CPU *c) { special_path(c,1); }
 
+/* ShellExecuteA(hwnd, verb, file, parameters, directory, show): the browser build
+ * cannot launch host documents/programs. The request is logged and reported as
+ * successful (>32) so menu choices such as "view the Readme" do not stop the game.
+ * https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea */
+static void ascii_arg(uint32_t p,char *out,size_t cap) { size_t n=0;if(p)while(n+1<cap && (uint64_t)p+n<MOVIES_SHELL_SPACE && R8(p+(uint32_t)n)) { out[n]=(char)R8(p+(uint32_t)n);n++; }out[n]=0; }
+static void shell_execute_a(CPU *c) {
+    if(!g_mem || !c->esp || (uint64_t)c->esp+28>MOVIES_SHELL_SPACE) { guest_trap(c,0,"invalid ShellExecuteA stack");return; }
+    char verb[64],file[260],params[260];ascii_arg(R32(c->esp+8),verb,sizeof verb);ascii_arg(R32(c->esp+12),file,sizeof file);ascii_arg(R32(c->esp+16),params,sizeof params);
+    fprintf(stderr,"[shell] ShellExecuteA verb=\"%s\" file=\"%s\" params=\"%s\" caller=%08x: not opened in the browser\n",verb,file,params,R32(c->esp));
+    c->eax=42;c->esp+=28;
+}
 static void get_a(CPU *c) { get_path(c,0); }
 static void get_w(CPU *c) { get_path(c,1); }
 ImportHandler *movies_shell_handlers(uint32_t *count) {
@@ -126,6 +137,7 @@ ImportHandler *movies_shell_handlers(uint32_t *count) {
         {"SHFOLDER.DLL!SHGetFolderPathA",get_a},{"SHFOLDER.DLL!SHGetFolderPathW",get_w},
         {"SHELL32.DLL!SHGetFolderPathA",get_a},{"SHELL32.DLL!SHGetFolderPathW",get_w},
         {"SHELL32.DLL!SHGetSpecialFolderPathA",special_a},{"SHELL32.DLL!SHGetSpecialFolderPathW",special_w},
+        {"SHELL32.DLL!ShellExecuteA",shell_execute_a},
     };
     *count=sizeof handlers/sizeof handlers[0];return handlers;
 }

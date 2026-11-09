@@ -8,5 +8,6 @@
  * Standard handle masks are stored; QUERY_VALUE/SET_VALUE are enforced.
  * Nonvolatile/volatile creation both last for this runtime instance only. */
 void movies_registry_init(const char *userdata_root);
+int movies_registry_replace_string(uint32_t root_id,const char *path,const char *name,const char *value);
 ImportHandler *movies_registry_handlers(uint32_t *count);
 #endif
