@@ -84,7 +84,7 @@ EM_JS(int,graphics_bridge,(uint32_t cmd, const uint32_t *a, const void *data, ui
   else if(cmd===12){command='setRenderTarget';args={texture:v[0]||null};}
   else if(cmd===13){command='readRenderTarget';args={texture:v[0]};}
   else if(cmd===16){command='readPixels';}
-  else if(cmd===15){command='copyRenderTarget';args={source:v[0],destination:v[1]};}
+  else if(cmd===15){command='copyRenderTarget';args={source:v[0],destination:v[1],...(v[4]?{region:{sourceX:v[5],sourceY:v[6],x:v[7],y:v[8],width:v[9],height:v[10]}}:{})};}
   else if(cmd===14){command='writeRenderTarget';args={texture:v[0],width:v[1],height:v[2],bytes:HEAPU8.slice(data,data+bytes).buffer};}else return 0;
   result=call(command,args);
   if(result&&typeof result.then==='function')throw Error('D3D9 graphics hook must be synchronous');
@@ -910,16 +910,22 @@ static void render_target_data(CPU*c){Object*d=self(c,DEVICE);Object*src=find(AR
  ret(c,3,0);}
 static void unsupported_1_33(CPU*c){unsupported(c,"IDirect3DDevice9::GetFrontBufferData unsupported");}
 static uint32_t surface_gpu(Object*s){if(!s||s->type!=SURFACE)return 0;Object*t=find(s->container);if(t)return (t->usage&1u)?t->gpu:0;return (s->usage&1u)?s->gpu:0;}
-/* Whole-surface, same-size copies between render-target surfaces (1:1, so the
- * filter has no effect). Observed D3DX B0E60B (NONE) and A2B3B4 (LINEAR).
+/* Unscaled copies between render-target surfaces (1:1, so the filter has no
+ * effect): whole same-size surfaces, or equal-size rectangles. Observed D3DX
+ * B0E60B (NONE), A2B3B4 (LINEAR) and AFE246 (D3DXLoadSurfaceFromSurface fast path,
+ * NONE, only when both rectangles have the same size). Scaling is not claimed.
  * https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-stretchrect */
 static void stretch_rect(CPU*c){Object*d=self(c,DEVICE);Object*src=find(ARG(1)),*dst=find(ARG(3));uint32_t filter=ARG(5);
  if(!src||!dst||src->type!=SURFACE||dst->type!=SURFACE||src->parent!=d->address||dst->parent!=d->address||src==dst||filter>3){ret(c,6,INVALID);return;}
- uint32_t sg=surface_gpu(src),dg=surface_gpu(dst);
- if(!sg||!dg||ARG(2)||ARG(4)||src->width!=dst->width||src->height!=dst->height){static unsigned reports;if(reports++<8)fprintf(stderr,"[D3D9] StretchRect unsupported caller=%08x src=%ux%u gpu=%u rect=%08x dst=%ux%u gpu=%u rect=%08x filter=%u\n",R32(c->esp),src->width,src->height,sg,ARG(2),dst->width,dst->height,dg,ARG(4),filter);
-  unsupported(c,"D3D9 StretchRect supports whole same-size render-target copies only");return;}
+ uint32_t sg=surface_gpu(src),dg=surface_gpu(dst),sr[4]={0,0,src->width,src->height},dr[4]={0,0,dst->width,dst->height};
+ if(ARG(2)){if(!range(ARG(2),16)){ret(c,6,INVALID);return;}for(int i=0;i<4;i++)sr[i]=R32(ARG(2)+4*i);}
+ if(ARG(4)){if(!range(ARG(4),16)){ret(c,6,INVALID);return;}for(int i=0;i<4;i++)dr[i]=R32(ARG(4)+4*i);}
+ if(sr[0]>=sr[2]||sr[1]>=sr[3]||sr[2]>src->width||sr[3]>src->height||dr[0]>=dr[2]||dr[1]>=dr[3]||dr[2]>dst->width||dr[3]>dst->height){ret(c,6,INVALID);return;}
+ int whole=!ARG(2)&&!ARG(4)&&src->width==dst->width&&src->height==dst->height;
+ if(!sg||!dg||(!whole&&(sr[2]-sr[0]!=dr[2]-dr[0]||sr[3]-sr[1]!=dr[3]-dr[1]))){static unsigned reports;if(reports++<8)fprintf(stderr,"[D3D9] StretchRect unsupported caller=%08x src=%ux%u gpu=%u rect=%08x dst=%ux%u gpu=%u rect=%08x filter=%u\n",R32(c->esp),src->width,src->height,sg,ARG(2),dst->width,dst->height,dg,ARG(4),filter);
+  unsupported(c,"D3D9 StretchRect supports unscaled render-target copies only");return;}
  if(src->locked||dst->locked){ret(c,6,INVALID);return;}
- MoviesD3D9Request q={.command=MOVIES_D3D9_COPY_TARGET,.args={sg,dg,src->width,src->height}};MoviesD3D9Reply r;ret(c,6,invoke(&q,&r)?0:LOST);}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_COPY_TARGET,.args={sg,dg,src->width,src->height,!whole,sr[0],sr[1],dr[0],dr[1],sr[2]-sr[0],sr[3]-sr[1]}};MoviesD3D9Reply r;ret(c,6,invoke(&q,&r)?0:LOST);}
 static void unsupported_1_35(CPU*c){unsupported(c,"IDirect3DDevice9::ColorFill unsupported");}
 static void unsupported_1_36(CPU*c){unsupported(c,"IDirect3DDevice9::CreateOffscreenPlainSurface unsupported");}
 /* One simultaneous target (NumSimultaneousRTs=1). Index0 rejects NULL. Accepts the

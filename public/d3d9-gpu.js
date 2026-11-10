@@ -34,6 +34,11 @@ function bytesOf(input, adopt = false) {
 const LAYOUTS = Object.freeze({
   XYZ_DIFFUSE: {stride: 16, rhw: false, uvSets: 0}, XYZ_DIFFUSE_UV: {stride: 24, rhw: false, uvSets: 1}, XYZRHW_DIFFUSE_UV: {stride: 28, rhw: true, uvSets: 1},
   XYZ_DIFFUSE_UV2: {stride: 32, rhw: false, uvSets: 2}, XYZRHW_DIFFUSE_UV2: {stride: 36, rhw: true, uvSets: 2}});
+/* Clip-space W for a pre-transformed vertex: 1/RHW when RHW is a usable positive
+ * value, else 1 (plain screen-linear interpolation, what a constant RHW gives).
+ * Must match the WGSL in shader(). */
+export const MIN_RHW = 3e-38;
+export function transformedW(rhw) { return rhw >= MIN_RHW ? 1 / rhw : 1; }
 export function vertexLayout(format) { const layout = LAYOUTS[format]; if (!layout) throw new GraphicsUnsupportedError(`Unsupported vertex format ${format}`); return layout; }
 export function validateVertexBytes(input, format, adopt = false) {
   const layout = vertexLayout(format), stride = layout.stride, position = layout.rhw ? 16 : 12;
@@ -51,10 +56,9 @@ export function validateVertexBytes(input, format, adopt = false) {
       if (!Number.isFinite(view.getFloat32(offset + field, true))) throw new RangeError('Nonfinite vertex component');
     }
   }
-  if(layout.rhw)for(let offset=0;offset<bytes.length;offset+=stride){
-    const z=view.getFloat32(offset+8,true),rhw=view.getFloat32(offset+12,true);
-    if(z<0||z>1||rhw<=0||!Number.isFinite(Math.fround(1/rhw)))throw new RangeError('Invalid transformed depth or reciprocal W');
-  }
+  // Pre-transformed (XYZRHW) depth outside [0,1] and unusable RHW (0, negative,
+  // denormal) are legal in D3D9: depth is clipped by the rasterizer, and RHW only
+  // weights perspective-correct interpolation. See transformedW().
   return {bytes, stride, count: bytes.length / stride, format};
 }
 export function validateIndexBytes(input, format, adopt = false) {
@@ -178,7 +182,9 @@ struct VertexOutput { @builtin(position) position: vec4<f32>, @location(0) ${rhw
  // P * V * W * column(position) equals D3D row(position) * W * V * P.
  ${rhw ? `// D3D9 integer pixel centers become WebGPU half-integer centers.
  let screen=vec2<f32>(2.0,-2.0)*(position.xy-matrices.viewport.xy+vec2<f32>(0.5))/matrices.viewport.zw+vec2<f32>(-1.0,1.0);
- out.position=vec4<f32>(screen,position.z,1.0)/position.w;` : 'out.position = matrices.projection * matrices.view * matrices.world * vec4<f32>(position, 1.0);'}
+ // RHW below 3e-38 (0, negative, denormal) is legal; such vertices use W=1 (transformedW).
+ let w=select(1.0,1.0/position.w,position.w>=3e-38);
+ out.position=vec4<f32>(screen,position.z,1.0)*w;` : 'out.position = matrices.projection * matrices.view * matrices.world * vec4<f32>(position, 1.0);'}
  out.color = vec4<f32>(f32((diffuse >> 16u) & 255u), f32((diffuse >> 8u) & 255u), f32(diffuse & 255u), f32(diffuse >> 24u)) / 255.0;
  ${uv ? `out.uv = uv; out.uv1 = ${uv2 ? 'uv1' : 'uv'};` : ''} return out;
 }
@@ -384,14 +390,17 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
       buffer.unmap(); return {width, height, rgba};
     } finally { buffer.destroy(); }
   }
-  /* StretchRect between equal-size render targets: exact 1:1 GPU copy. */
-  copyRenderTarget(sourceHandle, destinationHandle) {
+  /* StretchRect without scaling: an exact 1:1 GPU copy of the whole target, or of an
+   * equal-size rectangle (region) from one target into another (D3DX AFE246). */
+  copyRenderTarget(sourceHandle, destinationHandle, region) {
     this.#resolve(); this.#submitOpen();
     const source = this.#renderTarget(sourceHandle), destination = this.#renderTarget(destinationHandle);
     if (source === destination) throw new RangeError('Render target copy requires distinct targets');
-    if (source.target.width !== destination.target.width || source.target.height !== destination.target.height) throw new GraphicsUnsupportedError('Scaled render target copies are not implemented');
+    const {sourceX = 0, sourceY = 0, x = 0, y = 0, width = source.target.width, height = source.target.height} = region ?? {};
+    if (!region && (source.target.width !== destination.target.width || source.target.height !== destination.target.height)) throw new GraphicsUnsupportedError('Scaled render target copies are not implemented');
+    if (sourceX + width > source.target.width || sourceY + height > source.target.height || x + width > destination.target.width || y + height > destination.target.height) throw new RangeError('Render target copy rectangle out of bounds');
     const encoder = this.#device.createCommandEncoder();
-    encoder.copyTextureToTexture({texture: source.texture}, {texture: destination.texture}, [source.target.width, source.target.height]);
+    encoder.copyTextureToTexture({texture: source.texture, origin: [sourceX, sourceY]}, {texture: destination.texture, origin: [x, y]}, [width, height]);
     this.#device.queue.submit([encoder.finish()]);
     destination.target.colorInitialized = true; if (destination.target === this.#active) this.#colorInitialized = true;
   }
@@ -499,8 +508,8 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
       if(vb.clipChecked!==`${x},${y},${w},${h}`){
         const ok=v=>Number.isFinite(Math.fround(v));
         for(let i=0;i<vb.count;i++){
-          const at=i*layout.stride,reciprocal=data.getFloat32(at+12,true);
-          if(!ok((2*(data.getFloat32(at,true)-x+.5)/w-1)/reciprocal)||!ok((1-2*(data.getFloat32(at+4,true)-y+.5)/h)/reciprocal)||!ok(data.getFloat32(at+8,true)/reciprocal)||!ok(1/reciprocal))
+          const at=i*layout.stride,cw=transformedW(data.getFloat32(at+12,true));
+          if(!ok((2*(data.getFloat32(at,true)-x+.5)/w-1)*cw)||!ok((1-2*(data.getFloat32(at+4,true)-y+.5)/h)*cw)||!ok(data.getFloat32(at+8,true)*cw)||!ok(cw))
             throw new RangeError('Transformed clip position overflows float32');
         }
         vb.clipChecked=`${x},${y},${w},${h}`;

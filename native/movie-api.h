@@ -13,4 +13,8 @@ int movies_movie_owns_graph(uint32_t graph);
 uint32_t movies_movie_query(uint32_t graph, uint32_t iid, uint32_t out);
 uint32_t movies_movie_render(CPU *c, uint32_t graph, uint32_t pin);
 void movies_movie_graph_release(CPU *c, uint32_t graph);
+/* Main guest thread only: keep running movies' audio fed between the game's
+ * position polls (DirectShow plays audio on its own threads; the game polls only
+ * while it draws the movie). Rate-limited; never re-entered. */
+void movies_movie_service(void);
 #endif

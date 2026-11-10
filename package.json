@@ -7,7 +7,12 @@
     "test:native": "python3 scripts/test-native.py",
     "start": "node scripts/serve.mjs",
     "prepare:game": "python3 scripts/prepare-game.py",
-    "test": "node --test tests/*.test.mjs && python3 -m unittest discover -s tests -p 'test_*.py'"
+    "test": "node --test tests/*.test.mjs && python3 -m unittest discover -s tests -p 'test_*.py'",
+    "build:site": "python3 scripts/build-site.py",
+    "preview:site": "node scripts/serve.mjs --port 4175 --root dist",
+    "deploy:site": "node scripts/deploy-site.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

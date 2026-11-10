@@ -71,6 +71,7 @@ static void service_guest_threads(CPU *c) {
 #ifdef __EMSCRIPTEN__
     emscripten_main_thread_process_queued_calls();
 #endif
+    movies_movie_service();
     char failure[256];
     if (movies_guest_threads_failed(failure,sizeof failure)) guest_trap(c,0,failure);
 }

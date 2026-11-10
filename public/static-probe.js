@@ -41,7 +41,13 @@ const stop = document.getElementById('stop');
 const status = document.getElementById('status');
 const log = document.getElementById('log');
 const optimization = document.getElementById('optimization');
-optimization.addEventListener('change', () => {
+/* play.html (the public page) sets data-mode="play": one fixed build, game files
+ * from the player's chosen folder (play.js sets globalThis.moviesGameFiles), and
+ * no diagnostic controls. static-probe.html is the local diagnostic page. */
+const playMode = document.body?.dataset?.mode === 'play';
+const buildValue = () => optimization?.value ?? '1-threads';
+const checked = id => document.getElementById(id)?.checked === true;
+optimization?.addEventListener('change', () => {
   document.getElementById('provenance').href = `runtime/static-probe${optimization.value === '0' ? '' : '-o' + optimization.value}/manifest.json`;
 });
 let worker = null;
@@ -78,7 +84,48 @@ fullscreenButton.addEventListener('click', async () => {
 });
 document.getElementById('fullscreen-capture').addEventListener('click', captureNow);
 document.getElementById('fullscreen-exit').addEventListener('click', () => { document.exitFullscreen?.().catch(() => {}); });
+/* Escape in fullscreen. Normally the browser takes Esc itself (releasing the mouse
+ * or leaving fullscreen) and the game never sees it. With the Keyboard Lock API
+ * (Chrome/Edge, fullscreen only) Esc reaches the page, so:
+ *   1st Esc  -> delivered to the game (opens its pause/options menu);
+ *   2nd Esc  -> swallowed (the game stays paused); leaves fullscreen and releases the mouse.
+ * Any other key or a click in the game re-arms the first step. Holding Esc still
+ * exits fullscreen, as Chrome always allows. Browsers without Keyboard Lock keep
+ * their default Esc behaviour. */
+let escapeTaken = false, swallowEscapeUp = false, escapeHintTimer = null;
+// Hint shown inside the fullscreen element (anything outside it is not visible).
+const escapeHint = document.createElement?.('div');
+if (escapeHint) {
+  escapeHint.id = 'escape-hint'; escapeHint.hidden = true; escapeHint.setAttribute('role', 'status');
+  escapeHint.textContent = 'Press Esc again to exit fullscreen';
+  Object.assign(escapeHint.style, {position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: '2', background: '#000d',
+    color: '#fff', border: '1px solid #ffffff33', borderRadius: '10px', padding: '8px 16px', font: '600 15px system-ui, sans-serif', pointerEvents: 'none'});
+  gameSurface.append?.(escapeHint);
+}
+function showEscapeHint(visible) {
+  if (!escapeHint) return;
+  clearTimeout(escapeHintTimer); escapeHint.hidden = !visible;
+  if (visible) escapeHintTimer = setTimeout(() => { escapeHint.hidden = true; }, 3000);
+}
+function syncKeyboardLock() {
+  escapeTaken = false; showEscapeHint(false);
+  if (document.fullscreenElement === gameSurface) navigator.keyboard?.lock?.(['Escape']).catch(() => {});
+  else navigator.keyboard?.unlock?.();
+}
+globalThis.addEventListener?.('keydown', event => {
+  if (document.fullscreenElement !== gameSurface) return;
+  if (event.code !== 'Escape') { escapeTaken = false; showEscapeHint(false); return; }
+  if (event.repeat) { event.stopImmediatePropagation(); event.preventDefault(); return; }
+  if (!escapeTaken) { escapeTaken = true; if (navigator.keyboard?.lock) showEscapeHint(true); return; } // first press: let the game have it
+  event.stopImmediatePropagation(); event.preventDefault(); swallowEscapeUp = true;
+  document.exitPointerLock?.(); document.exitFullscreen?.().catch(() => {});
+}, true);
+globalThis.addEventListener?.('keyup', event => {
+  if (event.code === 'Escape' && swallowEscapeUp) { swallowEscapeUp = false; event.stopImmediatePropagation(); event.preventDefault(); }
+}, true);
+globalThis.addEventListener?.('pointerdown', event => { if (gameSurface.contains?.(event.target) && event.target?.tagName === 'CANVAS') { escapeTaken = false; showEscapeHint(false); } }, true);
 document.addEventListener?.('fullscreenchange', syncFullscreenBar);
+document.addEventListener?.('fullscreenchange', syncKeyboardLock);
 document.addEventListener?.('pointerlockchange', syncFullscreenBar);
 let directInput = null, droppedInput = 0;
 /* Saved settings/registry/saves: OPFS store, loaded before each run and updated
@@ -217,7 +264,8 @@ function syncGameFocus() {
 for (const [target, name] of [[globalThis, 'focus'], [globalThis, 'blur'], [document, 'visibilitychange'], [document, 'focusin'], [document, 'focusout']])
   target.addEventListener?.(name, () => queueMicrotask(syncGameFocus), true);
 setInterval(() => {
-  document.getElementById('heartbeat').textContent = `UI heartbeat: ${Math.floor((performance.now() - began) / 1000)} s`;
+  const heartbeat = document.getElementById('heartbeat');
+  if (heartbeat) heartbeat.textContent = `UI heartbeat: ${Math.floor((performance.now() - began) / 1000)} s`;
   syncGameFocus();
   updateFrameMetrics();
 }, 1000);
@@ -271,10 +319,12 @@ function finish(text) {
   directInput?.dispose(); directInput = null;
   cursorSnapshot?.write(null); cursorSnapshot = null;
   start.disabled = false; stop.disabled = true;
-  optimization.disabled = false;
+  if (optimization) optimization.disabled = false;
+  globalThis.dispatchEvent?.(new CustomEvent('movies-game-stopped', {detail: {text}}));
   updateFrameMetrics();
 }
 start.addEventListener('click', async () => {
+  if (playMode && !globalThis.moviesGameFiles?.length) { status.textContent = 'Choose your game folder first.'; return; }
   surface.clear();
   frameMetrics = {count: 0, sampleCount: 0, sampleAt: 0, rate: null, firstAt: 0, lastAt: 0, reported: false};
   updateFrameMetrics();
@@ -282,7 +332,7 @@ start.addEventListener('click', async () => {
   logTimer = null; pendingLog = '';
   log.textContent = ''; start.disabled = true; stop.disabled = false;
   status.textContent = 'Starting worker…';
-  optimization.disabled = true;
+  if (optimization) optimization.disabled = true;
   worker = new Worker('static-probe-worker.js');
   const cursorBuffer = MoviesPointerSnapshot.create();
   cursorSnapshot = new MoviesPointerSnapshot(cursorBuffer);
@@ -292,7 +342,7 @@ start.addEventListener('click', async () => {
   const directInputControl = new SharedArrayBuffer(MoviesAsyncKeyControlBytes);
   directInput = new MoviesDirectInputHost(directInputBuffer, directInputControl, text => finish(text));
   const activeWorker = worker;
-  const profileGraphics = document.getElementById('profile-graphics').checked;
+  const profileGraphics = checked('profile-graphics');
   const reportGraphicsMetrics = metrics => {
     if (worker !== activeWorker) return;
     pendingLog += `[graphics-profile] ${JSON.stringify(metrics)}\n`;
@@ -373,13 +423,13 @@ start.addEventListener('click', async () => {
     graphics = {profile: profileGraphics, width:1024, height:768, presentationPort:channel.port2, presentationAck:ack.buffer,
       commandPort:transport.commandPort, responseBuffer:transport.responseBuffer};
   } catch (error) { if (worker === activeWorker) finish(`GPU setup error: ${error.message}`); return; }
-  if (optimization.value.endsWith('-threads')) {
+  if (buildValue().endsWith('-threads')) {
     try {
       const {createOwnedWorkerHost} = await import('./owned-worker-host.js');
       if (worker !== activeWorker) return;
-      const level = Number(optimization.value.split('-')[0]);
+      const level = Number(buildValue().split('-')[0]);
       ownedPthreads = createOwnedWorkerHost({
-        allowedURL: new URL(`runtime/static-probe${level ? '-o' + level : ''}-threads/probe.js`, location.href).href,
+        allowedURL: new URL(`runtime/static-probe${level ? '-o' + level : ''}-threads/probe.js`, document.baseURI ?? location.href).href,
         onError(error) { if (worker === activeWorker) finish(`Pthread worker error: ${error.message}`); }
       });
     } catch (error) { if (worker === activeWorker) finish(`Pthread ownership setup error: ${error.message}`); return; }
@@ -466,13 +516,13 @@ start.addEventListener('click', async () => {
       Atomics.store(response, 0, result);
       Atomics.notify(response, 0);
     }
-    else if (data.type === 'terminal') finish(`Diagnostic ended: code ${data.code}. ${data.text || ''}`);
+    else if (data.type === 'terminal') finish(playMode && data.code === 0 ? 'The game closed.' : playMode ? `The game stopped (${data.code}). ${data.code === 4 ? 'It reached something this port does not support yet. ' : ''}Open "Technical log" below for details.` : `Diagnostic ended: code ${data.code}. ${data.text || ''}`);
   };
   let userdata = {files: [], directories: []};
   try { userdata = await (await userdataStore()).load(); } catch (error) { pendingLog += `[userdata] saved data unavailable: ${error.message}\n`; }
   const traceAt = typeof URLSearchParams === 'function' && globalThis.location ? Number(new URLSearchParams(location.search).get('traceAt')) || 0 : 0;
-  try { worker.postMessage({type: 'start', traceAt, userdata, traceImports: document.getElementById('trace-imports').checked, traceFiles: document.getElementById('trace-files').checked,
-    optimization: Number(optimization.value.split('-')[0]), threads: optimization.value.endsWith('-threads'), inputBuffer, cursorBuffer, directInputBuffer, directInputControl,
+  try { worker.postMessage({type: 'start', traceAt, userdata, traceImports: checked('trace-imports'), traceFiles: checked('trace-files'), traceDsound: globalThis.__traceDsound === true || (typeof URLSearchParams === 'function' && globalThis.location ? new URLSearchParams(location.search).get('dsound') === '1' : false),
+    optimization: Number(buildValue().split('-')[0]), threads: buildValue().endsWith('-threads'), ...(playMode ? {gameFiles: globalThis.moviesGameFiles} : {}), inputBuffer, cursorBuffer, directInputBuffer, directInputControl,
     pthreadPort: ownedPthreads?.port, audio: audio.descriptor, graphics, reader: {port: reader.port, controlBuffer: reader.control.buffer, payloadBuffer: reader.payload},
     media: {port: media.port, controlBuffer: media.control.buffer, payloadBuffer: media.payload}}, [...userdata.files.map(f => f.bytes), media.port, reader.port, graphics.presentationPort, graphics.commandPort, ...(ownedPthreads ? [ownedPthreads.port] : [])]); }
   catch (error) { finish(`Guest worker start error: ${error.message}`); }

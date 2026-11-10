@@ -40,7 +40,11 @@
 #define DSERR_UNSUPPORTED 0x80004001u
 #define DSERR_OUTOFMEMORY 0x8007000eu
 #define DSERR_ALREADYINITIALIZED 0x88780082u
-enum { STATE, ADDRESS, BYTES, CHANNELS, CURSOR, HEARTBEAT, VOLUME, RESERVED };
+/* LIMIT: 0 for guest buffers (the renderer loops the whole ring, as DirectSound
+ * hardware does). Host streams publish where written data ends, so the renderer
+ * stops at it and plays silence instead of replaying stale audio:
+ * 0x80000000 | (0x40000000 if the ring is completely full) | end frame. */
+enum { STATE, ADDRESS, BYTES, CHANNELS, CURSOR, HEARTBEAT, VOLUME, LIMIT };
 static volatile int32_t control[SLOTS * 8] __attribute__((aligned(16)));
 typedef struct Buffer {
     int used; uint32_t refs, ring, bytes, channels, align, flags, looping;
@@ -81,6 +85,14 @@ EM_JS(void, announce_renderer, (uint32_t control_address, uint32_t slots), {
         postMessage({type: 'dsound', memory: HEAPU8.buffer, control: control_address, slots: slots});
 });
 #endif
+/* PORT_LOG_DSOUND=1 (static-probe.html?dsound=1): log every call on large
+ * (streaming, >= 64 KiB) buffers and lifecycle calls on all buffers. */
+#include <stdlib.h>
+static int trace_enabled(void) { static int v = -1; if (v < 0) { const char *e = getenv("PORT_LOG_DSOUND"); v = e && *e == '1'; } return v; }
+static void trace(CPU *c, const char *op, unsigned slot, uint32_t bytes, int always, uint32_t a, uint32_t b, uint32_t d) {
+    if (!trace_enabled() || (!always && bytes < 65536)) return;
+    fprintf(stderr, "[dsound-trace] t=%.0f slot=%u bytes=%u op=%s a=%08x b=%08x c=%08x caller=%08x\n", now_ms(), slot, bytes, op, a, b, d, R32(c->esp));
+}
 static Buffer *buffer_of(uint32_t self, unsigned *slot) {
     if (self < OBJ_BUFFERS || self >= OBJ_BUFFERS + 32 * SLOTS || (self - OBJ_BUFFERS) % 32) return NULL;
     unsigned i = (self - OBJ_BUFFERS) / 32; if (!buffers[i].used || buffers[i].host_stream) return NULL;
@@ -114,6 +126,7 @@ static void b_addref(CPU *c) { pthread_mutex_lock(&lock); Buffer *b = buffer_of(
 static void b_release(CPU *c) {
     unsigned slot; uint32_t ring = 0, r = 0;
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot);
+    if (b) trace(c, "Release", slot, b->bytes, 1, b->refs, 0, 0);
     if (b && (r = --b->refs) == 0) {
         store(slot * 8 + STATE, 0); store(slot * 8 + ADDRESS, 0); store(slot * 8 + BYTES, 0);
         ring = b->ring; memset(b, 0, sizeof *b);
@@ -135,6 +148,7 @@ static void b_position(CPU *c) {
     uint32_t p = 0, w = 0;
     if (b) { p = cursor_frames(b, slot) * b->align; w = (p + 64 * b->align) % b->bytes; }
     pthread_mutex_unlock(&lock);
+    if (b) trace(c, "GetCurrentPosition", slot, b->bytes, 0, p, w, 0);
     if (!b) { ret(c, 3, E_POINTER); return; }
     {   /* Diagnostic: statistics of the ring the guest mixed (low zero-crossing rate
          * = tonal audio, ~0.5 = noise). Logged a few times, every ~4 s. */
@@ -176,6 +190,7 @@ static void b_status(CPU *c) {
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot);
     uint32_t s = b && load(slot * 8 + STATE) == 1 ? 1u | (b->looping ? 4u : 0u) : 0;
     pthread_mutex_unlock(&lock);
+    if (b) trace(c, "GetStatus", slot, b->bytes, 0, s, 0, 0);
     if (b && range(ARG(1), 4)) W32(ARG(1), s); ret(c, 2, b ? 0 : E_POINTER);
 }
 static void b_initialize(CPU *c) { ret(c, 3, DSERR_ALREADYINITIALIZED); }
@@ -184,6 +199,7 @@ static void b_lock(CPU *c) {
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot); Buffer copy = b ? *b : (Buffer){0};
     if (b && (flags & 1)) offset = (cursor_frames(b, slot) * b->align + 64 * b->align) % b->bytes; /* FROMWRITECURSOR */
     pthread_mutex_unlock(&lock);
+    if (b) trace(c, "Lock", slot, copy.bytes, 0, offset, bytes, flags);
     if (!b) { ret(c, 8, E_POINTER); return; }
     if (flags & 2) { offset = 0; bytes = copy.bytes; } /* ENTIREBUFFER */
     if (!range(p1, 4) || !range(n1, 4) || offset >= copy.bytes || !bytes || bytes > copy.bytes) { ret(c, 8, INVALIDPARAM); return; }
@@ -198,6 +214,7 @@ static void b_play(CPU *c) {
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot);
     if (b) { b->looping = ARG(3) & 1; b->seen_at = now_ms(); b->seen_heartbeat = load(slot * 8 + HEARTBEAT); store(slot * 8 + STATE, 1); }
     pthread_mutex_unlock(&lock);
+    if (b) trace(c, "Play", slot, b->bytes, 1, ARG(3), 0, 0);
     if (b) { static unsigned logs; if (logs++ < 4) fprintf(stderr, "[dsound] buffer %u playing: %u bytes, %u ch, looping=%u\n", slot, b->bytes, b->channels, ARG(3) & 1); }
     ret(c, 4, b ? 0 : E_POINTER);
 }
@@ -205,7 +222,8 @@ static void b_set_position(CPU *c) {
     unsigned slot;
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot);
     if (b) store(slot * 8 + CURSOR, (int32_t)((ARG(1) % b->bytes) / b->align));
-    pthread_mutex_unlock(&lock); ret(c, 2, b ? 0 : E_POINTER);
+    pthread_mutex_unlock(&lock);
+    if (b) trace(c, "SetCurrentPosition", slot, b->bytes, 1, ARG(1), 0, 0); ret(c, 2, b ? 0 : E_POINTER);
 }
 static void b_set_format(CPU *c) { ret(c, 2, DSERR_UNSUPPORTED); }
 static void b_set_volume(CPU *c) {
@@ -213,16 +231,18 @@ static void b_set_volume(CPU *c) {
     if (v > 0 || v < -10000) { ret(c, 2, INVALIDPARAM); return; }
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot);
     if (b) { b->volume = v; store(slot * 8 + VOLUME, (int32_t)lrint(10000.0 * pow(10.0, v / 2000.0))); }
-    pthread_mutex_unlock(&lock); ret(c, 2, b ? 0 : E_POINTER);
+    pthread_mutex_unlock(&lock);
+    if (b) trace(c, "SetVolume", slot, b->bytes, 0, ARG(1), 0, 0); ret(c, 2, b ? 0 : E_POINTER);
 }
 static void b_set_pan(CPU *c) { pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), NULL); if (b) b->pan = (int32_t)ARG(1); pthread_mutex_unlock(&lock); ret(c, 2, b ? 0 : E_POINTER); }
 static void b_set_frequency(CPU *c) { pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), NULL); if (b) b->frequency = (int32_t)ARG(1); pthread_mutex_unlock(&lock); ret(c, 2, b ? 0 : E_POINTER); }
 static void b_stop(CPU *c) {
     unsigned slot;
     pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot); if (b) store(slot * 8 + STATE, 0);
-    pthread_mutex_unlock(&lock); ret(c, 1, b ? 0 : E_POINTER);
+    pthread_mutex_unlock(&lock);
+    if (b) trace(c, "Stop", slot, b->bytes, 1, 0, 0, 0); ret(c, 1, b ? 0 : E_POINTER);
 }
-static void b_unlock(CPU *c) { pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), NULL); pthread_mutex_unlock(&lock); ret(c, 5, b ? 0 : E_POINTER); }
+static void b_unlock(CPU *c) { unsigned slot; pthread_mutex_lock(&lock); Buffer *b = buffer_of(ARG(0), &slot); uint32_t n = b ? b->bytes : 0; pthread_mutex_unlock(&lock); if (b) trace(c, "Unlock", slot, n, 0, ARG(2), ARG(4), 0); ret(c, 5, b ? 0 : E_POINTER); }
 static void b_restore(CPU *c) { ret(c, 1, 0); }
 static void b_unsupported3(CPU *c) { ret(c, 3, DSERR_UNSUPPORTED); }
 static void b_unsupported4(CPU *c) { ret(c, 4, DSERR_UNSUPPORTED); }
@@ -251,7 +271,7 @@ uint32_t movies_dsound_create_buffer(uint32_t desc, uint32_t out) {
     if (i == SLOTS) { pthread_mutex_unlock(&lock); if (free_ring) free_ring(ring); return DSERR_OUTOFMEMORY; }
     buffers[i] = (Buffer){1, 1, ring, bytes, ch, align, flags, 0, 0, 0, 44100, 0, 0};
     store(i * 8 + STATE, 0); store(i * 8 + CURSOR, 0); store(i * 8 + VOLUME, 10000);
-    store(i * 8 + CHANNELS, (int32_t)ch); store(i * 8 + BYTES, (int32_t)bytes);
+    store(i * 8 + CHANNELS, (int32_t)ch); store(i * 8 + BYTES, (int32_t)bytes); store(i * 8 + LIMIT, 0);
     store(i * 8 + ADDRESS, (int32_t)(uint32_t)(uintptr_t)HP(ring));
     pthread_mutex_unlock(&lock);
     W32(out, OBJ_BUFFERS + 32 * i);
@@ -259,7 +279,13 @@ uint32_t movies_dsound_create_buffer(uint32_t desc, uint32_t out) {
     return 0;
 }
 /* ---- Host-owned streaming voices (movie audio): 44.1 kHz stereo PCM16 rings fed
- * by host code, played by the same renderer. Not reachable from guest COM. ---- */
+ * by host code, played by the same renderer. Not reachable from guest COM. The
+ * renderer never plays past the written end (LIMIT), so an unfed stream goes
+ * silent and its cursor waits; played can never exceed written. ---- */
+static void publish_limit(Buffer *b, unsigned slot) {
+    uint32_t frames = b->bytes / b->align, queued = (uint32_t)(b->written - b->played);
+    store(slot * 8 + LIMIT, (int32_t)(0x80000000u | (queued >= frames ? 0x40000000u : 0) | (uint32_t)(b->written % frames)));
+}
 static uint64_t stream_progress(Buffer *b, unsigned slot) {
     uint32_t frames = b->bytes / b->align, cursor = cursor_frames(b, slot);
     b->played += (cursor + frames - b->last_cursor) % frames; b->last_cursor = cursor;
@@ -277,14 +303,14 @@ int movies_dsound_stream_open(uint32_t bytes) {
     if (i == SLOTS) { pthread_mutex_unlock(&lock); if (free_ring) free_ring(ring); return -1; }
     buffers[i] = (Buffer){.used = 1, .refs = 1, .ring = ring, .bytes = bytes, .channels = 2, .align = 4, .frequency = 44100, .host_stream = 1};
     store(i * 8 + STATE, 0); store(i * 8 + CURSOR, 0); store(i * 8 + VOLUME, 10000);
-    store(i * 8 + CHANNELS, 2); store(i * 8 + BYTES, (int32_t)bytes); store(i * 8 + ADDRESS, (int32_t)(uint32_t)(uintptr_t)HP(ring));
+    store(i * 8 + CHANNELS, 2); store(i * 8 + BYTES, (int32_t)bytes); store(i * 8 + LIMIT, (int32_t)0x80000000u); store(i * 8 + ADDRESS, (int32_t)(uint32_t)(uintptr_t)HP(ring));
     pthread_mutex_unlock(&lock); return (int)i;
 }
 static Buffer *stream(int slot) { return slot >= 0 && slot < SLOTS && buffers[slot].used && buffers[slot].host_stream ? &buffers[slot] : NULL; }
 void movies_dsound_stream_close(int slot) {
     uint32_t ring = 0;
     pthread_mutex_lock(&lock); Buffer *b = stream(slot);
-    if (b) { store(slot * 8 + STATE, 0); store(slot * 8 + ADDRESS, 0); store(slot * 8 + BYTES, 0); ring = b->ring; memset(b, 0, sizeof *b); }
+    if (b) { store(slot * 8 + STATE, 0); store(slot * 8 + ADDRESS, 0); store(slot * 8 + BYTES, 0); store(slot * 8 + LIMIT, 0); ring = b->ring; memset(b, 0, sizeof *b); }
     pthread_mutex_unlock(&lock); if (ring && free_ring) free_ring(ring);
 }
 void movies_dsound_stream_play(int slot, int playing) {
@@ -298,7 +324,7 @@ void movies_dsound_stream_play(int slot, int playing) {
 }
 void movies_dsound_stream_reset(int slot) {
     pthread_mutex_lock(&lock); Buffer *b = stream(slot);
-    if (b) { store(slot * 8 + STATE, 0); memset(HP(b->ring), 0, b->bytes); store(slot * 8 + CURSOR, 0); b->last_cursor = 0; b->played = b->written = 0; }
+    if (b) { store(slot * 8 + STATE, 0); memset(HP(b->ring), 0, b->bytes); store(slot * 8 + CURSOR, 0); b->last_cursor = 0; b->played = b->written = 0; publish_limit(b, (unsigned)slot); }
     pthread_mutex_unlock(&lock);
 }
 void movies_dsound_stream_volume(int slot, int32_t hundredths_db) {
@@ -320,6 +346,7 @@ uint32_t movies_dsound_stream_write(int slot, const uint8_t *pcm, uint32_t bytes
             uint32_t at = (uint32_t)((b->written * 4) % b->bytes), chunk = b->bytes - at < n - done ? b->bytes - at : n - done;
             memcpy(HP(b->ring + at), pcm + done, chunk); done += chunk; b->written += chunk / 4;
         }
+        publish_limit(b, (unsigned)slot);
     }
     pthread_mutex_unlock(&lock); return done;
 }

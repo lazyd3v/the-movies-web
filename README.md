@@ -112,3 +112,43 @@ Cross-Origin-Resource-Policy: same-origin
 Serve `.wasm` as `application/wasm`. Keep runtime and game files on the same origin. The game archive is larger than many hosting providers' per-file limits. The local server implements the required behavior. No GPT Sites integration is used.
 
 Boxedwine is GPL-licensed; pinned sources and its license are recorded in `public/runtime/manifest.json` and `public/runtime/LICENSE-Boxedwine.txt`. Original game assets remain separate from repository source.
+
+## Public website
+
+`public/play.html` is the page meant for the public site. It does three things:
+- It asks the player for their own game folder: the folder with `MoviesSE.exe` and `Data`.
+- It checks that `MoviesSE.exe` is the exact file the build was compiled from.
+- It reads the game files from that folder on the player's computer (`public/local-game-files.js`). Nothing is uploaded or hosted.
+
+Chrome and Edge remember the folder between visits; other browsers ask each time. The page also has fullscreen and credits.
+
+The diagnostic page (`static-probe.html`) and the indexed game archive (`public/game/`) are for local development only.
+
+```bash
+npm run build:site      # dist/: play page as index.html, its scripts, the O1 threaded build, ffmpeg.wasm
+npm run preview:site    # http://127.0.0.1:4175 serving dist/
+node scripts/bench/play-page-check.mjs   # headless end-to-end check of dist/ with a local game folder
+```
+
+`dist/` never contains game files or `MoviesSE.exe`. It includes `_headers` with the cross-origin isolation headers that threads require. `probe.wasm` (about 132 MB) and `ffmpeg-core.wasm` (about 32 MB) exceed Cloudflare's 25 MiB per-file limit, so they need R2 or similar storage.
+
+### Error reports
+
+Players can also send a report themselves: the "Report a problem" button, in the FAQ and under the game, opens a dialog with a description, an optional contact and an optional technical log. On builds without a report endpoint, such as local ones, it copies the report to the clipboard instead.
+
+When the game stops with an error, the public page can send a report: the stop reason, the tail of the technical log, the build, the browser and the graphics card. The collector is a Cloudflare Worker with a D1 database (`workers/crash-reports/`); see `wrangler.toml` for the one-time setup.
+
+Reports are sent only when all of these hold:
+- the site was built with `npm run build:site -- --report-endpoint https://<worker>/report`;
+- the page is not on a local host;
+- the player has not unticked "Send error reports".
+
+The Worker accepts reports only from the origins in `ALLOWED_ORIGINS`. It stores no IP addresses: a salted, daily-rotating hash is kept only to rate-limit floods.
+
+```bash
+MOVIES_REPORTS_URL=https://themovies.romanf.cc/api MOVIES_REPORTS_TOKEN=$(cat .cache/reports-token) node scripts/reports.mjs summary
+```
+
+### Deploying
+
+`npm run deploy:site` builds the site with error reports on, uploads the new release to the R2 bucket `themovies-site` (with `index.html` last), and deploys `workers/site` on themovies.romanf.cc. The Worker serves the site from R2: gzip copies, a year of caching for `/v/<release>/`, revalidation for `/`, and the thread-support headers. It also serves the report API (D1 `movies-crash-reports`) under `/api/`. You need to be logged in with `npx wrangler login`. The token for reading reports is in `.cache/reports-token`.

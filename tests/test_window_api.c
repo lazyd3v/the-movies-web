@@ -175,7 +175,9 @@ int main(void) {
     assert(movies_window_map_input_time(1000,2000,1750,&mapped) && mapped==750);
     assert(movies_window_map_input_time(1000,5,0xfffffff0u,&mapped) && mapped==979);
     assert(movies_window_map_input_time(5,100,90,&mapped) && mapped==0xfffffffbu);
-    assert(!movies_window_map_input_time(100,20,21,&mapped));
+    assert(movies_window_map_input_time(100,20,21,&mapped) && mapped==100); /*page clock 1 ms ahead of the worker's: age 0*/
+    assert(movies_window_map_input_time(100,20,60020,&mapped) && mapped==100);
+    assert(!movies_window_map_input_time(100,20,60021,&mapped)); /*more than a minute ahead: corrupt*/
     assert(!movies_window_map_input_time(100,0x80000000u,0,&mapped));
     assert(!movies_window_map_input_time(100,20,20,NULL));
     g_mem=calloc(1,0x10000);assert(g_mem);handlers=movies_window_handlers(&handler_count);setup();

@@ -1,0 +1,18 @@
+# Problem-report collector for the public play page (reports stored in D1). Deploy (free plan):
+#   npx wrangler d1 create movies-crash-reports          # paste the database_id below
+#   npx wrangler d1 execute movies-crash-reports --remote --file schema.sql
+#   npx wrangler secret put REPORTS_TOKEN                # token for reading reports
+#   npx wrangler secret put CLIENT_SALT                  # any random string
+#   npx wrangler deploy
+name = "movies-crash-reports"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Comma-separated origins of the public play site allowed to send reports.
+ALLOWED_ORIGINS = "https://themovies.romanf.cc"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "movies-crash-reports"
+database_id = "e7d89a48-b522-47d1-a886-55e9f5086528"

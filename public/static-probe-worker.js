@@ -88,13 +88,25 @@ self.onmessage = async ({data}) => {
     const manifest = await manifestResponse.json();
     if (Boolean(manifest.threaded) !== threaded) throw new Error('Manifest threading profile mismatch');
     postMessage({type: 'log', text: `Build optimization: O${optimization}; Wasm SHA-256: ${manifest.artifacts['probe.wasm'].sha256}`});
-    const indexResponse = await fetch(new URL('game/file-index.json', self.location.href));
-    if (!indexResponse.ok) throw new Error(`Game file index HTTP ${indexResponse.status}; run scripts/index-game-archive.py`);
-    const fileIndex = await indexResponse.json();
-    if (fileIndex.executable?.sha256 !== manifest.gameExeSha256) throw new Error('Archive executable differs from compiled game');
-    const response = await fetch(new URL('MoviesSE.exe', base));
-    if (!response.ok) throw new Error(`Executable HTTP ${response.status}`);
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    // Game files come from the player's own folder (public site) or, locally, from
+    // the indexed archive under public/game. The public site never hosts them.
+    let fileIndex, archiveRequest, bytes;
+    if (data.gameFiles !== undefined) {
+      if (!Array.isArray(data.gameFiles)) throw new Error('Invalid game folder');
+      const exe = data.gameFiles.find(entry => entry?.path === 'MoviesSE.exe');
+      if (!exe) throw new Error('The chosen folder has no MoviesSE.exe');
+      bytes = new Uint8Array(await exe.file.arrayBuffer());
+      importScripts(new URL('local-game-files.js', self.location.href).href);
+      ({index: fileIndex, request: archiveRequest} = MoviesLocalGameFiles.createIndex(data.gameFiles, manifest.gameExeSha256));
+    } else {
+      const indexResponse = await fetch(new URL('game/file-index.json', self.location.href));
+      if (!indexResponse.ok) throw new Error(`Game file index HTTP ${indexResponse.status}; run scripts/index-game-archive.py`);
+      fileIndex = await indexResponse.json();
+      if (fileIndex.executable?.sha256 !== manifest.gameExeSha256) throw new Error('Archive executable differs from compiled game');
+      const response = await fetch(new URL('MoviesSE.exe', base));
+      if (!response.ok) throw new Error(`Executable HTTP ${response.status}`);
+      bytes = new Uint8Array(await response.arrayBuffer());
+    }
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
     if (hash !== manifest.gameExeSha256 || hash !== '48f909d7f89051ff0d3277f7dc0aa7c65cd1c92015542fcbc3d5f86700b1566a') throw new Error('Executable checksum mismatch');
     postMessage({type: 'status', text: 'Compiling and instantiating translated original code…'});
@@ -171,6 +183,7 @@ self.onmessage = async ({data}) => {
         module.ENV.MOVIES_STARTUP_APIS = '1';
         if (data.traceFiles === true) module.ENV.PORT_LOG_FILES = '1';
         else delete module.ENV.PORT_LOG_FILES;
+        if (data.traceDsound === true) module.ENV.PORT_LOG_DSOUND = '1';
         if (data.traceImports) module.ENV.PORT_LOG_IMPORTS = '1';
         else delete module.ENV.PORT_LOG_IMPORTS;
       }],
@@ -180,9 +193,9 @@ self.onmessage = async ({data}) => {
     mirrorUserdata(runtime.FS, change => postMessage({type: 'persist', change}, change.bytes ? [change.bytes.buffer] : []));
     archive = await MoviesStoredArchiveFS.mount(runtime.FS, {
       index: fileIndex, url: new URL('game/' + fileIndex.archive, self.location.href).href,
-      path: '/game', preloaded: new Map([['MoviesSE.exe', bytes]]),
+      path: '/game', preloaded: new Map([['MoviesSE.exe', bytes]]), ...(archiveRequest ? {request: archiveRequest} : {}),
     });
-    postMessage({type: 'log', text: `Mounted ${fileIndex.fileCount} original files with one 32 MiB range cache.`});
+    postMessage({type: 'log', text: `Mounted ${fileIndex.fileCount} original files${archiveRequest ? ' from the chosen folder' : ''} with one 32 MiB range cache.`});
     postMessage({type: 'status', text: 'Executing the original entry point…'});
     entryStarted = performance.now();
     const code = runtime.callMain(['/game/MoviesSE.exe']);

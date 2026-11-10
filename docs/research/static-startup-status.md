@@ -1298,3 +1298,67 @@ After about 8.5 minutes of play a run stopped at `00b0e839: D3D9 back/depth surf
   - The patch finishes the sequence from state 0, before anything has been loaded.
   - In a headless run the menu appears about 28 s after start (about 75 s with the logos).
   - The main menu's own intro (frontend_intro.wmv) still plays.
+
+## StretchRect with equal-size rectangles (D3DX AFE246)
+
+A run stopped at `00afe24c: D3D9 StretchRect supports whole same-size render-target copies only`. The source and destination were both 512×512 render targets, and both rectangles were given.
+- AFE246 is the fast path of D3DXLoadSurfaceFromSurface. It calls StretchRect with filter NONE only after checking that the two rectangles are the same size.
+- StretchRect now supports unscaled copies of equal-size rectangles. The rectangles are validated against both surfaces, and the copy is sent as `copyRenderTarget` with a `region`, which becomes `copyTextureToTexture` with origins.
+- Scaled copies still stop with a diagnostic.
+
+## Pre-transformed vertices with out-of-range depth or RHW (Finances screen)
+
+Opening Finances failed a batched draw with `Invalid transformed depth or reciprocal W`: the upload validation had rejected XYZRHW vertices whose z was outside [0,1], or whose RHW was ≤ 0 or denormal. D3D9 accepts these vertices:
+- **Depth:** depth outside the range is clipped by the rasterizer. WebGPU does the same, because z outside [0, w] is clipped.
+- **RHW:** RHW only weights perspective-correct interpolation.
+
+The shader and the CPU overflow check now share one rule, `transformedW`: W = 1/RHW when RHW ≥ 3e-38, otherwise 1, which is screen-linear interpolation, the same as a constant RHW. Non-finite components are still rejected. The change is in JS only, so no game rebuild was needed.
+
+## Trace-annotation leak (`Map maximum size exceeded`)
+
+After about 8 minutes on the lot, every vertex upload failed with `RangeError: Map maximum size exceeded` at `d3d9-host.js` `call`.
+- **Cause:** the frame-trace annotations (`formats` and `sizes`, keyed by GPU handle) were added on each upload and never removed. The lot uploads about 35,000 buffers per second, and a JS Map holds at most 2^24 entries.
+- **Fix:** entries are now deleted on `release`, and `liveAnnotations()` exposes the count for tests. Every other per-handle map (host `handles` and `targetSizes`, worker `resources`, the GPU backend's `#resources`) already removed entries on release.
+- **Remaining limit:** handles are never reused and must stay within 1..2^31−1. At this upload rate that allows roughly 16 hours of continuous play.
+
+## Menu music looping (movie audio streams)
+
+The menu music is the soundtrack of `data/intro/frontend_loop.wmv`. `native/movie-api.c` decodes it and feeds it into a one-second host stream ring (`movies_dsound_stream_*`, 176400 bytes). Feeding used to happen only when the game polled the movie position, through `pump`.
+
+Three things could stop the feeding:
+- a polling gap;
+- a failed reader call, which was treated as end of stream;
+- a slow decoder.
+
+Whenever that happened, the AudioWorklet kept cycling the ring and replayed the last second, which is the reported 1–2 s loop.
+
+Fixes:
+- **Renderer limit:** host streams publish their written end in the slot's spare control word (`LIMIT`: `0x80000000 | full<<30 | end frame`). The renderer (`mixDirectSound`) plays only up to it, then outputs silence and holds the cursor. Guest DirectSound buffers keep `LIMIT=0` and loop as on hardware.
+- **Feeding without polls:** `movies_movie_service()` feeds running movies from the main guest thread's service points (after imports, and the preemption poll) at most every 20 ms. It does not re-enter `pump`.
+- **Errors are not end of stream:** a negative reader result is logged and retried on the next feed. Only an explicit end of stream (`eos`) ends the audio.
+- **Resync:** audio that falls more than 250 ms behind the movie clock is re-seeked, audio only, so the video doesn't stutter.
+
+`PORT_LOG_DSOUND=1` (`static-probe.html?dsound=1`) logs streaming-buffer calls and per-second movie poll rates.
+
+Measuring this needs care:
+- A recorder that copies the region "just played" races the game's writes. Those land just behind the play cursor, so the recording shows false one-second repeats.
+- The bench's `--final-js` must run after the loop, not inside the new-game branch.
+
+Headless result: the menu and submenu poll at 60 per second with audio in sync. New Game pauses, stops and releases the menu movie.
+
+## Error reports (public site)
+
+`public/crash-report.js` and `play.js` send one report per failed run. That covers any stop except Quit, the game's own exit (code 0), and runs on local hosts. Sending also requires a build with `--report-endpoint`.
+
+The collector `workers/crash-reports` stores reports in D1:
+- **Grouping:** `signature` is the last `STOP:`, `unsupported`, failure or error line, with counters and timings normalized. It keeps one bug together across runs.
+- **Privacy and abuse limits:** no IPs are stored. An origin allow-list, a 256 KiB body cap and 20 reports per client per hour limit abuse.
+- **Reading:** `scripts/reports.mjs` lists and pulls reports.
+
+The tests are in `tests/crash-report.test.mjs`. The Worker is not deployed yet.
+
+## Input timestamps from a skewed clock
+
+A run stopped at `005422cc: host window event timestamp outside supported age`, with the main menu loading and the mouse in use.
+- **Cause:** window and DirectInput events are stamped on the page with `performance.timeOrigin + now()`. The game worker computes "now" with its own `timeOrigin`, and the two can differ by a few milliseconds, so an event can appear newer than the worker's "now".
+- **Fix:** `movies_window_map_input_time` treats up to 60 s of such skew as age 0. Larger differences are still rejected as corrupt.

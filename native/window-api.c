@@ -305,9 +305,15 @@ static uint32_t message_time(CPU *c) {
     if(!movies_process_ticks(&tick))guest_trap(c,R32(c->esp),"window process clock unavailable");
     return tick;
 }
+/* Event times come from the page's clock and source_now from the game worker's;
+ * the two can disagree by a few milliseconds, so an event may appear slightly
+ * newer than "now". Up to one minute of such skew counts as age 0; larger
+ * differences are rejected as corrupt. */
+#define MOVIES_INPUT_CLOCK_SKEW 60000u
 int movies_window_map_input_time(uint32_t tick,uint32_t source_now,uint32_t source_time,uint32_t *out) {
     uint32_t age=source_now-source_time;
-    if(!out || age>=0x80000000u)return 0;
+    if(!out)return 0;
+    if(age>=0x80000000u){if(source_time-source_now>MOVIES_INPUT_CLOCK_SKEW)return 0;age=0;}
     *out=tick-age;return 1;
 }
 #ifdef __EMSCRIPTEN__

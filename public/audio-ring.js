@@ -57,7 +57,10 @@ export class MoviesAudioProducer{
  * Wasm memory). Each slot is 8 Int32: state (1 playing), ring byte address, ring
  * bytes, channels, play cursor frame (rendered here), heartbeat, volume
  * (0..10000 linear), reserved. The guest reads the cursor like a DMA position. */
-export const DSOUND_SLOT=Object.freeze({STATE:0,ADDRESS:1,BYTES:2,CHANNELS:3,CURSOR:4,HEARTBEAT:5,VOLUME:6});
+export const DSOUND_SLOT=Object.freeze({STATE:0,ADDRESS:1,BYTES:2,CHANNELS:3,CURSOR:4,HEARTBEAT:5,VOLUME:6,LIMIT:7});
+/* LIMIT (native/dsound-api.c): 0 loops the whole ring (guest DirectSound buffers);
+ * otherwise a host stream whose written data ends at (LIMIT & 0x3fffffff), full
+ * when bit 30 is set. Streams stop there: silence, cursor held, no stale replay. */
 export function mixDirectSound(ds,outputs){
  const frames=outputs[0]?.length||0;if(!frames)return;
  for(let slot=0;slot<ds.slots;slot++){
@@ -68,7 +71,10 @@ export function mixDirectSound(ds,outputs){
   const total=Math.floor(bytes/(2*channels));if(!total||address+bytes>ds.samples.byteLength)continue;
   const gain=Atomics.load(c,base+DSOUND_SLOT.VOLUME)/10000/32768,first=address>>>1;
   let cursor=(Atomics.load(c,base+DSOUND_SLOT.CURSOR)>>>0)%total;
-  for(let f=0;f<frames;f++){
+  const limit=Atomics.load(c,base+DSOUND_SLOT.LIMIT)>>>0;
+  let playable=frames;
+  if(limit&0x80000000)playable=Math.min(frames,limit&0x40000000?total:((limit&0x3fffffff)-cursor+total)%total);
+  for(let f=0;f<playable;f++){
    const index=first+cursor*channels,left=ds.samples[index],right=channels===2?ds.samples[index+1]:left;
    outputs[0][f]+=left*gain;if(outputs[1])outputs[1][f]+=right*gain;
    if(++cursor===total)cursor=0;

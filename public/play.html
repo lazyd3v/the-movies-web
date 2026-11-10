@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Movies: Stunts &amp; Effects — in your browser</title>
+<meta name="description" content="Play your own copy of The Movies: Stunts & Effects (2006) in the browser. The original game, recompiled to WebAssembly.">
+<meta property="og:title" content="The Movies: Stunts & Effects — in your browser">
+<meta property="og:description" content="The original 2006 game, recompiled to WebAssembly. Bring your own copy.">
+<meta property="og:image" content="img/lot.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="play.css">
+</head>
+<body data-mode="play">
+<header class="hero">
+  <div class="marquee" aria-hidden="true"></div>
+  <p class="eyebrow">Now showing · in your browser</p>
+  <h1><span class="title-the">The</span> Movies<span class="title-sub">Stunts &amp; Effects</span></h1>
+  <p class="tagline">Run your own Hollywood studio again. The original 2006 game, recompiled to WebAssembly: no emulator, no installer, just a browser tab.</p>
+  <a class="cta" href="#setup" onclick="event.preventDefault();document.getElementById('setup').scrollIntoView({behavior:'smooth'})">Get started</a>
+</header>
+
+<main>
+  <section class="filmstrip" aria-label="Screenshots">
+    <figure><img src="img/menu.jpg" alt="The main menu with the Game submenu open" width="960" height="720" loading="lazy"><figcaption>The original menus</figcaption></figure>
+    <figure><img src="img/lot.jpg" alt="The studio lot at the start of a new game" width="960" height="720" loading="lazy"><figcaption>Your studio lot</figcaption></figure>
+    <figure><img src="img/studio.jpg" alt="Studio buildings with the hiring rooms" width="960" height="720" loading="lazy"><figcaption>Build and hire</figcaption></figure>
+    <figure><img src="img/first-star.jpg" alt="The tutorial congratulating the player on hiring their first star" width="960" height="720" loading="lazy"><figcaption>Your first star</figcaption></figure>
+  </section>
+
+  <section class="features" aria-label="How it works">
+    <article><h3>The real game</h3><p>Every line of game logic is the original machine code, translated to WebAssembly ahead of time. Not a remake.</p></article>
+    <article><h3>Your own copy</h3><p>Point the page at your installed game. Files are read on your computer; nothing is uploaded and no game files are hosted here.</p></article>
+    <article><h3>Saves stay put</h3><p>Settings and saved studios are kept in your browser, so you can pick up where you left off.</p></article>
+  </section>
+
+  <section id="setup" class="ticket" aria-labelledby="setup-title">
+    <h2 id="setup-title">Roll camera</h2>
+    <p id="unsupported" class="warning" hidden></p>
+    <ol class="steps">
+      <li><h3>Choose your game folder</h3>
+        <p>The folder of your installed game: the one with <code>MoviesSE.exe</code> and <code>Data</code>.</p>
+        <p><button id="choose-folder" class="primary">Choose game folder</button><button id="reuse-folder" hidden></button><input id="folder-input" type="file" webkitdirectory multiple hidden></p>
+        <p id="folder-status" role="status"></p></li>
+      <li><h3>Action!</h3>
+        <p>The game opens in fullscreen. Click it to capture the mouse; <kbd>Esc</kbd> releases it.</p>
+        <p><button id="start" class="primary" disabled>Play</button></p></li>
+    </ol>
+    <p id="report-notice" class="note" hidden><label><input type="checkbox" id="send-reports" checked> Send error reports</label> — if the game stops with an error, the page sends its technical log, your browser version and graphics card model so the bug can be fixed. No game files or personal data.</p>
+    <p class="note">Needs desktop Chrome or Edge with WebGPU, and the English <cite>The Movies: Stunts &amp; Effects</cite> 1.2 (<code>MoviesSE.exe</code> from June 2006). The first start downloads about 30&nbsp;MB.</p>
+  </section>
+
+  <section id="game" aria-label="Game">
+    <div id="game-surface" aria-label="Game window">
+      <div id="loading" aria-hidden="true"><div class="reel"></div><p id="loading-text">Loading…</p></div>
+      <div id="fullscreen-bar" hidden><span>Mouse released.</span><button id="fullscreen-capture">Back to game</button><button id="fullscreen-exit">Exit fullscreen</button></div>
+    </div>
+    <div class="controls">
+      <button id="fullscreen" disabled>Fullscreen</button><button id="capture-mouse" disabled>Capture mouse</button><button id="stop" disabled>Quit</button><button class="report-open">Report a problem</button>
+      <span id="mouse-status"></span>
+    </div>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section class="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">Questions</h2>
+    <details><summary>Is this an emulator?</summary><p>No. The game's Windows program was statically recompiled: its x86 code was translated to C and compiled to WebAssembly. Direct3D runs on WebGPU, sound on Web Audio, and the game's movies are decoded with ffmpeg.wasm.</p></details>
+    <details><summary>Why do I need my own copy?</summary><p>The game's models, sounds and movies belong to their owners and aren't hosted here. The page reads them from your installed copy, on your computer.</p></details>
+    <details><summary>Which browsers work?</summary><p>A current desktop Chrome or Edge. The game needs WebGPU and shared memory for its threads. Safari and Firefox aren't supported yet.</p></details>
+    <details><summary>Something went wrong</summary><p>Some rarely used parts of the game aren't supported yet; voice-over recording is one of them. Tell me what happened and I'll look into it.</p><p><button class="report-open">Report a problem</button></p></details>
+    <details><summary>Can I support the project?</summary><p>Thank you for asking! If you enjoy it, you can <a href="https://buymeacoffee.com/romanf" target="_blank" rel="noopener">buy me a coffee</a>. Bug reports help a lot too.</p></details>
+  </section>
+  <details id="technical"><summary>Technical log</summary><pre id="log" aria-label="Execution log"></pre></details>
+</main>
+<footer>
+  <p class="made">Made by <a href="https://lazyd3v.com">lazyd3v.com</a> · <a href="https://x.com/romanf_cc">@romanf_cc on X</a> · <a href="https://buymeacoffee.com/romanf" target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
+  <p class="fine">Fan project, not affiliated with or endorsed by Lionhead Studios, Activision or Microsoft. The Movies is a trademark of its owners. Screenshots are from this port running a retail copy. You need your own copy of the game; no game files are hosted here.
+  Video decoding uses <a href="https://github.com/ffmpegwasm/ffmpeg.wasm">ffmpeg.wasm</a> (FFmpeg, GPL-2.0-or-later).</p>
+</footer>
+<dialog id="report-dialog" aria-labelledby="report-title">
+  <form id="report-form" method="dialog">
+    <h2 id="report-title">Report a problem</h2>
+    <label for="report-description">What happened?</label>
+    <textarea id="report-description" rows="5" maxlength="4000" required placeholder="For example: I clicked Finances and the game froze."></textarea>
+    <label for="report-contact">How can I reach you? <span class="optional">(optional)</span></label>
+    <input id="report-contact" maxlength="200" placeholder="Email or @handle, if you'd like a reply">
+    <label class="check"><input type="checkbox" id="report-include-log" checked> Include the technical log, browser version and graphics card model</label>
+    <details class="report-preview"><summary>What will be sent</summary><pre id="report-preview"></pre></details>
+    <p id="report-status" role="status"></p>
+    <div class="dialog-actions"><button type="button" id="report-cancel">Cancel</button><button type="submit" id="report-send" class="primary">Send report</button></div>
+  </form>
+</dialog>
+<dialog id="game-dialog" aria-labelledby="dialog-title"><h2 id="dialog-title"></h2><p id="dialog-icon" hidden></p><p id="dialog-text"></p><div id="dialog-buttons"></div></dialog>
+<script src="dialog-policy.js" defer></script><script src="window-input.js" defer></script><script src="directinput-host.js" defer></script><script src="window-surface.js" defer></script><script src="static-probe.js" defer></script><script src="play.js" type="module"></script>
+</body></html>

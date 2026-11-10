@@ -1,10 +1,11 @@
 import http from 'node:http';
 import { createReadStream } from 'node:fs';
+import { access } from 'node:fs/promises';
 import { realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.wasm': 'application/wasm', '.zip': 'application/zip', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.wasm': 'application/wasm', '.zip': 'application/zip', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 const within = (root, target) => target === root || target.startsWith(root + path.sep);
 
 /** A single HTTP byte range. null means invalid or unsatisfiable. */
@@ -66,7 +67,16 @@ export function createServer({ root = fileURLToPath(new URL('../public/', import
       if (!info.isFile()) return fail(404, 'Not found\n');
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Content-Type', MIME[path.extname(candidate).toLowerCase()] || 'application/octet-stream');
-      res.setHeader('Cache-Control', 'no-cache');
+      // scripts/build-site.py puts each release under /v/<content hash>/: those never
+      // change, so browsers and a CDN may keep them forever. Everything else revalidates.
+      res.setHeader('Cache-Control', /^\/v\/[0-9a-f]{12}\//.test(pathname) ? 'public, max-age=31536000, immutable' : 'no-cache');
+      res.setHeader('Vary', 'Accept-Encoding');
+      // Precompressed twin (<file>.gz from build-site.py) for whole-file requests.
+      if (!req.headers.range && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+        const packed = candidate + '.gz';
+        const packedInfo = await access(packed).then(() => stat(packed), () => null);
+        if (packedInfo?.isFile()) { candidate = packed; info = packedInfo; res.setHeader('Content-Encoding', 'gzip'); }
+      }
       res.setHeader('Last-Modified', info.mtime.toUTCString());
       let range;
       if (req.headers.range) {
@@ -94,14 +104,18 @@ export function createServer({ root = fileURLToPath(new URL('../public/', import
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const args = process.argv.slice(2);
-  if (args.length && (args.length !== 2 || args[0] !== '--port' || !/^\d+$/.test(args[1]))) {
-    console.error('Usage: node scripts/serve.mjs [--port 4173]');
-    process.exit(1);
+  // --root dist previews the public site built by scripts/build-site.py.
+  const args = process.argv.slice(2), options = {};
+  for (let i = 0; i < args.length; i += 2) {
+    if (!['--port', '--root'].includes(args[i]) || args[i + 1] === undefined || (args[i] === '--port' && !/^\d+$/.test(args[i + 1]))) {
+      console.error('Usage: node scripts/serve.mjs [--port 4173] [--root public]');
+      process.exit(1);
+    }
+    options[args[i].slice(2)] = args[i + 1];
   }
-  const port = args.length ? Number(args[1]) : 4173;
+  const port = options.port ? Number(options.port) : 4173;
   if (port < 1 || port > 65535) throw new Error('Port must be between 1 and 65535');
-  const server = createServer();
+  const server = createServer(options.root ? {root: path.resolve(options.root)} : {});
   server.on('error', error => { console.error(error.message); process.exitCode = 1; });
   server.listen(port, '127.0.0.1', () => console.log(`Local: http://127.0.0.1:${port}`));
 }

@@ -62,10 +62,12 @@ int main(void){
     int st=movies_dsound_stream_open(4096);assert(st>=0);
     assert(movies_dsound_stream_space(st)==4096);
     uint8_t pcm[8192];for(unsigned i=0;i<sizeof pcm;i++)pcm[i]=(uint8_t)(i|1);
+    assert((uint32_t)ctl[st*8+7]==0x80000000u); /* stream with nothing written: renderer plays silence */
     assert(movies_dsound_stream_write(st,pcm,8192)==4096&&movies_dsound_stream_space(st)==0);
     movies_dsound_stream_play(st,1);ctl[st*8+5]++;ctl[st*8+4]=256;
     assert(movies_dsound_stream_played(st)==256&&movies_dsound_stream_space(st)==1024);
     assert(movies_dsound_stream_write(st,pcm,2000)==1024);
+    assert((uint32_t)ctl[st*8+7]==(0xc0000000u|256u)); /* renderer limit: full ring, written end at frame 256 */
     ctl[st*8+5]++;ctl[st*8+4]=0; /* cursor wrapped a full lap: played 1024 > written 1024? equal */
     assert(movies_dsound_stream_played(st)==1024);
     movies_dsound_stream_volume(st,-10000);assert(ctl[st*8+6]==0);movies_dsound_stream_volume(st,0);assert(ctl[st*8+6]==10000);

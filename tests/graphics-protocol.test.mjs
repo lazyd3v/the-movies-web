@@ -46,6 +46,8 @@ test('render-target commands validate dimensions and nullable texture handles',(
 });
 test('render-target copies require two distinct typed handles',()=>{
   validateCommand('copyRenderTarget',{source:1,destination:2});
+  validateCommand('copyRenderTarget',{source:1,destination:2,region:{sourceX:10,sourceY:20,x:100,y:50,width:20,height:20}});
+  for(const region of [{sourceX:-1,sourceY:0,x:0,y:0,width:1,height:1},{sourceX:0,sourceY:0,x:0,y:0,width:0,height:1},{sourceX:0,sourceY:0,x:0,y:0,width:1,height:1,scale:2}])assert.throws(()=>validateCommand('copyRenderTarget',{source:1,destination:2,region}));
   for(const bad of [{source:1,destination:1},{source:1},{source:0,destination:2},{source:1,destination:2,filter:2}])assert.throws(()=>validateCommand('copyRenderTarget',bad));
 });
 test('depth bias, colour write mask and blend constant are validated',()=>{

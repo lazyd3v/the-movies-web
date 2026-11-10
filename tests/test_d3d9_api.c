@@ -23,7 +23,7 @@ EM_JS(int,js_called,(void),{return Module.fixtureCalls.includes('createDevice')&
 uint8_t*g_mem;static GuestFn table[6][119];static _Thread_local jmp_buf trap;
 static int check_finite_vertices;static unsigned last_vertex_bytes,last_index_bytes,last_vertex_fvf;static uint8_t last_vertices[256],last_indices[128];
 static uint8_t uploaded[128];static unsigned uploaded_bytes;
-static unsigned calls[17],next_handle=1;static uint32_t last_target[3],clearargs[64];static int ready=1;static uint32_t drawargs[64];
+static unsigned calls[17],next_handle=1;static uint32_t last_copy[11];static uint32_t last_target[3],clearargs[64];static int ready=1;static uint32_t drawargs[64];
 void movies_set_last_error(uint32_t e){(void)e;}
 void register_function(uint32_t a,GuestFn f){assert(a>=0x0e020000&&a<0x0e026000);unsigned t=(a-0x0e020000)/0x1000,slot=((a-0x0e020000)%0x1000)/16;assert(slot<119);table[t][slot]=f;}
 void guest_trap(CPU*c,uint32_t p,const char*s){(void)c;(void)p;(void)s;longjmp(trap,1);}
@@ -36,7 +36,7 @@ static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)c
  if(q->command==MOVIES_D3D9_UPLOAD_INDEX){last_index_bytes=q->bytes;memcpy(last_indices,q->data,q->bytes<128?q->bytes:128);}
  if(q->command==MOVIES_D3D9_CREATE_TARGET){assert(q->args[0]&&q->args[1]&&!q->data);r->values[0]=next_handle++;}
  if(q->command==MOVIES_D3D9_CLEAR)memcpy(clearargs,q->args,sizeof clearargs);
- if(q->command==MOVIES_D3D9_COPY_TARGET)assert(q->args[0]&&q->args[1]&&q->args[0]!=q->args[1]);
+ if(q->command==MOVIES_D3D9_COPY_TARGET){assert(q->args[0]&&q->args[1]&&q->args[0]!=q->args[1]);memcpy(last_copy,q->args,sizeof last_copy);}
  if(q->command==MOVIES_D3D9_SET_TARGET)memcpy(last_target,q->args,sizeof last_target);
  if(q->command==MOVIES_D3D9_READ_BACKBUFFER)assert(q->args[1]==640&&q->args[2]==480);
  if(q->command==MOVIES_D3D9_READ_TARGET||q->command==MOVIES_D3D9_READ_BACKBUFFER){assert(q->bytes==q->args[1]*q->args[2]*4);uint8_t*out=(uint8_t*)q->data;for(uint32_t i=0;i<q->bytes;i+=4){out[i]=0x11;out[i+1]=0x22;out[i+2]=0x33;out[i+3]=0x44;}}
@@ -401,7 +401,12 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(!method(lrt,12,2,0x4000u)&&R32(0x4000)==21&&R32(0x4008)==1&&R32(0x400c)==0&&R32(0x4018)==512&&R32(0x401c)==256);
  assert(method(d,34,6,rts,0u,lrt,0u,0u)==0&&calls[MOVIES_D3D9_COPY_TARGET]==1);
  assert(method(d,34,6,rts,0u,rts,0u,0u)==0x8876086c);
- if(!setjmp(trap)){method(d,34,6,rts,0x4800u,lrt,0u,2u);assert(0);} /*sub-rects unclaimed*/
+ if(!setjmp(trap)){method(d,34,6,rts,0x4800u,lrt,0u,2u);assert(0);} /*scaled rects (20x20 -> whole 512x256) unclaimed*/
+ /* D3DXLoadSurfaceFromSurface fast path (AFE246): equal-size rectangles, filter NONE. */
+ {int32_t r[4]={100,50,120,70};memcpy(HP(0x4810),r,16);assert(!method(d,34,6,rts,0x4800u,lrt,0x4810u,0u));
+  assert(calls[MOVIES_D3D9_COPY_TARGET]==2&&last_copy[4]==1&&last_copy[5]==10&&last_copy[6]==20&&last_copy[7]==100&&last_copy[8]==50&&last_copy[9]==20&&last_copy[10]==20);
+  r[2]=600;memcpy(HP(0x4810),r,16);assert(method(d,34,6,rts,0x4800u,lrt,0x4810u,0u)==0x8876086c);} /*out of bounds*/
+ assert(!method(d,34,6,rts,0u,lrt,0u,0u)&&last_copy[4]==0); /*whole copy carries no region*/
  if(!setjmp(trap)){method(d,34,6,rts,0u,mems,0u,0u);assert(0);} /*SYSTEMMEM destination unclaimed*/
  assert(!method(lrt,13,4,0x2064u,0u,0x10u));assert(calls[MOVIES_D3D9_READ_TARGET]==reads+1&&R32(0x2064)==2048);uint32_t lbits=R32(0x2068);assert(R8(lbits)==0x11&&R8(lbits+3)==0x44);
  assert(method(lrt,13,4,0x2064u,0u,0u)==0x8876086c); /*already locked*/

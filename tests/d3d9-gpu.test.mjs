@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MoviesD3D9GPU, matrixBytes, rgbaFromD3DColor, validateVertexBytes, validateIndexBytes, validateIndexedRange} from '../public/d3d9-gpu.js';
+import {MoviesD3D9GPU, matrixBytes, rgbaFromD3DColor, validateVertexBytes, transformedW, validateIndexBytes, validateIndexedRange} from '../public/d3d9-gpu.js';
 test('D3D color and matrix validation preserve byte ordering and finite32 bounds', () => {
   assert.deepEqual(rgbaFromD3DColor(0x80402010), [64/255, 32/255, 16/255, 128/255]);
   assert.equal(matrixBytes()[15], 1);
@@ -60,11 +60,14 @@ test('alpha test accepts only explicit comparisons and8-bit reference', async ()
  for(const state of [{func:0},{func:9},{reference:256},{reference:-1},{enabled:1},{unknown:1}])assert.throws(()=>validateAlphaTest(state));
 });
 
-test('XYZRHW preserves exact28-byte source with finite positive reciprocal W and depth',()=>{
+test('XYZRHW preserves exact 28-byte source; any finite depth and RHW are accepted',()=>{
  const bytes=new ArrayBuffer(28),view=new DataView(bytes);
  [19.5,23.5,.5,.5].forEach((v,i)=>view.setFloat32(i*4,v,true));view.setUint32(16,0x7f123456,true);view.setFloat32(20,.25,true);view.setFloat32(24,.75,true);
  const vertex=validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV');assert.equal(vertex.stride,28);assert.equal(vertex.count,1);assert.deepEqual(vertex.bytes,new Uint8Array(bytes));
- for(const bad of [0,-1,Infinity,NaN,1e-45]){view.setFloat32(12,bad,true);assert.throws(()=>validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV'));}view.setFloat32(12,.5,true);
- for(const bad of [-.1,1.1]){view.setFloat32(8,bad,true);assert.throws(()=>validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV'),/depth/);}view.setFloat32(8,.5,true);
+ for(const bad of [Infinity,NaN]){view.setFloat32(12,bad,true);assert.throws(()=>validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV'),/Nonfinite/);}
+ // Legal in D3D9 (Finances screen): RHW 0/negative/denormal and depth outside [0,1].
+ for(const rhw of [0,-1,1e-45]){view.setFloat32(12,rhw,true);assert.equal(validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV').count,1);assert.equal(transformedW(Math.fround(rhw)),1);}view.setFloat32(12,.5,true);
+ for(const z of [-.1,1.1]){view.setFloat32(8,z,true);assert.equal(validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV').count,1);}view.setFloat32(8,.5,true);
+ assert.equal(transformedW(.5),2);
  assert.throws(()=>validateVertexBytes(new Uint8Array(27),'XYZRHW_DIFFUSE_UV'),/complete/);
 });

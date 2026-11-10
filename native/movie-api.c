@@ -54,7 +54,8 @@ static const unsigned kind_offset[K_KINDS] = {O_CONTROL, O_POSITION, O_SEEKING, 
 typedef struct Movie {
     int used, loaded, connected, has_audio, video_eos, audio_eos, state;  /* state: 0 stopped, 1 paused, 2 running */
     uint32_t graph, filter, in_pin, mem_pin, video_token, audio_token, sample_buf, frame_bytes, enum_index;
-    unsigned width, height; double fps, duration, base_pos, run_start; long next_frame;
+    unsigned width, height; double fps, duration, base_pos, run_start, audio_base; long next_frame;
+    unsigned audio_errors; double trace_at; unsigned pumps;
     int audio_slot; int32_t volume; uint32_t refs[K_KINDS];
     char path[260];
 } Movie;
@@ -183,19 +184,45 @@ static void seek(Movie *m, double t) {
     if (t < 0) t = 0; if (t > m->duration) t = m->duration;
     m->base_pos = t; m->run_start = now_ms();
     if (m->video_token) { movie_video_seek_js(m->video_token, t); m->next_frame = lround(t * m->fps); m->video_eos = 0; }
-    if (m->audio_token) { movie_audio_seek_js(m->audio_token, t * 1e7); m->audio_eos = 0; if (m->audio_slot >= 0) { movies_dsound_stream_reset(m->audio_slot); if (m->state == 2) movies_dsound_stream_play(m->audio_slot, 1); } }
+    if (m->audio_token) { movie_audio_seek_js(m->audio_token, t * 1e7); m->audio_eos = 0; m->audio_base = t; if (m->audio_slot >= 0) { movies_dsound_stream_reset(m->audio_slot); if (m->state == 2) movies_dsound_stream_play(m->audio_slot, 1); } }
 }
+static int movie_trace_enabled(void) { static int v = -1; if (v < 0) { const char *e = getenv("PORT_LOG_DSOUND"); v = e && *e == '1'; } return v; }
+/* Audio is fed only when the game polls the movie. The renderer stops at the end
+ * of fed data (dsound LIMIT), so a gap in polling delays the audio instead of
+ * looping it; when the delay exceeds 250 ms the audio is re-seeked to the clock. */
 static void feed_audio(Movie *m) {
     if (m->audio_slot < 0 || !m->audio_token || m->audio_eos || m->state != 2) return;
+    double behind = position(m) - (m->audio_base + movies_dsound_stream_played(m->audio_slot) / 44100.0);
+    if (behind > 0.25 && position(m) < m->duration - 0.5) {
+        if (movie_trace_enabled()) fprintf(stderr, "[movie-audio] %s resync: audio %.2f s behind the clock\n", m->path, behind);
+        double t = position(m); /* audio only: re-seeking the video would stutter it */
+        movie_audio_seek_js(m->audio_token, t * 1e7); m->audio_base = t;
+        movies_dsound_stream_reset(m->audio_slot); movies_dsound_stream_play(m->audio_slot, 1);
+    }
     static uint8_t chunk[8192];
     for (unsigned i = 0; i < 12 && movies_dsound_stream_space(m->audio_slot) >= sizeof chunk; i++) {
         int n = movie_audio_read_js(m->audio_token, chunk, sizeof chunk);
-        if (n <= 0) { m->audio_eos = 1; break; }
+        if (n == 0) { m->audio_eos = 1; if (movie_trace_enabled()) fprintf(stderr, "[movie-audio] %s end of audio at %.2f s\n", m->path, position(m)); break; }
+        if (n < 0) { /* reader busy or failed: retry on the next poll, never end the stream */
+            if (m->audio_errors++ < 8) fprintf(stderr, "[movie-audio] %s audio read failed at %.2f s; retrying\n", m->path, position(m));
+            break;
+        }
         movies_dsound_stream_write(m->audio_slot, chunk, (uint32_t)n);
     }
 }
-static void pump(CPU *c, Movie *m) {
+static int feeding; /* movies_movie_service must not re-enter a movie call */
+void movies_movie_service(void) {
+    static double last; double t = now_ms();
+    if (feeding || !ready || t - last < 20) return;
+    last = t; feeding = 1;
+    for (unsigned i = 0; i < MOVIES; i++) if (movies[i].used && movies[i].state == 2) feed_audio(&movies[i]);
+    feeding = 0;
+}
+static void pump_body(CPU *c, Movie *m);
+static void pump(CPU *c, Movie *m) { int was = feeding; feeding = 1; pump_body(c, m); feeding = was; }
+static void pump_body(CPU *c, Movie *m) {
     if (m->state != 2) return;
+    if (movie_trace_enabled()) { double t = now_ms(); m->pumps++; if (t - m->trace_at >= 1000) { fprintf(stderr, "[movie-audio] %s polls/s=%u pos=%.2f played=%.2f\n", m->path, m->pumps, position(m), m->audio_base + (m->audio_slot >= 0 ? movies_dsound_stream_played(m->audio_slot) / 44100.0 : 0)); m->pumps = 0; m->trace_at = t; } }
     feed_audio(m);
     if (!m->connected || m->video_eos || !m->sample_buf) return;
     long due = (long)floor(position(m) * m->fps);

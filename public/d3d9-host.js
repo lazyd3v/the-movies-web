@@ -65,11 +65,15 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
     t.entries.push({command, ...rest, ...(bytes ? {bytes: bytes.byteLength} : {}), ...(world ? {world: Array.from(world).map(x => +x.toFixed(3))} : {}), ...(command === 'drawIndexed' ? {vertexFormat: formats.get(args.vertices), textureSize: sizes.get(args.texture), texture1Size: sizes.get(args.texture1)} : {}), ...(result !== undefined && result !== null && typeof result !== 'object' ? {result} : {})});
     if (command === 'present' && t.presents > (t.startAt ?? 0) && --t.remaining === 0) t.onDone?.(t.entries);
   }
+  // Trace annotations for live resources only: the game uploads tens of thousands
+  // of buffers per second, so entries must leave with their resource (a Map holds
+  // at most 2^24 entries; keeping released handles overflowed after ~8 minutes).
   const formats = new Map(), sizes = new Map();
   function call(command, args = {}) {
     const result = callInner(command, args);
     if (command === 'uploadVertices') formats.set(result, args.format);
     if (command === 'uploadTextureRGBA' || command === 'createRenderTarget') sizes.set(result, `${args.width}x${args.height}${command === 'createRenderTarget' ? 'RT' : ''}`);
+    if (command === 'release') { formats.delete(args.handle); sizes.delete(args.handle); }
     trace(command, args, result);
     return result;
   }
@@ -118,5 +122,5 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
     if (command === 'present' && (result?.acknowledged !== true || !Number.isInteger(result.serial) || result.serial < 1)) throw new Error('GPU presentation was not acknowledged');
     return result;
   }
-  return {moviesGraphicsCall: call, flush, close() { closed = true; device = null; handles.clear(); queue = []; client.close(); }};
+  return {moviesGraphicsCall: call, flush, liveAnnotations: () => formats.size + sizes.size, close() { closed = true; device = null; handles.clear(); queue = []; client.close(); }};
 }

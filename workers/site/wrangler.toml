@@ -1,0 +1,21 @@
+# Public play site on themovies.romanf.cc: files from R2 (uploaded by
+# scripts/deploy-site.mjs) and the problem-report API (D1) under /api/.
+#   npm run deploy:site
+name = "themovies-site"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = false
+
+routes = [{ pattern = "themovies.romanf.cc", custom_domain = true }]
+
+[vars]
+ALLOWED_ORIGINS = "https://themovies.romanf.cc"
+
+[[r2_buckets]]
+binding = "SITE"
+bucket_name = "themovies-site"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "movies-crash-reports"
+database_id = "e7d89a48-b522-47d1-a886-55e9f5086528"

@@ -30,7 +30,9 @@ test('D3D resource lifetime and acknowledged presentation survive through transp
   assert.equal(call('present').acknowledged,true);
   assert.throws(() => call('destroyDevice'), /Live GPU/);
   assert.throws(() => call('release',{handle:99}), /does not belong/);
+  assert.equal(host.liveAnnotations(), 1);
   call('release',{handle:vertices}); call('release',{handle:indices});
+  assert.equal(host.liveAnnotations(), 0, 'released resources leave the trace annotations');
   call('destroyDevice'); assert.equal(calls.at(-1).command,'dispose');
   assert.throws(() => call('capabilities'), /closed/);
 });

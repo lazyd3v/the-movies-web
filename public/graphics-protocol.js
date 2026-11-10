@@ -66,7 +66,12 @@ export function validateCommand(command, args = {}, inBatch = false) {
   } else if (command === 'createRenderTarget') {
     fields(args, ['width', 'height']); integer(args.width, 1, GRAPHICS_LIMITS.maxDimension, 'render target width'); integer(args.height, 1, GRAPHICS_LIMITS.maxDimension, 'render target height');
   } else if (command === 'copyRenderTarget') {
-    fields(args, ['source', 'destination']); integer(args.source, 1, 0x7fffffff, 'source render target'); integer(args.destination, 1, 0x7fffffff, 'destination render target');
+    fields(args, ['source', 'destination', 'region']); integer(args.source, 1, 0x7fffffff, 'source render target'); integer(args.destination, 1, 0x7fffffff, 'destination render target');
+    if (args.region !== undefined) {
+      fields(args.region, ['sourceX', 'sourceY', 'x', 'y', 'width', 'height']);
+      for (const key of ['sourceX', 'sourceY', 'x', 'y']) integer(args.region[key], 0, GRAPHICS_LIMITS.maxDimension - 1, `copy ${key}`);
+      for (const key of ['width', 'height']) integer(args.region[key], 1, GRAPHICS_LIMITS.maxDimension, `copy ${key}`);
+    }
     if (args.source === args.destination) throw new RangeError('Render target copy requires distinct targets');
   } else if (command === 'readRenderTarget') {
     fields(args, ['texture']); integer(args.texture, 1, 0x7fffffff, 'render target texture');

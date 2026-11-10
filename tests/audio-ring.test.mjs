@@ -32,3 +32,21 @@ test('DirectSound slots mix from shared guest memory and advance the play cursor
   assert.equal(ctl[DSOUND_SLOT.CURSOR], 0); /* (2 + 6) % 4 */
   assert.equal(ctl[DSOUND_SLOT.HEARTBEAT], 1); assert.equal(ctl[8 + DSOUND_SLOT.HEARTBEAT], 1);
 });
+test('host streams stop at the written end: silence and a held cursor, never stale audio', async () => {
+  const {mixDirectSound, DSOUND_SLOT} = await import('../public/audio-ring.js');
+  const memory = new SharedArrayBuffer(4096), samples = new Int16Array(memory), ctl = new Int32Array(memory, 1024, 8);
+  const ring = 256; for (let f = 0; f < 8; f++) { samples[ring / 2 + f * 2] = 16384; samples[ring / 2 + f * 2 + 1] = 16384; }
+  Object.assign(ctl, {[DSOUND_SLOT.STATE]: 1, [DSOUND_SLOT.ADDRESS]: ring, [DSOUND_SLOT.BYTES]: 32, [DSOUND_SLOT.CHANNELS]: 2, [DSOUND_SLOT.CURSOR]: 6, [DSOUND_SLOT.VOLUME]: 10000});
+  ctl[DSOUND_SLOT.LIMIT] = 0x80000000 | 1; // data written up to frame 1 (wrapping): frames 6, 7, 0 remain
+  let outputs = [new Float32Array(5), new Float32Array(5)];
+  mixDirectSound({samples, control: ctl, slots: 1}, outputs);
+  assert.deepEqual([...outputs[0]], [0.5, 0.5, 0.5, 0, 0]);
+  assert.equal(ctl[DSOUND_SLOT.CURSOR], 1, 'cursor waits at the end of written data');
+  outputs = [new Float32Array(4), new Float32Array(4)];
+  mixDirectSound({samples, control: ctl, slots: 1}, outputs);
+  assert.deepEqual([...outputs[0]], [0, 0, 0, 0]); assert.equal(ctl[DSOUND_SLOT.CURSOR], 1);
+  ctl[DSOUND_SLOT.LIMIT] = 0x80000000 | 0x40000000 | 1; // completely full ring
+  outputs = [new Float32Array(3), new Float32Array(3)];
+  mixDirectSound({samples, control: ctl, slots: 1}, outputs);
+  assert.deepEqual([...outputs[0]], [0.5, 0.5, 0.5]); assert.equal(ctl[DSOUND_SLOT.CURSOR], 4);
+});

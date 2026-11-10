@@ -86,6 +86,8 @@ await send('Target.setAutoAttach', {autoAttach: true, waitForDebuggerOnStart: fa
 await send('Page.enable', {}, page);
 await send('Runtime.enable', {}, page);
 await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 1100, deviceScaleFactor: 1, mobile: false}, page);
+// --init-js <base64>: page script installed before any page code runs (diagnostic hooks).
+if (args['init-js']) await send('Page.addScriptToEvaluateOnNewDocument', {source: Buffer.from(String(args['init-js']), 'base64').toString()}, page);
 await send('Page.navigate', {url: `${origin}/static-probe.html${args['trace-at'] ? '?traceAt=' + Number(args['trace-at']) : ''}`}, page);
 
 const evaluate = async expression => {
@@ -147,6 +149,14 @@ async function stopProfiling() {
   const perWorker = [];
   for (const s of profiling.sessions) {
     let profile; try { profile = (await Promise.race([send('Profiler.stop', {}, s), sleep(5000).then(() => { throw new Error('timeout'); })])).profile; } catch { continue; }
+    // --raw-prof: keep every worker's leaf stacks (top 5 by samples) for thread-state analysis.
+    if (args['raw-prof']) {
+      const nodes = new Map(profile.nodes.map(n => [n.id, n])), up = new Map(); for (const n of profile.nodes) for (const c of n.children ?? []) up.set(c, n.id);
+      const tally = new Map(); for (const id of profile.samples ?? []) tally.set(id, (tally.get(id) ?? 0) + 1);
+      const stacks = [...tally].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => { const chain = []; for (let cur = id; cur !== undefined && chain.length < 40; cur = up.get(cur)) chain.push(nodes.get(cur).callFrame.functionName || '(anon)'); return {n, chain}; });
+      (globalThis.rawProfiles ??= []).push({url: workers.get(s)?.url?.split('/').pop(), samples: profile.samples?.length ?? 0, stacks});
+      writeFileSync(out.replace(/\.json$/, '-raw.json'), JSON.stringify(globalThis.rawProfiles, null, 1));
+    }
     const byId = new Map(profile.nodes.map(n => [n.id, n]));
     const counts = new Map(); for (const id of profile.samples ?? []) counts.set(id, (counts.get(id) ?? 0) + 1);
     let workerSamples = 0, idle = 0;
@@ -212,7 +222,12 @@ while (!done) {
       // Hover Game, then click the first submenu entry ("New Game").
       mkdirSync(dirname(out), {recursive: true});
       await steerTo(Number(args['game-x'] ?? 150), Number(args['game-y'] ?? 318)); await sleep(800); await gameClick(); await sleep(3000); await shot('-submenu.png');
-      if (args['calibrate']) { mark('calibration-shot'); break; }
+      if (args['calibrate']) {
+        // --calibrate-wait <s>: stay on the submenu, then print --final-js <base64>.
+        if (args['calibrate-wait']) { await sleep(Number(args['calibrate-wait']) * 1000); await shot('-submenu-late.png'); }
+        if (args['final-js']) console.log('final-js', JSON.stringify(await evaluate(Buffer.from(String(args['final-js']), 'base64').toString())));
+        mark('calibration-shot'); break;
+      }
       await steerTo(Number(args['newgame-x'] ?? 260), Number(args['newgame-y'] ?? 364)); await sleep(1500); await shot('-newgame-hover.png');
       if (args['pre-js']) log('pre-js', await evaluate(Buffer.from(String(args['pre-js']), 'base64').toString()));
       await gameClick();
@@ -315,6 +330,7 @@ mkdirSync(dirname(out), {recursive: true});
 writeFileSync(out.replace(/\.json$/, '-final.png'), Buffer.from((await send('Page.captureScreenshot', {format: 'png'}, page)).data, 'base64'));
 const fullLog = await evaluate(`document.getElementById('log').textContent`).catch(() => '');
 writeFileSync(out.replace(/\.json$/, '.log'), fullLog);
+if (args['final-js'] && !args['calibrate']) { try { console.log('final-js', JSON.stringify(await evaluate(Buffer.from(String(args['final-js']), 'base64').toString()))); } catch (error) { console.log('final-js error', error.message); } }
 writeFileSync(out, JSON.stringify({build, until, firstFrameAt, menuAt, lot: lotPhase, timeline, final, profile: profileResult, workers: [...workers.values()]}, null, 2));
 log('wrote', out, 'firstFrame', firstFrameAt, 'menu', menuAt, 'lot', JSON.stringify(lotPhase));
 if (profileResult) for (const row of profileResult.top.slice(0, 30)) console.log(`${row.pct.toFixed(2).padStart(6)}%  ${row.samples.toString().padStart(7)}  ${row.name}`);

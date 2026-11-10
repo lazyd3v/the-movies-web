@@ -19,7 +19,7 @@ async function execute(command, args) {
     case 'uploadIndices': reserve(args.bytes.byteLength); return save(graphics.uploadIndices(args.bytes, args.format, {adopt: true}), args.bytes.byteLength);
     case 'uploadTextureRGBA': reserve(args.bytes.byteLength); return save(graphics.uploadTextureRGBA(args.width, args.height, args.bytes), args.bytes.byteLength);
     case 'createRenderTarget': reserve(args.width * args.height * 6); return save(graphics.createRenderTarget(args.width, args.height), args.width * args.height * 6);
-    case 'copyRenderTarget': graphics.copyRenderTarget(resource(args.source), resource(args.destination)); return null;
+    case 'copyRenderTarget': graphics.copyRenderTarget(resource(args.source), resource(args.destination), args.region); return null;
     case 'readRenderTarget': return await graphics.readRenderTarget(resource(args.texture));
     case 'writeRenderTarget': graphics.writeRenderTarget(resource(args.texture), args.width, args.height, args.bytes); return null;
     case 'setRenderTarget': return graphics.setRenderTarget(args.texture ? resource(args.texture) : null);
