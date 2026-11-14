@@ -1,4 +1,4 @@
-import {GRAPHICS_LIMITS, VERTEX_FORMATS, validateCommand} from './graphics-protocol.js';
+import {GRAPHICS_LIMITS, isVertexFormat, validateCommand} from './graphics-protocol.js';
 
 // Construct only after the page-owned GPU worker has initialized. getWindow
 // returns acknowledged guest-window geometry, never a guessed display size.
@@ -24,7 +24,7 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
     maxTextureDimension: Math.min(GRAPHICS_LIMITS.maxDimension, caps.limits?.maxTextureDimension2D ?? 0)});
   let device = null, closed = false;
   const handles = new Map(), targetSizes = new Map();
-  let queue = [], queuedBytes = 0, nextHandle = 1;
+  let queue = [], queuedBytes = 0, nextHandle = 1, presentSerial = 0;
   function direct(command, args) {
     const result = client.call(command, args);
     if (result && typeof result.then === 'function') throw new Error('Graphics operations must acknowledge synchronously');
@@ -36,7 +36,10 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
       const commands = batch.map(({command, args}) => ({command, args}));
       const verify = results => {
         if (!Array.isArray(results) || results.length !== batch.length) throw new Error('Deferred graphics batch was not acknowledged');
-        batch.forEach((entry, i) => { if (entry.expect !== undefined && results[i] !== entry.expect) throw new Error(`Deferred ${entry.command} returned handle ${results[i]}, expected ${entry.expect}`); });
+        batch.forEach((entry, i) => {
+          if (entry.expectPresent !== undefined) { if (results[i]?.acknowledged !== true || results[i].serial !== entry.expectPresent) throw new Error(`Pipelined present ${entry.expectPresent} was not acknowledged`); return; }
+          if (entry.expect !== undefined && results[i] !== entry.expect) throw new Error(`Deferred ${entry.command} returned handle ${results[i]}, expected ${entry.expect}`);
+        });
       };
       // Pipelined when the client supports it: the worker executes this batch while
       // the guest produces the next commands; the reply is verified at the next exchange.
@@ -102,7 +105,7 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
     }
     if (!['clear', 'present', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'createRenderTarget', 'setRenderTarget', 'readRenderTarget', 'readPixels', 'writeRenderTarget', 'copyRenderTarget', 'drawIndexed', 'release'].includes(command)) throw new Error(`Unsupported D3D bridge command ${command}`);
     validateCommand(command, args);
-    if (command === 'uploadVertices' && !VERTEX_FORMATS.includes(args.format)) throw new Error('Native vertex format unsupported');
+    if (command === 'uploadVertices' && !isVertexFormat(args.format)) throw new Error('Native vertex format unsupported');
     if (command.startsWith('upload') && args.bytes.byteLength > maxBufferBytes) throw new RangeError('Upload exceeds implemented device limit');
     if ((command === 'uploadTextureRGBA' || command === 'createRenderTarget') && (args.width > capabilities.maxTextureDimension || args.height > capabilities.maxTextureDimension)) throw new RangeError('Texture exceeds actual device limit');
     if (command === 'setRenderTarget' && args.texture !== null && handles.get(args.texture) !== 'createRenderTarget') throw new Error('Render target does not belong to this device');
@@ -111,7 +114,18 @@ export function createMoviesD3D9Host({client, getWindow, presentationIntervalMas
     if (command === 'writeRenderTarget' && args.bytes.byteLength > maxBufferBytes) throw new RangeError('Upload exceeds implemented device limit');
     if (command === 'release' && !handles.has(args.handle)) throw new Error('Resource does not belong to this device');
     if (command === 'drawIndexed' && (handles.get(args.vertices) !== 'uploadVertices' || handles.get(args.indices) !== 'uploadIndices' || (args.texture != null && !['uploadTextureRGBA', 'createRenderTarget'].includes(handles.get(args.texture))) || (args.texture1 != null && !['uploadTextureRGBA', 'createRenderTarget'].includes(handles.get(args.texture1))))) throw new Error('Invalid native draw resources');
+    // Pipelined frames: present closes the frame's batch and returns at once with the
+    // serial the worker will assign (it counts presents from 1); the worker draws
+    // frame N while the guest builds N+1, and the acknowledgement is verified at the
+    // next exchange. At most one batch is in flight, so the guest is never more
+    // than one frame ahead.
+    if (command === 'present' && deferred && pipelined && typeof client.post === 'function') {
+      if (queue.length >= GRAPHICS_LIMITS.maxBatchCommands) flush();
+      queue.push({command, args: {}, expectPresent: ++presentSerial}); flush();
+      return {acknowledged: true, serial: presentSerial};
+    }
     const result = deferred && DEFERRABLE.has(command) ? defer(command, args) : sync(command, args);
+    if (command === 'present') presentSerial = result?.serial ?? presentSerial;
     if (command === 'createRenderTarget') targetSizes.set(result, {width: args.width, height: args.height});
     if (command.startsWith('upload') || command === 'createRenderTarget') {
       if (!Number.isInteger(result) || result < 1 || result > 0x7fffffff || handles.has(result)) throw new Error('Invalid GPU resource handle');

@@ -10,6 +10,8 @@ typedef struct MoviesD3D9Request {
  uint32_t command, args[64];
  const void *data; uint32_t bytes;
  float matrices[48];
+ /* GPU lighting block (args[61]=1 on draws); see public/d3d9-gpu.js LIGHTING_FLOATS. Must follow matrices. */
+ float lighting[192];
 } MoviesD3D9Request;
 typedef struct MoviesD3D9Reply { uint32_t values[8]; } MoviesD3D9Reply;
 /* Return1 only for an acknowledged real operation. CAPS reply: width,height,
@@ -29,4 +31,6 @@ typedef int (*MoviesD3D9Host)(const MoviesD3D9Request *, MoviesD3D9Reply *,void 
 int movies_d3d9_init(void);
 void movies_d3d9_set_host(MoviesD3D9Host,void *);
 ImportHandler *movies_d3d9_handlers(uint32_t *count);
+/* Tests and debugging (MOVIES_CPU_LIGHTING=1): light every draw on the CPU. */
+void movies_d3d9_force_cpu_lighting(int on);
 #endif

@@ -411,7 +411,7 @@ static void global_memory_status(CPU *c) {
 }
 /* Original C9A700 consumes SYSTEM_INFO+20 after return C9A73E. Match
  * runtime CPUID leaf1 EAX=0x683 (family6/model8/stepping3), single logical CPU.
- * Address bounds describe the runtime reservation, not the 256MiB browser heap.
+ * Address bounds describe the runtime reservation, not the 1GiB browser heap arena.
  * Page/granularity are the x86 virtual ABI; no VirtualAlloc capability is added.
  * https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
  * https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsysteminfo */

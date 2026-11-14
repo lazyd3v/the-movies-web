@@ -29,6 +29,8 @@ const chrome = spawn(args.chrome ?? '/Applications/Google Chrome.app/Contents/Ma
   `--user-data-dir=${profile}`, '--no-first-run', '--enable-unsafe-webgpu', '--window-size=1280,1000', 'about:blank'], {stdio: 'ignore'});
 const cleanup = () => { try { chrome.kill('SIGKILL'); } catch {} server.close(); };
 process.on('exit', cleanup);
+// A killed bench must not leave its headless Chrome running (it skews later measurements).
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => process.exit(130));
 
 let version;
 for (let i = 0; i < 100 && !version; i++) { try { version = await (await fetch(`http://127.0.0.1:${devtools}/json/version`)).json(); } catch { await sleep(100); } }

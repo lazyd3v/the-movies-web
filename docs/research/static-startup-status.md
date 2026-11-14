@@ -1362,3 +1362,44 @@ The tests are in `tests/crash-report.test.mjs`. The Worker is not deployed yet.
 A run stopped at `005422cc: host window event timestamp outside supported age`, with the main menu loading and the mouse in use.
 - **Cause:** window and DirectInput events are stamped on the page with `performance.timeOrigin + now()`. The game worker computes "now" with its own `timeOrigin`, and the two can differ by a few milliseconds, so an event can appear newer than the worker's "now".
 - **Fix:** `movies_window_map_input_time` treats up to 60 s of such skew as age 0. Larger differences are still rejected as corrupt.
+
+## Lot frame rate: pipelined present, hoisted vertex work (2026-11-10)
+
+- **Measurement hygiene:** benches killed by `pkill` left their headless Chrome playing the game. Up to six had piled up and skewed every number that day. Both bench scripts now exit, and close Chrome, on SIGINT, SIGTERM and SIGHUP.
+- **Pipelined present** (`d3d9-host.js`, `graphics-protocol.js`): `present` now closes the frame's batch (it may be the last batch command) instead of being a separate synchronous call. The host returns the predicted serial at once and checks the acknowledgement at the next exchange, so at most one frame is in flight.
+- **Vertex conversion** (`convert_vertices`): per-draw work is hoisted out of the vertex loop:
+  - material sources;
+  - plain texture-coordinate copies;
+  - with only directional lights, the constant emissive + ambient term, and no per-vertex world position.
+  
+  The general paths still handle everything else, and the exact-colour lighting test passes.
+- **Result on a quiet machine:** the headless lot ran at 36.7, 40.5 and 43.7 fps, about 40, against 35 at best before. Earlier same-day numbers aren't comparable.
+- **Remaining game-thread time:** `convert_vertices` 27%, the C→JS graphics bridge 19%, waiting on the graphics worker 17%. Moving lighting to the GPU (uploading normals, lighting in WGSL) is the next large step.
+
+## Vertex data on the GPU: lighting, raw FVF layouts (2026-11-11)
+
+Upload statistics (`[D3D9 uploads]` milestones in the log) showed the CPU converting about 336 M vertices per million uploads on the lot. This was mostly repacking, not lighting:
+- `0x104`, XYZRHW|TEX1 without a colour (menus and compositing);
+- `0x212`, XYZ|NORMAL|TEX2, unlit and lightmapped. Streamed through dynamic buffers, so never cached.
+
+Changes:
+- **GPU lighting:** lit draws send a 192-float lighting block (normal matrix, ambient, material and sources, up to 8 lights) per draw. `litColor` in the vertex shader evaluates `light_vertex`'s formula.
+  - Specular material sources and more than 8 lights stay on the CPU. `MOVIES_CPU_LIGHTING=1` (`static-probe.html?cpulighting=1`) forces the CPU path for comparison.
+  - Uploads no longer depend on lights or matrices.
+- **Raw FVF layouts:** when no CPU work is needed (no CPU lighting, no texture-coordinate processing, and both stage coordinate sets have at least 2 components), the game's bytes upload unchanged.
+  - The format is described as `raw/<stride>/<3|4>/<normal>/<diffuse>/<uv0>/<uv1>`, and the pipeline reads each attribute at its FVF offset.
+  - With no diffuse, the shader uses opaque white. Non-finite floats in the read fields become 0, as the CPU conversion did.
+- **`XYZRHW_UV`:** a named layout for `0x104`.
+- **Memory:** the graphics worker's resource budget is now 1 GiB. A fresh lot peaks near 250 MB, which tripped the old 256 MB cap in longer sessions.
+
+Results:
+- CPU-converted vertices fell from 336 M to 90 M per million uploads; the remainder is texture-coordinate generation, mostly `0x002`.
+- The lot screenshot matches the CPU-lit reference.
+- The headless lot runs at 45.7, 46.3 and 49.3 fps (about 39 before). `convert_vertices` is down from 22% to 5% of the game thread.
+- The game thread is now dominated by waiting on the graphics worker (25%) and the C→JS bridge (22%).
+
+## Guest heap: 256 MB → 1 GB (2026-11-14)
+
+Two player sessions (about 45 and 14 minutes) ended with `bad_alloc` at about 1,145 live textures. In the second, presenters at the awards ceremony rendered black first: their `CreateTexture` calls failed, so they were drawn untextured.
+- **Cause:** `heap-api.c` serves HeapAlloc, VirtualAlloc and D3D9 texture copies, but only from the 256 MiB `GUEST_HEAP_BASE..GUEST_HEAP_HI` window. The runtime's VirtualAlloc window just above it was never used.
+- **Fix:** when the two windows are adjacent, the allocator owns both (`MOVIES_HEAP_HI = GUEST_VALLOC_HI`), giving 1 GiB in the browser. `GlobalMemoryStatus` reports the larger budget.

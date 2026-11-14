@@ -131,15 +131,31 @@ test('deferred D3D host flushes when the batch command limit fills', () => {
 });
 test('pipelined D3D host posts batches and surfaces handle mismatches at the next synchronous command', () => {
   const posted = []; let pending = null;
-  const settle = () => { const p = pending; pending = null; p?.check(p.args.commands.map(() => 42)); };
+  let presents = 0, ackPresents = true;
+  const settle = () => { const p = pending; pending = null; p?.check(p.args.commands.map(c => c.command === 'present' ? {acknowledged: ackPresents, serial: ++presents} : 42)); };
   const client = {capabilities: {backend: 'WebGPU', width: 1024, height: 768, depthFormat: 'depth16unorm', renderTargetFormats:[22], limits: {maxBufferSize: 1 << 28, maxTextureDimension2D:8192}},
     post(command, args, check) { settle(); posted.push(command); pending = {args, check}; },
     call(command, args) { settle(); return command === 'setRenderTargetFormat' ? args.format : command === 'present' ? {acknowledged: true, serial: 1} : null; }, close() {}};
   const host = createMoviesD3D9Host({client, getWindow: () => ({clientWidth:1024, clientHeight:768}), presentationIntervalMask:1, deferred:true, pipelined:true});
   host.moviesGraphicsCall('createDevice', {width:1024,height:768,hwnd:7,depth16:true,windowed:true,presentationInterval:0});
   host.moviesGraphicsCall('clear', {color:0});
-  assert.equal(host.moviesGraphicsCall('present').acknowledged, true);
-  assert.deepEqual(posted, ['batch']);
+  const first = host.moviesGraphicsCall('present');
+  assert.deepEqual([first.acknowledged, first.serial], [true, 1]);
+  assert.deepEqual(posted, ['batch'], 'present closes the frame batch instead of a synchronous call');
   host.moviesGraphicsCall('uploadIndices', {bytes:new ArrayBuffer(6),format:'uint16'});
-  assert.throws(() => host.moviesGraphicsCall('present'), /expected 1/);
+  host.moviesGraphicsCall('present'); // the bad handle is in flight with this frame
+  assert.throws(() => host.moviesGraphicsCall('present'), /expected 1/, 'surfaced at the next exchange');
+});
+test('pipelined presents are verified one frame later', () => {
+  const posted = []; let pending = null, presents = 0, ack = true;
+  const settle = () => { const p = pending; pending = null; p?.check(p.args.commands.map(c => c.command === 'present' ? {acknowledged: ack, serial: ++presents} : null)); };
+  const client = {capabilities: {backend: 'WebGPU', width: 1024, height: 768, depthFormat: 'depth16unorm', renderTargetFormats:[22], limits: {maxBufferSize: 1 << 28, maxTextureDimension2D:8192}},
+    post(command, args, check) { settle(); posted.push(args.commands.map(c => c.command).join(',')); pending = {args, check}; },
+    call(command, args) { settle(); return command === 'setRenderTargetFormat' ? args.format : null; }, close() {}};
+  const host = createMoviesD3D9Host({client, getWindow: () => ({clientWidth:1024, clientHeight:768}), presentationIntervalMask:1, deferred:true, pipelined:true});
+  host.moviesGraphicsCall('createDevice', {width:1024,height:768,hwnd:7,depth16:true,windowed:true,presentationInterval:0});
+  for (let frame = 1; frame <= 3; frame++) { host.moviesGraphicsCall('clear', {color:0}); assert.equal(host.moviesGraphicsCall('present').serial, frame); }
+  assert.deepEqual(posted, ['clear,present', 'clear,present', 'clear,present']);
+  ack = false; host.moviesGraphicsCall('clear', {color:0});
+  assert.throws(() => host.moviesGraphicsCall('present'), /not acknowledged/);
 });

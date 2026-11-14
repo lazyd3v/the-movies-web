@@ -14,10 +14,10 @@ const {result: {targetId}} = await send('Target.createTarget', {url: 'http://127
 const {result: {sessionId}} = await send('Target.attachToTarget', {targetId, flatten: true});
 await sleep(1500);
 const expression = `(async()=>{const {shader}=await import('/d3d9-gpu.js');const a=await navigator.gpu.requestAdapter();const d=await a.requestDevice();const out=[];let n=0;
- for(const uv of [false,true])for(const rhw of [false,true])for(const fmt of [22,25])for(const blend of [false,true])for(const [comb,tex] of [[false,false],[true,false],[true,true]])for(const uv2 of [false,true])for(const tex1 of [false,true]){
-  if(rhw&&!uv)continue;if(tex&&!uv)continue;if(uv2&&!uv)continue;if(tex1&&(!comb||!uv))continue;
-  const m=d.createShaderModule({code:shader(uv,fmt,rhw,blend,false,comb,tex,uv2,tex1)});const info=await m.getCompilationInfo();
-  const errs=info.messages.filter(x=>x.type==='error').map(x=>x.lineNum+':'+x.linePos+' '+x.message);if(errs.length)out.push({uv,rhw,fmt,blend,comb,tex,uv2,tex1,errs:errs.slice(0,3)});n++;}
+ for(const uv of [false,true])for(const rhw of [false,true])for(const fmt of [22,25])for(const blend of [false,true])for(const [comb,tex] of [[false,false],[true,false],[true,true]])for(const uv2 of [false,true])for(const tex1 of [false,true])for(const lit of [false,true])for(const nd of [false,true]){
+  if(lit&&(rhw||!uv2))continue;if(nd&&(!rhw||uv2||lit))continue;if(rhw&&!uv)continue;if(tex&&!uv)continue;if(uv2&&!uv)continue;if(tex1&&(!comb||!uv))continue;
+  const m=d.createShaderModule({code:shader(uv,fmt,rhw,blend,false,comb,tex,uv2,tex1,lit,nd)});const info=await m.getCompilationInfo();
+  const errs=info.messages.filter(x=>x.type==='error').map(x=>x.lineNum+':'+x.linePos+' '+x.message);if(errs.length)out.push({uv,rhw,fmt,blend,comb,tex,uv2,tex1,lit,errs:errs.slice(0,3)});n++;}
  return JSON.stringify({compiled:n,errors:out})})()`;
 const r = await send('Runtime.evaluate', {expression, awaitPromise: true, returnByValue: true}, sessionId);
 console.log(r.result?.result?.value ?? JSON.stringify(r.result?.exceptionDetails ?? r));

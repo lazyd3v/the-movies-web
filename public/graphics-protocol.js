@@ -4,7 +4,9 @@ import {samplerDescriptor, validateAlphaTest, validateScissor, validateStages, D
  * through Atomics: payload/header fields are written before nonzero STATUS. */
 export const GRAPHICS_LIMITS = Object.freeze({headerBytes: 64, maxResponseBytes: 64 * 1024 * 1024, maxUploadBytes: 32 * 1024 * 1024, maxBatchCommands: 512, maxDimension: 4096, maxTimeoutMs: 60000});
 export const HEADER = Object.freeze({status: 0, serial: 1, kind: 2, length: 3, width: 4, height: 5, transportFailure: 6});
-export const VERTEX_FORMATS = Object.freeze(['XYZ_DIFFUSE', 'XYZ_DIFFUSE_UV', 'XYZRHW_DIFFUSE_UV', 'XYZ_DIFFUSE_UV2', 'XYZRHW_DIFFUSE_UV2']);
+export const VERTEX_FORMATS = Object.freeze(['XYZ_DIFFUSE', 'XYZ_DIFFUSE_UV', 'XYZRHW_DIFFUSE_UV', 'XYZ_DIFFUSE_UV2', 'XYZRHW_DIFFUSE_UV2', 'XYZ_NORMAL_DIFFUSE_UV2', 'XYZRHW_UV']);
+/* Named layouts, or a raw D3D9 FVF layout (see d3d9-gpu.js rawLayout) checked fully there. */
+export function isVertexFormat(format) { return VERTEX_FORMATS.includes(format) || (typeof format === 'string' && /^raw\/\d{2,3}\/[34](\/(\d{1,3}|-)){4}$/.test(format)); }
 export const COMMANDS = new Set(['setRenderTargetFormat', 'createRenderTarget', 'setRenderTarget', 'readRenderTarget', 'writeRenderTarget', 'copyRenderTarget', 'clear', 'uploadVertices', 'uploadIndices', 'uploadTextureRGBA', 'drawIndexed', 'release', 'readPixels', 'present', 'validate', 'batch', 'dispose']);
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 function fields(value, allowed) { if (!object(value) || Object.keys(value).some(k => !allowed.includes(k))) throw new TypeError('Invalid graphics command fields'); }
@@ -18,11 +20,13 @@ export function validateCommand(command, args = {}, inBatch = false) {
     fields(args, ['commands']);
     if (!Array.isArray(args.commands)) throw new TypeError('Expected command batch');
     integer(args.commands.length, 1, GRAPHICS_LIMITS.maxBatchCommands, 'batch size');
-    for (const entry of args.commands) {
+    args.commands.forEach((entry, index) => {
       fields(entry, ['command', 'args']);
+      // present may close a batch (pipelined frames); it can never be followed by more work.
+      if (entry.command === 'present' && index === args.commands.length - 1) { fields(entry.args ?? {}, []); return; }
       if (['init', 'dispose', 'present', 'readPixels', 'readRenderTarget', 'validate'].includes(entry.command)) throw new Error(`Command ${entry.command} not allowed in batch`);
       uploadBytes += validateCommand(entry.command, entry.args ?? {}, true);
-    }
+    });
   } else if (command.startsWith('upload')) {
     fields(args, command === 'uploadTextureRGBA' ? ['bytes', 'width', 'height'] : ['bytes', 'format']);
     if (!(args.bytes instanceof ArrayBuffer)) throw new TypeError('Upload requires owned ArrayBuffer');
@@ -31,10 +35,10 @@ export function validateCommand(command, args = {}, inBatch = false) {
     if (command === 'uploadTextureRGBA') {
       integer(args.width, 1, GRAPHICS_LIMITS.maxDimension, 'texture width'); integer(args.height, 1, GRAPHICS_LIMITS.maxDimension, 'texture height');
       if (uploadBytes !== args.width * args.height * 4) throw new RangeError('Texture bytes do not match dimensions');
-    } else if (command === 'uploadVertices' && !VERTEX_FORMATS.includes(args.format)) throw new Error('Unsupported vertex format');
+    } else if (command === 'uploadVertices' && !isVertexFormat(args.format)) throw new Error('Unsupported vertex format');
     else if (command === 'uploadIndices' && !['uint16', 'uint32'].includes(args.format)) throw new Error('Unsupported index format');
   } else if (command === 'drawIndexed') {
-    fields(args, ['vertices', 'indices', 'firstIndex', 'indexCount', 'baseVertex', 'world', 'view', 'projection', 'texture', 'depthTest', 'depthCompare', 'depthWrite', 'blend', 'blendMode', 'blendFactors', 'scissor', 'viewport', 'sampler', 'alphaTest', 'textureEquation', 'textureFactor', 'stages', 'texture1', 'sampler1', 'depthBias', 'slopeScaleDepthBias', 'colorWriteMask', 'blendConstant']);
+    fields(args, ['vertices', 'indices', 'firstIndex', 'indexCount', 'baseVertex', 'world', 'view', 'projection', 'lighting', 'texture', 'depthTest', 'depthCompare', 'depthWrite', 'blend', 'blendMode', 'blendFactors', 'scissor', 'viewport', 'sampler', 'alphaTest', 'textureEquation', 'textureFactor', 'stages', 'texture1', 'sampler1', 'depthBias', 'slopeScaleDepthBias', 'colorWriteMask', 'blendConstant']);
     for (const key of ['depthBias', 'slopeScaleDepthBias']) if (args[key] !== undefined && !Number.isFinite(args[key])) throw new TypeError(`Invalid ${key}`);
     if (args.colorWriteMask !== undefined) integer(args.colorWriteMask, 0, 15, 'colour write mask');
     if (args.blendConstant !== undefined) integer(args.blendConstant, 0, 0xffffffff, 'blend constant');
@@ -51,6 +55,7 @@ export function validateCommand(command, args = {}, inBatch = false) {
     if(args.sampler!==undefined)samplerDescriptor(args.sampler);
     for (const key of ['vertices', 'indices']) integer(args[key], 1, 0x7fffffff, key);
     if (args.texture != null) integer(args.texture, 1, 0x7fffffff, 'texture');
+    if (args.lighting !== undefined && (!(args.lighting instanceof Float32Array || Array.isArray(args.lighting)) || args.lighting.length !== 192 || Array.from(args.lighting).some(x => !Number.isFinite(x)))) throw new TypeError('Invalid lighting block');
     for (const key of ['world', 'view', 'projection']) if (args[key] !== undefined && ((!Array.isArray(args[key]) && !(args[key] instanceof Float32Array)) || args[key].length !== 16 || Array.from(args[key]).some(x => !Number.isFinite(x)))) throw new TypeError('Invalid transform');
     for (const key of ['firstIndex', 'indexCount']) if (args[key] !== undefined) integer(args[key], key === 'indexCount' ? 1 : 0, 0xffffffff, key);
     if (args.baseVertex !== undefined) integer(args.baseVertex, -0x80000000, 0x7fffffff, 'base vertex');

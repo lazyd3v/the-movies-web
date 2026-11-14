@@ -75,8 +75,8 @@ EM_JS(int,graphics_bridge,(uint32_t cmd, const uint32_t *a, const void *data, ui
   else if(cmd===2){command='createDevice';args={width:v[0],height:v[1],hwnd:v[2],depth16:!!v[3],windowed:!!v[4],presentationInterval:v[5],backBufferFormat:v[6]};}
   else if(cmd===3){command='clear';const f=new Float32Array(new Uint32Array([v[1]]).buffer)[0];args={color:v[0],depth:f,scissor,zbuffer:(v[2]&2)!==0,...(v[2]&1?{}:{target:false})};}
   else if(cmd===4){command='present';}
-  else if(cmd===5||cmd===6){command=cmd===5?'uploadVertices':'uploadIndices';args={bytes:HEAPU8.slice(data,data+bytes).buffer,format:cmd===5?(v[0]===0x244?'XYZRHW_DIFFUSE_UV2':v[0]===0x242?'XYZ_DIFFUSE_UV2':v[0]===0x144?'XYZRHW_DIFFUSE_UV':v[0]===0x142?'XYZ_DIFFUSE_UV':'XYZ_DIFFUSE'):v[0]===101?'uint16':'uint32'};}
-  else if(cmd===7){command='drawIndexed';const f=new Float32Array(new Uint32Array([v[10],v[11]]).buffer);args={vertices:v[0],indices:v[1],firstIndex:v[2],indexCount:v[3],baseVertex:v[4]|0,depthTest:!!v[5],depthCompare:['never','less','equal','less-equal','greater','not-equal','greater-equal','always'][v[23]-1]??'less-equal',...(v[60]&0x100?{colorWriteMask:v[60]&15,blendConstant:v[57],depthBias:new Float32Array(new Uint32Array([v[58]]).buffer)[0],slopeScaleDepthBias:new Float32Array(new Uint32Array([v[59]]).buffer)[0]}:{}),depthWrite:!!v[24],blend:!!v[25],...(v[25]&256?{blendFactors:{source:(v[25]>>>4)&15,destination:v[25]&15,...(v[56]&15?{operation:v[56]&15}:{}),...((v[56]>>>8)&1?{alphaSource:(v[56]>>>12)&15,alphaDestination:(v[56]>>>16)&15,alphaOperation:((v[56]>>>4)&15)||1}:{})}}:{}),blendMode:v[25]===3?'destination-times-source':v[25]===2?'source-color':'source-alpha',...(v[45]?{texture1:v[45],sampler1:{addressU:v[48],addressV:v[49],addressW:v[50],minFilter:v[51],magFilter:v[52],mipFilter:v[53],lodBias:new Float32Array(new Uint32Array([v[54]]).buffer)[0]}}:{}),...(v[31]===4?{stages:[v.slice(33,39),v.slice(39,45)]}:{textureEquation:v[31]===3?'diffuse-rgb-texture-alpha':v[31]===2?'diffuse':v[31]?'factor-rgb-texture-alpha':'modulate'}),textureFactor:v[32],scissor,texture:v[12]||null,alphaTest:{enabled:!!v[20],func:v[21],reference:v[22]},sampler:{addressU:v[13],addressV:v[14],addressW:v[15],minFilter:v[16],magFilter:v[17],mipFilter:v[18],lodBias:new Float32Array(new Uint32Array([v[19]]).buffer)[0]},viewport:{x:v[6],y:v[7],width:v[8],height:v[9],minDepth:f[0],maxDepth:f[1]},world:Array.from(HEAPF32.subarray(m>>>2,(m>>>2)+16)),view:Array.from(HEAPF32.subarray((m>>>2)+16,(m>>>2)+32)),projection:Array.from(HEAPF32.subarray((m>>>2)+32,(m>>>2)+48))};}
+  else if(cmd===5||cmd===6){command=cmd===5?'uploadVertices':'uploadIndices';args={bytes:HEAPU8.slice(data,data+bytes).buffer,format:cmd===5?(v[0]===0xffff?['raw',v[1],v[2],...[v[3],v[4],v[5],v[6]].map(x=>x?x-1:'-')].join('/'):v[0]===0x252?'XYZ_NORMAL_DIFFUSE_UV2':v[0]===0x104?'XYZRHW_UV':v[0]===0x244?'XYZRHW_DIFFUSE_UV2':v[0]===0x242?'XYZ_DIFFUSE_UV2':v[0]===0x144?'XYZRHW_DIFFUSE_UV':v[0]===0x142?'XYZ_DIFFUSE_UV':'XYZ_DIFFUSE'):v[0]===101?'uint16':'uint32'};}
+  else if(cmd===7){command='drawIndexed';const f=new Float32Array(new Uint32Array([v[10],v[11]]).buffer);args={vertices:v[0],indices:v[1],firstIndex:v[2],indexCount:v[3],baseVertex:v[4]|0,depthTest:!!v[5],depthCompare:['never','less','equal','less-equal','greater','not-equal','greater-equal','always'][v[23]-1]??'less-equal',...(v[60]&0x100?{colorWriteMask:v[60]&15,blendConstant:v[57],depthBias:new Float32Array(new Uint32Array([v[58]]).buffer)[0],slopeScaleDepthBias:new Float32Array(new Uint32Array([v[59]]).buffer)[0]}:{}),depthWrite:!!v[24],blend:!!v[25],...(v[25]&256?{blendFactors:{source:(v[25]>>>4)&15,destination:v[25]&15,...(v[56]&15?{operation:v[56]&15}:{}),...((v[56]>>>8)&1?{alphaSource:(v[56]>>>12)&15,alphaDestination:(v[56]>>>16)&15,alphaOperation:((v[56]>>>4)&15)||1}:{})}}:{}),blendMode:v[25]===3?'destination-times-source':v[25]===2?'source-color':'source-alpha',...(v[45]?{texture1:v[45],sampler1:{addressU:v[48],addressV:v[49],addressW:v[50],minFilter:v[51],magFilter:v[52],mipFilter:v[53],lodBias:new Float32Array(new Uint32Array([v[54]]).buffer)[0]}}:{}),...(v[31]===4?{stages:[v.slice(33,39),v.slice(39,45)]}:{textureEquation:v[31]===3?'diffuse-rgb-texture-alpha':v[31]===2?'diffuse':v[31]?'factor-rgb-texture-alpha':'modulate'}),textureFactor:v[32],scissor,texture:v[12]||null,alphaTest:{enabled:!!v[20],func:v[21],reference:v[22]},sampler:{addressU:v[13],addressV:v[14],addressW:v[15],minFilter:v[16],magFilter:v[17],mipFilter:v[18],lodBias:new Float32Array(new Uint32Array([v[19]]).buffer)[0]},viewport:{x:v[6],y:v[7],width:v[8],height:v[9],minDepth:f[0],maxDepth:f[1]},world:Array.from(HEAPF32.subarray(m>>>2,(m>>>2)+16)),view:Array.from(HEAPF32.subarray((m>>>2)+16,(m>>>2)+32)),projection:Array.from(HEAPF32.subarray((m>>>2)+32,(m>>>2)+48)),...(v[61]===1?{lighting:HEAPF32.slice((m>>>2)+48,(m>>>2)+240)}:{})};}
   else if(cmd===8){command='release';args={handle:v[0]};}
   else if(cmd===9){command='destroyDevice';}
   else if(cmd===10){command='uploadTextureRGBA';args={width:v[0],height:v[1],bytes:HEAPU8.slice(data,data+bytes).buffer};}
@@ -444,42 +444,123 @@ static void texture_coords(Object*d,unsigned stage,const Fvf*f,const uint8_t*s,c
   if((flags&256u)&&n>=2&&n<=4){float q=out[n-1];if(fabsf(q)>1e-12f){out[0]/=q;out[1]/=q;}}}
  uv[0]=finite_or_zero(out[0]);uv[1]=finite_or_zero(out[1]);}
 static uint32_t stage_set(Object*d,unsigned stage,const Fvf*f){uint32_t set=d->tss[stage][11]&0xffffu;return set<f->tex_count?set:0;}
+/* Per-draw work is hoisted out of the vertex loop: material sources depend only on
+ * the FVF and render states; plain texture coordinates (no generation, no transform)
+ * are a copy; and with only directional lights the emissive + ambient term is one
+ * constant and positions need no world transform. Results equal light_vertex /
+ * texture_coords (the general paths, still used for everything else). */
+typedef struct UvPlan{int simple;uint32_t set;}UvPlan;
+static UvPlan uv_plan(Object*d,unsigned stage,const Fvf*f){UvPlan u={0,stage_set(d,stage,f)};u.simple=!(d->tss[stage][11]>>16)&&!(d->tss[stage][24]&0xffu);return u;}
 static void convert_vertices(Object*d,const Fvf*f,const uint8_t*src,uint32_t count,uint8_t*dst,uint32_t texset){
  int lit=!f->rhw&&d->rs[137];LightCtx L;if(lit)light_setup(d,&L);
- const uint32_t out=f->rhw?36:32;static const float zero3[3]={0,0,0};(void)texset;
- for(uint32_t v=0;v<count;v++){const uint8_t*s=src+(size_t)v*f->stride;uint8_t*o=dst+(size_t)v*out;float pos[4];memcpy(pos,s,f->rhw?16:12);
-  for(unsigned k=0;k<(f->rhw?4u:3u);k++)pos[k]=finite_or_zero(pos[k]);
-  uint32_t color=0xffffffffu,raw;float c1[4],c2[4];int has1=0,has2=0;
-  if(f->diffuse){memcpy(&raw,s+f->diffuse-1,4);unpack_color(raw,c1);has1=1;color=raw;}
-  if(f->specular){memcpy(&raw,s+f->specular-1,4);unpack_color(raw,c2);has2=1;}
+ const uint32_t out=f->rhw?36:32,posn=f->rhw?4u:3u;(void)texset;
+ float c1[4]={0},c2[4]={0};const float*c1p=f->diffuse?c1:NULL,*c2p=f->specular?c2:NULL;
+ const float*md=NULL,*ma=NULL,*me=NULL;int directional=0;float base[3]={0,0,0};
+ if(lit){md=material_source(d,145,d->material,c1p,c2p);ma=material_source(d,147,d->material+4,c1p,c2p);me=material_source(d,148,d->material+12,c1p,c2p);
+  directional=1;for(unsigned i=0;i<L.n;i++)if(L.lights[i].type!=3)directional=0;
+  /* Constant emissive + ambient when neither comes from the vertex colours. */
+  if(directional&&ma!=c1&&ma!=c2&&me!=c1&&me!=c2)for(unsigned k=0;k<3;k++)base[k]=me[k]+ma[k]*L.global[k];else directional=0;}
+ UvPlan plan[2]={uv_plan(d,0,f),uv_plan(d,1,f)};
+ for(uint32_t v=0;v<count;v++){const uint8_t*s=src+(size_t)v*f->stride;uint8_t*o=dst+(size_t)v*out;float pos[4];memcpy(pos,s,posn*4);
+  for(unsigned k=0;k<posn;k++)pos[k]=finite_or_zero(pos[k]);
+  uint32_t color=0xffffffffu,raw;
+  if(f->diffuse){memcpy(&raw,s+f->diffuse-1,4);color=raw;if(lit)unpack_color(raw,c1);}
+  if(f->specular&&lit){memcpy(&raw,s+f->specular-1,4);unpack_color(raw,c2);}
   if(lit){float nn[3]={0,0,0};if(f->normal){memcpy(nn,s+f->normal-1,12);for(unsigned k=0;k<3;k++)nn[k]=finite_or_zero(nn[k]);}
-   const float*md=material_source(d,145,d->material,has1?c1:NULL,has2?c2:NULL),*ma=material_source(d,147,d->material+4,has1?c1:NULL,has2?c2:NULL),*me=material_source(d,148,d->material+12,has1?c1:NULL,has2?c2:NULL);
-   (void)zero3;color=light_vertex(&L,pos,nn,md,ma,me);}
-  float uv[4]={0,0,0,0};for(unsigned st=0;st<2;st++)texture_coords(d,st,f,s,pos,stage_set(d,st,f),uv+st*2);
-  memcpy(o,pos,f->rhw?16:12);memcpy(o+(f->rhw?16:12),&color,4);memcpy(o+(f->rhw?20:16),uv,16);}}
+   if(directional){float wn[3];for(unsigned k=0;k<3;k++)wn[k]=nn[0]*L.inv[k*3]+nn[1]*L.inv[k*3+1]+nn[2]*L.inv[k*3+2];
+    if(L.normalize){float l=sqrtf(wn[0]*wn[0]+wn[1]*wn[1]+wn[2]*wn[2]);if(l>0){l=1/l;for(unsigned k=0;k<3;k++)wn[k]*=l;}}
+    float diffuse[3]={0,0,0};for(unsigned li=0;li<L.n;li++){const PreLight*pl=&L.lights[li];float ndl=wn[0]*pl->dir[0]+wn[1]*pl->dir[1]+wn[2]*pl->dir[2];if(ndl>0)for(unsigned k=0;k<3;k++)diffuse[k]+=pl->diffuse[k]*ndl;}
+    float rgba[4];for(unsigned k=0;k<3;k++)rgba[k]=base[k]+md[k]*diffuse[k];rgba[3]=md[3];color=pack_color(rgba);}
+   else color=light_vertex(&L,pos,nn,md,ma,me);}
+  float uv[4]={0,0,0,0};
+  for(unsigned st=0;st<2;st++){
+   if(plan[st].simple){if(plan[st].set<f->tex_count){float tc[2]={0,0};uint32_t size=f->tex_size[plan[st].set];memcpy(tc,s+f->tex_off[plan[st].set],4*(size<2?size:2));uv[st*2]=finite_or_zero(tc[0]);uv[st*2+1]=size>1?finite_or_zero(tc[1]):0;}}
+   else texture_coords(d,st,f,s,pos,plan[st].set,uv+st*2);}
+  memcpy(o,pos,posn*4);memcpy(o+posn*4,&color,4);memcpy(o+posn*4+4,uv,16);}}
+/* GPU lighting: lit draws upload position, normal, vertex diffuse and the stage
+ * coordinates unchanged (XYZ|NORMAL|DIFFUSE|TEX2, 44 bytes) and send the lights and
+ * material per draw; the vertex shader evaluates light_vertex's formula. The upload
+ * no longer depends on lights or matrices, so unchanged meshes stay cached across
+ * frames (unless texture-coordinate processing makes them depend on matrices).
+ * Specular material sources and more than 8 lights keep the CPU path (convert_vertices). */
+#define GPU_LIGHTS 8u
+static int cpu_lighting_forced=-1;
+void movies_d3d9_force_cpu_lighting(int on){cpu_lighting_forced=on!=0;}
+static int gpu_lighting(Object*d,const Fvf*f){
+ if(cpu_lighting_forced<0){const char*e=getenv("MOVIES_CPU_LIGHTING");cpu_lighting_forced=e&&*e=='1';}
+ if(cpu_lighting_forced)return 0;
+ if(f->rhw||!d->rs[137])return 0; /* texture-coordinate processing stays on the CPU (convert_lit_vertices) */
+ unsigned n=0;for(unsigned i=0;i<16;i++)if(d->lights[i].used&&d->lights[i].enabled)n++;if(n>GPU_LIGHTS)return 0;
+ if(d->rs[141]&&f->specular){const unsigned st[]={145,147,148};for(unsigned i=0;i<3;i++)if(d->rs[st[i]]==2)return 0;}
+ return 1;}
+static void gpu_lighting_block(Object*d,const Fvf*f,float*o){
+ LightCtx L;light_setup(d,&L);memset(o,0,192*sizeof*o);
+ for(unsigned k=0;k<3;k++){o[k*4]=L.inv[k*3];o[k*4+1]=L.inv[k*3+1];o[k*4+2]=L.inv[k*3+2];}
+ o[3]=L.normalize?1.f:0.f;o[11]=(float)L.n;memcpy(o+12,L.global,12);
+ memcpy(o+16,d->material,16);memcpy(o+20,d->material+4,16);memcpy(o+24,d->material+12,16);
+ const unsigned st[]={145,147,148};for(unsigned i=0;i<3;i++)o[28+i]=(d->rs[141]&&d->rs[st[i]]==1&&f->diffuse)?1.f:0.f;
+ for(unsigned i=0;i<L.n&&i<GPU_LIGHTS;i++){const PreLight*pl=&L.lights[i];float*w=o+32+i*20;
+  memcpy(w,pl->diffuse,12);w[3]=(float)pl->type;memcpy(w+4,pl->ambient,12);w[7]=isfinite(pl->range)?pl->range:3.4e38f;
+  memcpy(w+8,pl->pos,12);w[11]=pl->falloff;memcpy(w+12,pl->dir,12);w[15]=pl->ct;memcpy(w+16,pl->att,12);w[19]=pl->cp;}
+ for(unsigned i=0;i<192;i++)o[i]=finite_or_zero(o[i]);}
+static void convert_lit_vertices(Object*d,const Fvf*f,const uint8_t*src,uint32_t count,uint8_t*dst){
+ UvPlan plan[2]={uv_plan(d,0,f),uv_plan(d,1,f)};
+ for(uint32_t v=0;v<count;v++){const uint8_t*s=src+(size_t)v*f->stride;uint8_t*o=dst+(size_t)v*44;float pn[6]={0,0,0,0,0,0};memcpy(pn,s,12);
+  if(f->normal)memcpy(pn+3,s+f->normal-1,12);for(unsigned k=0;k<6;k++)pn[k]=finite_or_zero(pn[k]);
+  uint32_t color=0xffffffffu;if(f->diffuse)memcpy(&color,s+f->diffuse-1,4);
+  float uv[4]={0,0,0,0};
+  for(unsigned st=0;st<2;st++){
+   if(plan[st].simple){if(plan[st].set<f->tex_count){float tc[2]={0,0};uint32_t size=f->tex_size[plan[st].set];memcpy(tc,s+f->tex_off[plan[st].set],4*(size<2?size:2));uv[st*2]=finite_or_zero(tc[0]);uv[st*2+1]=size>1?finite_or_zero(tc[1]):0;}}
+   else texture_coords(d,st,f,s,pn,plan[st].set,uv+st*2);}
+  memcpy(o,pn,24);memcpy(o+24,&color,4);memcpy(o+28,uv,16);}}
+/* Upload statistics, logged at a few milestones: which path vertex data takes
+ * (cache hit, passthrough, GPU-lit packing, CPU conversion) and the busiest
+ * CPU-converted formats with the reason they could not pass through. */
+typedef struct UploadStat{uint32_t fvf,why;uint64_t vertices,calls;}UploadStat;
+static UploadStat upload_stats[16];static uint64_t upload_path[4],upload_vertices_path[4],upload_total;
+static void upload_note(unsigned path,uint32_t fvf,uint32_t why,uint32_t vertices){
+ upload_path[path]++;upload_vertices_path[path]+=vertices;
+ if(path==3){unsigned i=0;while(i<16&&upload_stats[i].calls&&(upload_stats[i].fvf!=fvf||upload_stats[i].why!=why))i++;if(i<16){upload_stats[i].fvf=fvf;upload_stats[i].why=why;upload_stats[i].calls++;upload_stats[i].vertices+=vertices;}}
+ if(++upload_total==20000||upload_total==200000||upload_total==1000000){
+  fprintf(stderr,"[D3D9 uploads] %llu: hit=%llu pass=%llu gpulit=%llu cpu=%llu calls; vertices pass=%llu gpulit=%llu cpu=%llu\n",(unsigned long long)upload_total,
+   (unsigned long long)upload_path[0],(unsigned long long)upload_path[1],(unsigned long long)upload_path[2],(unsigned long long)upload_path[3],(unsigned long long)upload_vertices_path[1],(unsigned long long)upload_vertices_path[2],(unsigned long long)upload_vertices_path[3]);
+  for(unsigned i=0;i<16&&upload_stats[i].calls;i++)fprintf(stderr,"[D3D9 uploads]   cpu fvf=%03x why=%x calls=%llu vertices=%llu (why: 1 lit, 2 texset, 4 texproc, 8 stage1, 16 format)\n",upload_stats[i].fvf,upload_stats[i].why,(unsigned long long)upload_stats[i].calls,(unsigned long long)upload_stats[i].vertices);}}
 static int upload(Object*b,uint32_t offset,uint32_t bytes,uint32_t fvf,uint32_t mask,uint32_t bias,Object*d){
- Fvf f={0};uint32_t key=0,texset=0;int passthrough=0;
+ Fvf f={0};uint32_t key=0,texset=0,upload_why=0,raw_set0=0,raw_set1=0;int passthrough=0,gpu_lit=0,raw=0;
  if(b->type==VERTEX){
   if(!decode_fvf(fvf,&f)||!d)return 0;
-  int lit=!f.rhw&&d->rs[137];texset=d->tss[0][11]&0xffffu;if(texset>=f.tex_count)texset=0;
+  gpu_lit=gpu_lighting(d,&f);
+  int lit=!f.rhw&&d->rs[137]&&!gpu_lit;texset=d->tss[0][11]&0xffffu;if(texset>=f.tex_count)texset=0;
   int texproc=texcoord_processing(d);
   int stage1=stage1_texture(d);
-  passthrough=(fvf==0x42||fvf==0x142||fvf==0x144)&&!lit&&!texset&&!mask&&!texproc&&!stage1;
-  key=passthrough?1u:((lit||texproc?light_hash(d):2u)^((texset+1)*0x9e3779b1u)^((d->tss[1][11]&0xffffu)+7)*0x27d4eb2fu)|1u;
+  passthrough=(fvf==0x42||fvf==0x142||fvf==0x144||fvf==0x104)&&!lit&&!gpu_lit&&!texset&&!mask&&!texproc&&!stage1;
+  if(gpu_lit)lit=0;
+  /* Raw: no CPU work is needed (no CPU lighting, no texture-coordinate processing,
+   * both stage coordinate sets have two components), so the game's own bytes are
+   * uploaded and the GPU reads each field where the FVF stores it. */
+  if(!passthrough&&!lit&&!texproc&&!mask&&f.tex_count>0&&(!gpu_lit||f.normal)){
+   raw_set0=stage_set(d,0,&f);raw_set1=stage_set(d,1,&f);raw=f.tex_size[raw_set0]>=2&&f.tex_size[raw_set1]>=2;}
+  key=passthrough?1u:raw?(((raw_set0+1)*0x9e3779b1u)^((raw_set1+7)*0x27d4eb2fu)^0x2545f491u)|1u:((lit||texproc?light_hash(d):gpu_lit?0x6c1b0d4bu:2u)^((texset+1)*0x9e3779b1u)^((d->tss[1][11]&0xffffu)+7)*0x27d4eb2fu)|1u;
+  upload_why=(lit?1u:0u)|(texset?2u:0u)|(texproc?4u:0u)|(stage1?8u:0u)|((fvf==0x42||fvf==0x142||fvf==0x144||fvf==0x104)?0u:16u);
   if(texproc){uint32_t h=key;const uint8_t*p=(const uint8_t*)texture_matrix(d,0);for(unsigned i=0;i<64;i++){h^=p[i];h*=16777619u;}
    p=(const uint8_t*)texture_matrix(d,1);for(unsigned i=0;i<64;i++){h^=p[i];h*=16777619u;}h^=d->tss[1][11]*0x165667b1u^d->tss[1][24]*0x9e3779b9u;
    p=(const uint8_t*)(d->matrices+16);for(unsigned i=0;i<64;i++){h^=p[i];h*=16777619u;}h^=d->tss[0][11]*0x85ebca6bu^d->tss[0][24]*0xc2b2ae35u;key=h|1u;}}
- for(unsigned i=0;i<UPLOAD_CACHE;i++){UploadEntry*e=&b->cache[i];if(e->gpu&&e->version==b->version&&e->offset==offset&&e->bytes==bytes&&e->fvf==fvf&&e->mask==mask&&e->bias==bias&&e->key==key){e->age=++b->cache_clock;b->gpu=e->gpu;return 1;}}
+ for(unsigned i=0;i<UPLOAD_CACHE;i++){UploadEntry*e=&b->cache[i];if(e->gpu&&e->version==b->version&&e->offset==offset&&e->bytes==bytes&&e->fvf==fvf&&e->mask==mask&&e->bias==bias&&e->key==key){e->age=++b->cache_clock;b->gpu=e->gpu;if(b->type==VERTEX)upload_note(0,fvf,0,0);return 1;}}
  if(!bytes||offset>b->size||bytes>b->size-offset)return 0;
  MoviesD3D9Request q={.command=b->type==VERTEX?MOVIES_D3D9_UPLOAD_VERTEX:MOVIES_D3D9_UPLOAD_INDEX,.args={b->type==VERTEX?fvf:b->format},.data=HP(b->mem+offset),.bytes=bytes};
  uint32_t stride=b->type==VERTEX?f.stride:b->format==101?2:4;if(!stride||bytes%stride)return 0;
  uint8_t*converted=NULL;
- if(b->type==VERTEX&&!passthrough){
-  uint32_t count=bytes/stride,out=f.rhw?36:32;uint64_t expanded=(uint64_t)count*out;if(expanded>32u*1024u*1024u)return 0;
+ if(b->type==VERTEX&&raw){
+  q.args[0]=0xffffu;q.args[1]=f.stride;q.args[2]=f.rhw?4u:3u;q.args[3]=f.normal;q.args[4]=f.diffuse; /* +1-encoded, 0 = absent */
+  q.args[5]=f.tex_off[raw_set0]+1u;q.args[6]=f.tex_off[raw_set1]+1u;upload_note(1,fvf,0,bytes/stride);
+ }else if(b->type==VERTEX&&!passthrough){
+  uint32_t count=bytes/stride,out=gpu_lit?44:f.rhw?36:32;upload_note(gpu_lit?2:3,fvf,upload_why,count);uint64_t expanded=(uint64_t)count*out;if(expanded>32u*1024u*1024u)return 0;
   converted=malloc((size_t)expanded);if(!converted)return 0;
-  convert_vertices(d,&f,(const uint8_t*)q.data,count,converted,texset);
-  if(mask)for(uint32_t i=0;i<count;i++){uint32_t color;memcpy(&color,converted+i*out+(f.rhw?16:12),4);color|=mask;memcpy(converted+i*out+(f.rhw?16:12),&color,4);}
-  q.data=converted;q.bytes=(uint32_t)expanded;q.args[0]=f.rhw?0x244:0x242;
+  if(gpu_lit)convert_lit_vertices(d,&f,(const uint8_t*)q.data,count,converted);
+  else convert_vertices(d,&f,(const uint8_t*)q.data,count,converted,texset);
+  if(mask)for(uint32_t i=0;i<count;i++){uint32_t color;memcpy(&color,converted+i*out+(gpu_lit?24:f.rhw?16:12),4);color|=mask;memcpy(converted+i*out+(gpu_lit?24:f.rhw?16:12),&color,4);}
+  q.data=converted;q.bytes=(uint32_t)expanded;q.args[0]=gpu_lit?0x252:f.rhw?0x244:0x242;
+ }else if(b->type==VERTEX){upload_note(1,fvf,0,stride?bytes/stride:0);
  }else if(b->type==INDEX&&bias){
   converted=malloc(bytes);if(!converted)return 0;memcpy(converted,q.data,bytes);
   for(uint32_t i=0;i<bytes;i+=stride){
@@ -553,7 +634,9 @@ static int draw_texture(CPU*c,Object*d,Object**out){
  *out=t;return 1;}
 static int issue_draw(CPU*c,Object*d,uint32_t vg,uint32_t ig,uint32_t count,Object*t){
  Object*t1=stage1_texture(d)?find(d->stage_textures[0]):NULL;if(t1&&(t1->locked||(d->target&&find(d->target)&&find(d->target)->container==t1->address)))t1=NULL;
- MoviesD3D9Request q={.command=MOVIES_D3D9_DRAW,.args={vg,ig,0,count,0,d->rs[7]}};q.args[12]=t?t->gpu:0;q.args[20]=d->rs[15];q.args[21]=d->rs[25];q.args[22]=d->rs[24];q.args[23]=d->rs[23];q.args[24]=d->rs[14];q.args[25]=blend_encoding(d);q.args[26]=d->rs[174];fill_stages(c,d,&q);q.args[32]=d->rs[60];q.args[56]=blend_extended(d);q.args[57]=d->rs[193];q.args[58]=d->rs[195];q.args[59]=d->rs[175];q.args[60]=(d->rs[168]&15)|0x100u;memcpy(q.args+27,d->scissor,16);const unsigned samplers[]={1,2,3,6,5,7,8};for(unsigned i=0;i<7;i++)q.args[13+i]=d->sampler[0][samplers[i]];if(t1){q.args[45]=t1->gpu;for(unsigned i=0;i<7;i++)q.args[48+i]=d->sampler[1][samplers[i]];}memcpy(q.args+6,d->viewport,24);memcpy(q.matrices,d->matrices,sizeof q.matrices);MoviesD3D9Reply r;return invoke(&q,&r);}
+ MoviesD3D9Request q={.command=MOVIES_D3D9_DRAW,.args={vg,ig,0,count,0,d->rs[7]}};q.args[12]=t?t->gpu:0;q.args[20]=d->rs[15];q.args[21]=d->rs[25];q.args[22]=d->rs[24];q.args[23]=d->rs[23];q.args[24]=d->rs[14];q.args[25]=blend_encoding(d);q.args[26]=d->rs[174];fill_stages(c,d,&q);q.args[32]=d->rs[60];q.args[56]=blend_extended(d);q.args[57]=d->rs[193];q.args[58]=d->rs[195];q.args[59]=d->rs[175];q.args[60]=(d->rs[168]&15)|0x100u;memcpy(q.args+27,d->scissor,16);const unsigned samplers[]={1,2,3,6,5,7,8};for(unsigned i=0;i<7;i++)q.args[13+i]=d->sampler[0][samplers[i]];if(t1){q.args[45]=t1->gpu;for(unsigned i=0;i<7;i++)q.args[48+i]=d->sampler[1][samplers[i]];}memcpy(q.args+6,d->viewport,24);memcpy(q.matrices,d->matrices,sizeof q.matrices);
+ {Fvf f;if(decode_fvf(d->fvf,&f)&&gpu_lighting(d,&f)){q.args[61]=1;gpu_lighting_block(d,&f,q.lighting);}}
+ MoviesD3D9Reply r;return invoke(&q,&r);}
 static int draw_preamble(CPU*c,Object*d,uint32_t type,unsigned argc,const char*method){
  if(d->rs[22]<1||d->rs[22]>3){unsupported(c,"D3D9 draw needs unsupported culling mode");return 0;}
  if(type>=1&&type<=3){static unsigned logged;if(!(logged&(1u<<type))){logged|=1u<<type;fprintf(stderr,"[D3D9] %s point/line primitive type %u skipped caller=%08x\n",method,type,R32(c->esp));}draw_ret(c,d,argc,0,method);return 0;}

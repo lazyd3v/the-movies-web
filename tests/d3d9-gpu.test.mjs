@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MoviesD3D9GPU, matrixBytes, rgbaFromD3DColor, validateVertexBytes, transformedW, validateIndexBytes, validateIndexedRange} from '../public/d3d9-gpu.js';
+import {MoviesD3D9GPU, matrixBytes, rgbaFromD3DColor, validateVertexBytes, transformedW, vertexLayout, uvOffset, uv1Offset, validateIndexBytes, validateIndexedRange} from '../public/d3d9-gpu.js';
 test('D3D color and matrix validation preserve byte ordering and finite32 bounds', () => {
   assert.deepEqual(rgbaFromD3DColor(0x80402010), [64/255, 32/255, 16/255, 128/255]);
   assert.equal(matrixBytes()[15], 1);
@@ -70,4 +70,16 @@ test('XYZRHW preserves exact 28-byte source; any finite depth and RHW are accept
  for(const z of [-.1,1.1]){view.setFloat32(8,z,true);assert.equal(validateVertexBytes(bytes,'XYZRHW_DIFFUSE_UV').count,1);}view.setFloat32(8,.5,true);
  assert.equal(transformedW(.5),2);
  assert.throws(()=>validateVertexBytes(new Uint8Array(27),'XYZRHW_DIFFUSE_UV'),/complete/);
+});
+test('raw FVF layouts read the game\'s vertices in place and zero non-finite fields', () => {
+  const layout = vertexLayout('raw/40/3/12/-/24/32');
+  assert.deepEqual([layout.stride, layout.rhw, layout.uvSets, layout.normal, layout.noDiffuse, uvOffset(layout), uv1Offset(layout)], [40, false, 2, true, true, 24, 32]);
+  const bytes = new ArrayBuffer(80), f = new Float32Array(bytes);
+  f.set([1, 2, 3, 0, 0, 1, 7, 7, .5, .25, 9, 9]); f[10 + 0] = NaN; f[10 + 2] = Infinity; f[10 + 6] = NaN; // vertex 1: x, z and u0 broken
+  const vertex = validateVertexBytes(bytes, 'raw/40/3/12/-/24/32', true);
+  assert.equal(vertex.count, 2); const out = new Float32Array(vertex.bytes.buffer, vertex.bytes.byteOffset, 20);
+  assert.deepEqual([out[10], out[12], out[16]], [0, 0, 0]); assert.equal(out[0], 1);
+  assert.equal(vertexLayout('raw/24/4/-/-/16/-').rhw, true);
+  for (const bad of ['raw/40/3/12/-/36/-', 'raw/40/5/-/-/24/-', 'raw/40/3/8/-/24/-', 'raw/41/3/-/-/24/-', 'raw/40/3/-/-/-/32']) assert.throws(() => vertexLayout(bad), /Unsupported vertex format/, bad);
+  assert.throws(() => validateVertexBytes(new Float32Array([NaN, 0, 0, 0]).buffer, 'XYZ_DIFFUSE'), /Nonfinite/, 'named layouts still reject');
 });

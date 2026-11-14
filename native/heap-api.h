@@ -3,7 +3,8 @@
 #include "runtime.h"
 /* Reserves initial pages (one page when initialSize is zero); growable heaps
  * acquire additional shared extents, retained for reuse until HeapDestroy.
- * Exclusive owner of GUEST_HEAP_BASE..GUEST_HEAP_HI; do not mix guest_alloc. */
+ * Exclusive owner of GUEST_HEAP_BASE..GUEST_VALLOC_HI (the VirtualAlloc window
+ * is contiguous and folded in); do not mix guest_alloc. */
 ImportHandler *movies_heap_handlers(uint32_t *count);
 /* Private backend allocations: zero-filled,8-byte aligned,1..32MiB; zero on
  * OOM. Guest Heap* cannot access this owner. Free rejects foreign/double frees. */

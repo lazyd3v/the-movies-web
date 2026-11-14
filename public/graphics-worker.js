@@ -5,12 +5,15 @@ let inFlightSerial = 0;
 let graphics = null, views = null, expectedSerial = 1, chain = Promise.resolve(), presentationPort, presentationAck, timeoutMs;
 let metrics = null, slowReports = 0, droppedFrames = 0;
 let nextHandle = 1, resourceBytes = 0;
-const resources = new Map(), MAX_RESOURCES = 8192, MAX_RESOURCE_BYTES = 256 * 1024 * 1024;
+const resources = new Map(), MAX_RESOURCES = 8192, MAX_RESOURCE_BYTES = 1024 * 1024 * 1024; // a fresh lot already peaks near 250 MB (decoded RGBA textures)
 function resource(handle) { const entry = resources.get(handle); if (!entry) throw new Error(`Unknown graphics resource ${handle}`); return entry.value; }
 function reserve(bytes) {
   if (resources.size >= MAX_RESOURCES || resourceBytes + bytes > MAX_RESOURCE_BYTES || nextHandle > 0x7fffffff) throw new Error('Graphics resource budget exhausted');
 }
-function save(value, bytes) { const handle = nextHandle++; resources.set(handle, {value, bytes}); resourceBytes += bytes; return handle; }
+let peakBytes = 0, peakCount = 0;
+// Diagnostics (benches read it over DevTools): live and peak GPU resource budget use.
+globalThis.moviesResourceStats = () => ({count: resources.size, bytes: resourceBytes, peakCount, peakBytes});
+function save(value, bytes) { const handle = nextHandle++; resources.set(handle, {value, bytes}); resourceBytes += bytes; if (resourceBytes > peakBytes) peakBytes = resourceBytes; if (resources.size > peakCount) peakCount = resources.size; return handle; }
 async function execute(command, args) {
   switch (command) {
     case 'setRenderTargetFormat': return graphics.setRenderTargetFormat(args.format);

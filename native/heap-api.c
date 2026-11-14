@@ -18,7 +18,15 @@ extern void *movies_heap_test_calloc(size_t count,size_t size);
 #define MOVIES_HEAP_BASE GUEST_HEAP_BASE
 #endif
 #ifndef MOVIES_HEAP_HI
+/* This allocator also serves VirtualAlloc and D3D9 texture storage, so the
+ * runtime's separate VirtualAlloc window (GUEST_VALLOC_LO..HI) is otherwise
+ * unused. Own it too: in the browser the 256 MiB heap window alone filled up
+ * after ~45 min (≈1150 live textures) and operator new threw bad_alloc. */
+#if defined(GUEST_VALLOC_LO) && defined(GUEST_VALLOC_HI) && GUEST_VALLOC_LO==GUEST_HEAP_HI
+#define MOVIES_HEAP_HI GUEST_VALLOC_HI
+#else
 #define MOVIES_HEAP_HI GUEST_HEAP_HI
+#endif
 #endif
 
 typedef struct Block { uint32_t address, capacity, size, owner, pool; struct Block *next, *prev, *hash_next;

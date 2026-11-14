@@ -30,19 +30,53 @@ function bytesOf(input, adopt = false) {
   if (input instanceof ArrayBuffer) return new Uint8Array(input).slice();
   throw new TypeError('Expected ArrayBuffer or typed array');
 }
-/* GPU vertex layouts: position (float3, or float4 XYZRHW), D3DCOLOR diffuse, 0..2 UV sets. */
+/* GPU vertex layouts: position (float3, or float4 XYZRHW), optional float3 normal
+ * (lit on the GPU, see LIGHTING_FLOATS), D3DCOLOR diffuse, 0..2 UV sets. */
 const LAYOUTS = Object.freeze({
   XYZ_DIFFUSE: {stride: 16, rhw: false, uvSets: 0}, XYZ_DIFFUSE_UV: {stride: 24, rhw: false, uvSets: 1}, XYZRHW_DIFFUSE_UV: {stride: 28, rhw: true, uvSets: 1},
-  XYZ_DIFFUSE_UV2: {stride: 32, rhw: false, uvSets: 2}, XYZRHW_DIFFUSE_UV2: {stride: 36, rhw: true, uvSets: 2}});
+  XYZ_DIFFUSE_UV2: {stride: 32, rhw: false, uvSets: 2}, XYZRHW_DIFFUSE_UV2: {stride: 36, rhw: true, uvSets: 2},
+  XYZ_NORMAL_DIFFUSE_UV2: {stride: 44, rhw: false, uvSets: 2, normal: true},
+  // D3D9 XYZRHW|TEX1 as the game stores it: no colour, which D3D9 treats as opaque white.
+  XYZRHW_UV: {stride: 24, rhw: true, uvSets: 1, noDiffuse: true}});
+/* Byte offset of the D3DCOLOR diffuse; UV sets follow it. */
+export function diffuseOffset(layout) { return layout.diffuseAt ?? (layout.rhw ? 16 : layout.normal ? 24 : 12); }
+/* Byte offset of the first UV set (right after the diffuse, if any). */
+export function uvOffset(layout) { return layout.uvAt ?? diffuseOffset(layout) + (layout.noDiffuse ? 0 : 4); }
+export function uv1Offset(layout) { return layout.uv1At ?? uvOffset(layout) + 8; }
+/* "raw/<stride>/<3|4 position floats>/<normal>/<diffuse>/<uv0>/<uv1>" (offsets, "-" when
+ * absent): a D3D9 FVF vertex read where the game stores it, with no CPU conversion.
+ * Non-finite floats in the read fields become 0, as the CPU conversion does. */
+const RAW_LAYOUTS = new Map();
+function rawLayout(format) {
+  let layout = RAW_LAYOUTS.get(format); if (layout) return layout;
+  const parts = format.split('/'), field = v => v === '-' ? null : Number(v);
+  if (parts.length !== 7 || parts[0] !== 'raw') return null;
+  const [stride, positions, normalAt, diffuseAt, uvAt, uv1At] = parts.slice(1).map(field);
+  const offsets = [normalAt, diffuseAt, uvAt, uv1At].filter(v => v !== null);
+  if (!Number.isInteger(stride) || stride < 12 || stride > 512 || stride % 4 || ![3, 4].includes(positions) || offsets.some(v => !Number.isInteger(v) || v % 4 || v < positions * 4) ||
+      (normalAt !== null && normalAt + 12 > stride) || (diffuseAt !== null && diffuseAt + 4 > stride) || (uvAt !== null && uvAt + 8 > stride) || (uv1At !== null && (uvAt === null || uv1At + 8 > stride))) return null;
+  layout = Object.freeze({stride, rhw: positions === 4, uvSets: uvAt === null ? 0 : uv1At === null ? 1 : 2, normal: normalAt !== null, normalAt, noDiffuse: diffuseAt === null,
+    diffuseAt: diffuseAt ?? undefined, uvAt: uvAt ?? undefined, uv1At: uv1At ?? undefined, raw: true});
+  if (RAW_LAYOUTS.size < 256) RAW_LAYOUTS.set(format, layout);
+  return layout;
+}
+/* Fixed-function lighting block for normal layouts (native/d3d9-api.c gpu_lighting_block),
+ * as vec4 rows: 0..2 normal matrix rows (.w of 0: normalize, .w of 2: light count),
+ * 3 global ambient, 4..6 material diffuse/ambient/emissive, 7 sources (1 = vertex
+ * diffuse) for diffuse/ambient/emissive, then 8 lights x 5 rows:
+ * (diffuse, type) (ambient, range) (position, falloff) (direction, cos theta/2) (attenuation, cos phi/2). */
+export const LIGHTING_FLOATS = 192;
+const UNIFORM_FLOATS = 80;
 /* Clip-space W for a pre-transformed vertex: 1/RHW when RHW is a usable positive
  * value, else 1 (plain screen-linear interpolation, what a constant RHW gives).
  * Must match the WGSL in shader(). */
 export const MIN_RHW = 3e-38;
 export function transformedW(rhw) { return rhw >= MIN_RHW ? 1 / rhw : 1; }
-export function vertexLayout(format) { const layout = LAYOUTS[format]; if (!layout) throw new GraphicsUnsupportedError(`Unsupported vertex format ${format}`); return layout; }
+export function vertexLayout(format) { const layout = LAYOUTS[format] ?? (typeof format === 'string' && format.startsWith('raw/') ? rawLayout(format) : null); if (!layout) throw new GraphicsUnsupportedError(`Unsupported vertex format ${format}`); return layout; }
 export function validateVertexBytes(input, format, adopt = false) {
-  const layout = vertexLayout(format), stride = layout.stride, position = layout.rhw ? 16 : 12;
-  const fields = [0, 4, 8, ...(layout.rhw ? [12] : []), ...Array.from({length: layout.uvSets * 2}, (_, i) => position + 4 + i * 4)];
+  const layout = vertexLayout(format), stride = layout.stride, position = diffuseOffset(layout);
+  const normalAt = layout.normalAt ?? 12, uvs = layout.uvSets ? [uvOffset(layout), uvOffset(layout) + 4, ...(layout.uvSets > 1 ? [uv1Offset(layout), uv1Offset(layout) + 4] : [])] : [];
+  const fields = [0, 4, 8, ...(layout.rhw ? [12] : []), ...(layout.normal ? [normalAt, normalAt + 4, normalAt + 8] : []), ...uvs];
   const bytes = bytesOf(input, adopt);
   if (!bytes.length || bytes.length % stride) throw new RangeError('Vertex bytes must contain complete vertices');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -50,10 +84,10 @@ export function validateVertexBytes(input, format, adopt = false) {
     // Aligned fast path: little-endian float32 view (WebGPU hosts are little-endian).
     const floats = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4), step = stride / 4, at = fields.map(f => f / 4);
     for (let base = 0; base < floats.length; base += step)
-      for (let k = 0; k < at.length; k++) { const v = floats[base + at[k]]; if (v - v !== 0) throw new RangeError('Nonfinite vertex component'); }
+      for (let k = 0; k < at.length; k++) { const v = floats[base + at[k]]; if (v - v !== 0) { if (!layout.raw) throw new RangeError('Nonfinite vertex component'); floats[base + at[k]] = 0; } }
   } else for (let offset = 0; offset < bytes.length; offset += stride) {
     for (const field of fields) {
-      if (!Number.isFinite(view.getFloat32(offset + field, true))) throw new RangeError('Nonfinite vertex component');
+      if (!Number.isFinite(view.getFloat32(offset + field, true))) { if (!layout.raw) throw new RangeError('Nonfinite vertex component'); view.setFloat32(offset + field, 0, true); }
     }
   }
   // Pre-transformed (XYZRHW) depth outside [0,1] and unusable RHW (0, negative,
@@ -168,16 +202,41 @@ fn taStage(c: vec4<f32>, a: vec4<f32>, cur: vec4<f32>, diff: vec4<f32>, tex: vec
  if (aop != 1u) { alpha = taOp(aop, taArg(aa1, cur, diff, tex, tf, hasTex), taArg(aa2, cur, diff, tex, tf, hasTex), cur, diff, tex, tf).a; }
  return clamp(vec4<f32>(rgb, alpha), vec4<f32>(0.0), vec4<f32>(1.0));
 }`;
-export function shader(uv, logicalFormat, rhw = false, blend = false, diffuseOnly = false, combiner = false, bindTexture = false, uv2 = false, bindTexture1 = false) {
+/* D3D9 fixed-function vertex lighting in world space (no specular term), matching
+ * native/d3d9-api.c light_vertex. https://learn.microsoft.com/en-us/windows/win32/direct3d9/mathematics-of-lighting */
+const LIGHTING_WGSL = `
+fn litColor(p: vec3<f32>, n: vec3<f32>, vertexColor: vec4<f32>) -> vec4<f32> {
+ let wp = (matrices.world * vec4<f32>(p, 1.0)).xyz;
+ var wn = vec3<f32>(dot(n, matrices.lighting[0].xyz), dot(n, matrices.lighting[1].xyz), dot(n, matrices.lighting[2].xyz));
+ if (matrices.lighting[0].w != 0.0) { let l = length(wn); if (l > 0.0) { wn = wn / l; } }
+ var ambient = matrices.lighting[3].xyz; var diffuse = vec3<f32>(0.0);
+ let count = min(u32(matrices.lighting[2].w), 8u);
+ for (var i = 0u; i < count; i++) {
+  let b = 8u + i * 5u; let ld = matrices.lighting[b]; let la = matrices.lighting[b + 1u]; let lp = matrices.lighting[b + 2u]; let lr = matrices.lighting[b + 3u]; let lat = matrices.lighting[b + 4u];
+  let kind = u32(ld.w);
+  if (kind == 3u) { let ndl = dot(wn, lr.xyz); if (ndl > 0.0) { diffuse += ld.xyz * ndl; } continue; }
+  var d = lp.xyz - wp; let dist = length(d); if (dist > la.w) { continue; } if (dist > 0.0) { d = d / dist; }
+  let den = lat.x + lat.y * dist + lat.z * dist * dist; let atten = select(1.0, 1.0 / den, den > 0.0);
+  var spot = 1.0;
+  if (kind == 2u) { let rho = -dot(d, lr.xyz); let ct = lr.w; let cp = lat.w;
+   if (rho > ct) { spot = 1.0; } else if (rho <= cp) { spot = 0.0; } else if (ct > cp) { spot = pow((rho - cp) / (ct - cp), lp.w); } }
+  let ndl = max(dot(wn, d), 0.0); let s = atten * spot; ambient += la.xyz * s; diffuse += ld.xyz * ndl * s;
+ }
+ let src = matrices.lighting[7];
+ let md = select(matrices.lighting[4], vertexColor, src.x == 1.0); let ma = select(matrices.lighting[5], vertexColor, src.y == 1.0); let me = select(matrices.lighting[6], vertexColor, src.z == 1.0);
+ return clamp(vec4<f32>(me.xyz + ma.xyz * ambient + md.xyz * diffuse, md.a), vec4<f32>(0.0), vec4<f32>(1.0));
+}`;
+export function shader(uv, logicalFormat, rhw = false, blend = false, diffuseOnly = false, combiner = false, bindTexture = false, uv2 = false, bindTexture1 = false, lit = false, noDiffuse = false) {
   const textured = combiner ? bindTexture : uv && !diffuseOnly;
-  return `struct Matrices { world: mat4x4<f32>, view: mat4x4<f32>, projection: mat4x4<f32>, lodBias: f32, alphaEnable: f32, alphaFunc: f32, alphaRef: f32, viewport: vec4<f32>, textureFactor: vec4<f32>, textureEquation: vec4<f32>, stage0c: vec4<f32>, stage0a: vec4<f32>, stage1c: vec4<f32>, stage1a: vec4<f32> };
+  return `struct Matrices { world: mat4x4<f32>, view: mat4x4<f32>, projection: mat4x4<f32>, lodBias: f32, alphaEnable: f32, alphaFunc: f32, alphaRef: f32, viewport: vec4<f32>, textureFactor: vec4<f32>, textureEquation: vec4<f32>, stage0c: vec4<f32>, stage0a: vec4<f32>, stage1c: vec4<f32>, stage1a: vec4<f32>, lighting: array<vec4<f32>, 48> };
 ${combiner ? COMBINER_WGSL : ''}
 @group(0) @binding(0) var<uniform> matrices: Matrices;
+${lit ? LIGHTING_WGSL : ''}
 ${textured ? '@group(1) @binding(0) var texture0: texture_2d<f32>;\n@group(1) @binding(1) var sampler0: sampler;' : ''}
 ${combiner && bindTexture1 ? '@group(1) @binding(2) var texture1: texture_2d<f32>;\n@group(1) @binding(3) var sampler1: sampler;' : ''}
 struct VertexOutput { @builtin(position) position: vec4<f32>, @location(0) ${rhw ? '@interpolate(linear)' : ''} color: vec4<f32>, ${uv ? '@location(1) uv: vec2<f32>, @location(2) uv1: vec2<f32>,' : ''} };
-@vertex fn vs(@location(0) position: ${rhw ? 'vec4' : 'vec3'}<f32>, @location(1) diffuse: u32 ${uv ? ', @location(2) uv: vec2<f32>' : ''}${uv2 ? ', @location(3) uv1: vec2<f32>' : ''}) -> VertexOutput {
- var out: VertexOutput;
+@vertex fn vs(@location(0) position: ${rhw ? 'vec4' : 'vec3'}<f32>${noDiffuse ? '' : ', @location(1) diffuse: u32'} ${uv ? ', @location(2) uv: vec2<f32>' : ''}${uv2 ? ', @location(3) uv1: vec2<f32>' : ''}${lit ? ', @location(4) normal: vec3<f32>' : ''}) -> VertexOutput {
+ var out: VertexOutput;${noDiffuse ? '\n let diffuse = 0xffffffffu;' : ''}
  // Raw D3D row-major matrices become transposed WGSL column-major matrices.
  // P * V * W * column(position) equals D3D row(position) * W * V * P.
  ${rhw ? `// D3D9 integer pixel centers become WebGPU half-integer centers.
@@ -186,6 +245,7 @@ struct VertexOutput { @builtin(position) position: vec4<f32>, @location(0) ${rhw
  let w=select(1.0,1.0/position.w,position.w>=3e-38);
  out.position=vec4<f32>(screen,position.z,1.0)*w;` : 'out.position = matrices.projection * matrices.view * matrices.world * vec4<f32>(position, 1.0);'}
  out.color = vec4<f32>(f32((diffuse >> 16u) & 255u), f32((diffuse >> 8u) & 255u), f32(diffuse & 255u), f32(diffuse >> 24u)) / 255.0;
+ ${lit ? 'out.color = litColor(position, normal, out.color);' : ''}
  ${uv ? `out.uv = uv; out.uv1 = ${uv2 ? 'uv1' : 'uv'};` : ''} return out;
 }
 @fragment fn fs(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -200,7 +260,7 @@ struct VertexOutput { @builtin(position) position: vec4<f32>, @location(0) ${rhw
  ${logicalFormat === 25 && !blend ? 'return floor(clamp(color, vec4<f32>(0.0), vec4<f32>(1.0)) * vec4<f32>(31.0,31.0,31.0,1.0) + vec4<f32>(0.5)) / vec4<f32>(31.0,31.0,31.0,1.0);' : 'return color;'}
 }`;
 }
-const RING_SLOTS = 1024, RING_STRIDE = 512, POOL_LIMIT = 64 * 1024 * 1024;
+const RING_SLOTS = 1024, RING_STRIDE = 1280, POOL_LIMIT = 64 * 1024 * 1024;
 export class MoviesD3D9GPU {
   #logicalFormat = 22; #device; #context; #canvas; #color; #alternate; #resolvePipeline; #clearPipeline; #clearColorPipeline; #clearColorBinding; #clearDepthPipeline; #clearDepthBinding; #clearUniform; #clearBinding; #resolveBindings = new Map(); #depth; #ring; #ringSlot = 0; #open = null; #retired = []; #pool = new Map(); #pooledBytes = 0; #stats = {draws: 0, passes: 0, uploads: 0, uploadBytes: 0, resolves: 0}; #unresolved = false; #pipelines = new PipelineCache(64,key=>{for(const r of this.#resources.values())if(r.bindGroups)for(const binding of r.bindGroups.keys())if(binding.startsWith(key+'/'))r.bindGroups.delete(binding);});
   #resources = new Map(); #backbuffer; #active; #nextResource = 1; #fatal = null; #disposed = false; #serial = 0; #depthInitialized = false; #colorInitialized = false; #drawIndex = 0;
@@ -272,18 +332,18 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
       return backend;
     } catch (error) { backend.dispose(); throw error; }
   }
-  async #pipeline(key,vertexFormat,logicalFormat,depthState,blend,diffuseOnly,combiner=false,bindTexture=false,bindTexture1=false,writeMask=0xf){
+  async #pipeline(key,vertexFormat,logicalFormat,depthState,blend,diffuseOnly,combiner=false,bindTexture=false,bindTexture1=false,writeMask=0xf,lit=false){
     return await this.#pipelines.get(key,async()=>{
         const device=this.#device,format=this.capabilities.colorFormat,useDepth=!!depthState;
-        const layout=vertexLayout(vertexFormat),rhw=layout.rhw,uv=layout.uvSets>0,uv2=layout.uvSets>1,position=rhw?16:12;
-        const module = device.createShaderModule({code: shader(uv, logicalFormat, rhw, !!blend, diffuseOnly, combiner, bindTexture, uv2, bindTexture1), label: 'Bounded XYZ diffuse fixed function'});
+        const layout=vertexLayout(vertexFormat),rhw=layout.rhw,uv=layout.uvSets>0,uv2=layout.uvSets>1,position=diffuseOffset(layout),noDiffuse=!!layout.noDiffuse,uvAt=uvOffset(layout),uv1At=uv1Offset(layout),normalAt=layout.normalAt??12;
+        const module = device.createShaderModule({code: shader(uv, logicalFormat, rhw, !!blend, diffuseOnly, combiner, bindTexture, uv2, bindTexture1, lit, noDiffuse), label: 'Bounded XYZ diffuse fixed function'});
         const compilation=await module.getCompilationInfo();
         const errors=compilation.messages.filter(message=>message.type==='error');
         if(errors.length)throw new Error('WGSL compilation: '+errors.map(message=>`${message.lineNum}:${message.linePos} ${message.message}`).join('; '));
         const descriptor = {label: `XYZ${uv ? ' UV' : ''}${useDepth ? ' depth16' : ''}`, layout: 'auto',
           vertex: {module, entryPoint: 'vs', buffers: [{arrayStride: layout.stride, attributes: [
-            {shaderLocation: 0, offset: 0, format: rhw ? 'float32x4' : 'float32x3'}, {shaderLocation: 1, offset: position, format: 'uint32'},
-            ...(uv ? [{shaderLocation: 2, offset: position + 4, format: 'float32x2'}] : []), ...(uv2 ? [{shaderLocation: 3, offset: position + 12, format: 'float32x2'}] : [])]}]},
+            {shaderLocation: 0, offset: 0, format: rhw ? 'float32x4' : 'float32x3'}, ...(noDiffuse ? [] : [{shaderLocation: 1, offset: position, format: 'uint32'}]),
+            ...(uv ? [{shaderLocation: 2, offset: uvAt, format: 'float32x2'}] : []), ...(uv2 ? [{shaderLocation: 3, offset: uv1At, format: 'float32x2'}] : []), ...(lit ? [{shaderLocation: 4, offset: normalAt, format: 'float32x3'}] : [])]}]},
           fragment: {module, entryPoint:'fs',targets:[{format,writeMask:depthState?.writeMask ?? writeMask,...(blend?{blend:{color:blend.color,alpha:blend.alpha}}:{})}]},
           primitive: {topology: 'triangle-list', cullMode: 'none'},
           ...(useDepth ? {depthStencil: {format: 'depth16unorm', depthWriteEnabled: depthState.write, depthCompare: depthState.compare, depthBias: depthState.bias ?? 0, depthBiasSlopeScale: depthState.slope ?? 0}} : {})};
@@ -470,7 +530,7 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
       ...(this.#depth ? {depthStencilAttachment: {view: this.#depth.createView(), depthClearValue: depth, depthLoadOp: 'clear', depthStoreOp: 'store'}} : {})});
     pass.end(); this.#device.queue.submit([encoder.finish()]); this.#colorInitialized = true; this.#depthInitialized = !!this.#depth;
   }
-  async drawIndexed({vertices, indices, firstIndex = 0, indexCount, baseVertex = 0, world, view, projection, texture = null, sampler = undefined, alphaTest = undefined, depthTest = false, depthCompare = 'less-equal', depthWrite = true, blend = false, blendMode = 'source-alpha', blendFactors = undefined, textureEquation = 'modulate', textureFactor = 0xffffffff, scissor = null, viewport = null, stages = null, texture1 = null, sampler1 = undefined, depthBias = 0, slopeScaleDepthBias = 0, colorWriteMask = 0xf, blendConstant = 0xffffffff, ...unknown}) {
+  async drawIndexed({vertices, indices, firstIndex = 0, indexCount, baseVertex = 0, world, view, projection, texture = null, sampler = undefined, alphaTest = undefined, depthTest = false, depthCompare = 'less-equal', depthWrite = true, blend = false, blendMode = 'source-alpha', blendFactors = undefined, textureEquation = 'modulate', textureFactor = 0xffffffff, scissor = null, viewport = null, stages = null, texture1 = null, sampler1 = undefined, depthBias = 0, slopeScaleDepthBias = 0, colorWriteMask = 0xf, blendConstant = 0xffffffff, lighting = null, ...unknown}) {
     this.#check(); if (Object.keys(unknown).length) throw new GraphicsUnsupportedError(`Unknown draw features: ${Object.keys(unknown).join(', ')}`);
     const vb = this.#resource(vertices, 'vertices'), ib = this.#resource(indices, 'indices');
     // Diagnostic: globalThis.moviesDrawLimit = n renders only the first n draws of each frame.
@@ -497,7 +557,10 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
     checkedInteger(textureFactor,0,0xffffffff,'texture factor');
     indexCount ??= ib.count - firstIndex; validateIndexedRange(vb, ib, firstIndex, indexCount, baseVertex);
     const sampling=samplerDescriptor(sampler), sampling1=samplerDescriptor(sampler1);
-    const matrices = new Float32Array(80);
+    // Lighting needs normals; a raw layout with normals may also be drawn unlit.
+    if (lighting !== null ? !layout.normal : (layout.normal && !layout.raw)) throw new GraphicsUnsupportedError('Lit draws need a normal layout and packed normal layouts need lighting');
+    if (lighting !== null && (lighting.length !== LIGHTING_FLOATS || Array.prototype.some.call(lighting, v => !Number.isFinite(v)))) throw new RangeError('Invalid lighting block');
+    const matrices = new Float32Array(UNIFORM_FLOATS + (lighting ? LIGHTING_FLOATS : 0)); if (lighting) matrices.set(lighting, UNIFORM_FLOATS);
     if (stages) matrices.set([stages[0][0], stages[0][1], stages[0][2], 0, stages[0][3], stages[0][4], stages[0][5], 0, stages[1][0], stages[1][1], stages[1][2], 0, stages[1][3], stages[1][4], stages[1][5], 0], 64); matrices[48]=sampling.state.lodBias; const alpha=validateAlphaTest(alphaTest);matrices[49]=alpha.enabled?1:0;matrices[50]=alpha.func;matrices[51]=alpha.reference/255; matrices.set(matrixBytes(world)); matrices.set(matrixBytes(view), 16); matrices.set(matrixBytes(projection), 32);
     const {width, height} = this.#active;
     const vp = viewport ?? {x: 0, y: 0, width, height, minDepth: 0, maxDepth: 1};
@@ -518,8 +581,8 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
     const clip=validateScissor(scissor,width,height);
     matrices.set([x,y,w,h],52);
     matrices.set([(textureFactor>>>16&255)/255,(textureFactor>>>8&255)/255,(textureFactor&255)/255,(textureFactor>>>24)/255],56);matrices[60]=textureEquation==='diffuse-rgb-texture-alpha'?2:textureEquation==='factor-rgb-texture-alpha'?1:0;
-    const key = `${this.#logicalFormat}/${blendState?JSON.stringify([blendState.color,blendState.alpha]):'off'}/m${colorWriteMask}/${vb.format}/${stages ? 'comb' + (tex ? 1 : 0) + (tex1 ? 1 : 0) : textureEquation==='diffuse'}/${depthTest ? depthCompare+'/'+depthWrite+'/'+biasSteps+'/'+slopeScaleDepthBias : 'off'}`;
-    const entry=await this.#pipeline(key,vb.format,this.#logicalFormat,depthTest?{compare:depthCompare,write:depthWrite,bias:biasSteps,slope:slopeScaleDepthBias}:null,blendState,textureEquation==='diffuse',!!stages,!!tex,!!tex1,colorWriteMask);
+    const key = `${lighting ? 'lit/' : ''}${this.#logicalFormat}/${blendState?JSON.stringify([blendState.color,blendState.alpha]):'off'}/m${colorWriteMask}/${vb.format}/${stages ? 'comb' + (tex ? 1 : 0) + (tex1 ? 1 : 0) : textureEquation==='diffuse'}/${depthTest ? depthCompare+'/'+depthWrite+'/'+biasSteps+'/'+slopeScaleDepthBias : 'off'}`;
+    const entry=await this.#pipeline(key,vb.format,this.#logicalFormat,depthTest?{compare:depthCompare,write:depthWrite,bias:biasSteps,slope:slopeScaleDepthBias}:null,blendState,textureEquation==='diffuse',!!stages,!!tex,!!tex1,colorWriteMask,lighting!==null);
     if (this.#unresolved && blendState && [blendState.color, blendState.alpha].some(c => /dst-alpha/.test(c.srcFactor + c.dstFactor))) this.#resolve();
     const depthView = depthTest ? this.#depth : null;
     if (this.#open && (this.#open.color !== this.#color || this.#open.depth !== depthView || this.#ringSlot >= RING_SLOTS)) this.#submitOpen();
@@ -531,7 +594,7 @@ struct Clear {color:vec4<f32>,depth:f32};@group(0) @binding(0) var<uniform> valu
     }
     const pipeline = entry.pipeline, slot = this.#ringSlot++, pass = this.#open.pass;
     this.#device.queue.writeBuffer(this.#ring, slot * RING_STRIDE, matrices);
-    const uniform = entry.uniforms[slot] ??= this.#device.createBindGroup({layout: pipeline.getBindGroupLayout(0), entries: [{binding: 0, resource: {buffer: this.#ring, offset: slot * RING_STRIDE, size: 320}}]});
+    const uniform = entry.uniforms[slot] ??= this.#device.createBindGroup({layout: pipeline.getBindGroupLayout(0), entries: [{binding: 0, resource: {buffer: this.#ring, offset: slot * RING_STRIDE, size: (UNIFORM_FLOATS + LIGHTING_FLOATS) * 4}}]});
     if (this.#open.pipeline !== pipeline) { pass.setPipeline(pipeline); this.#open.pipeline = pipeline; }
     pass.setBindGroup(0, uniform);
     if (blendState?.usesConstant) pass.setBlendConstant(rgbaFromD3DColor(blendConstant));

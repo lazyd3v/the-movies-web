@@ -184,6 +184,7 @@ self.onmessage = async ({data}) => {
         if (data.traceFiles === true) module.ENV.PORT_LOG_FILES = '1';
         else delete module.ENV.PORT_LOG_FILES;
         if (data.traceDsound === true) module.ENV.PORT_LOG_DSOUND = '1';
+        if (data.cpuLighting === true) module.ENV.MOVIES_CPU_LIGHTING = '1';
         if (data.traceImports) module.ENV.PORT_LOG_IMPORTS = '1';
         else delete module.ENV.PORT_LOG_IMPORTS;
       }],

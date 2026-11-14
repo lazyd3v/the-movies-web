@@ -45,6 +45,8 @@ const chrome = spawn(chromePath, [
 let chromeErr = '';
 chrome.stderr.on('data', chunk => { chromeErr = (chromeErr + chunk).slice(-4000); });
 process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch {} });
+// A killed bench must not leave its headless Chrome running (it skews later measurements).
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => process.exit(130));
 
 let version;
 for (let i = 0; i < 100 && !version; i++) {
@@ -88,7 +90,8 @@ await send('Runtime.enable', {}, page);
 await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 1100, deviceScaleFactor: 1, mobile: false}, page);
 // --init-js <base64>: page script installed before any page code runs (diagnostic hooks).
 if (args['init-js']) await send('Page.addScriptToEvaluateOnNewDocument', {source: Buffer.from(String(args['init-js']), 'base64').toString()}, page);
-await send('Page.navigate', {url: `${origin}/static-probe.html${args['trace-at'] ? '?traceAt=' + Number(args['trace-at']) : ''}`}, page);
+// --query 'a=1&b=2': extra page parameters (e.g. cpulighting=1).
+await send('Page.navigate', {url: `${origin}/static-probe.html?${[args['trace-at'] ? 'traceAt=' + Number(args['trace-at']) : '', args.query ?? ''].filter(Boolean).join('&')}`}, page);
 
 const evaluate = async expression => {
   const result = await send('Runtime.evaluate', {expression, returnByValue: true, awaitPromise: true}, page);

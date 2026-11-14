@@ -23,7 +23,7 @@ EM_JS(int,js_called,(void),{return Module.fixtureCalls.includes('createDevice')&
 uint8_t*g_mem;static GuestFn table[6][119];static _Thread_local jmp_buf trap;
 static int check_finite_vertices;static unsigned last_vertex_bytes,last_index_bytes,last_vertex_fvf;static uint8_t last_vertices[256],last_indices[128];
 static uint8_t uploaded[128];static unsigned uploaded_bytes;
-static unsigned calls[17],next_handle=1;static uint32_t last_copy[11];static uint32_t last_target[3],clearargs[64];static int ready=1;static uint32_t drawargs[64];
+static uint32_t last_vertex_args[8];static float last_lighting[192];static uint32_t last_lit;static unsigned calls[17],next_handle=1;static uint32_t last_copy[11];static uint32_t last_target[3],clearargs[64];static int ready=1;static uint32_t drawargs[64];
 void movies_set_last_error(uint32_t e){(void)e;}
 void register_function(uint32_t a,GuestFn f){assert(a>=0x0e020000&&a<0x0e026000);unsigned t=(a-0x0e020000)/0x1000,slot=((a-0x0e020000)%0x1000)/16;assert(slot<119);table[t][slot]=f;}
 void guest_trap(CPU*c,uint32_t p,const char*s){(void)c;(void)p;(void)s;longjmp(trap,1);}
@@ -32,7 +32,7 @@ static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)c
  if(q->command==MOVIES_D3D9_CAPS){r->values[0]=640;r->values[1]=480;r->values[2]=1;r->values[3]=4<<20;r->values[4]=1;r->values[5]=4096;r->values[6]=3;}
  if(q->command==MOVIES_D3D9_CREATE)assert(q->args[0]==640&&q->args[1]==480&&q->args[2]==42&&q->args[3]==1);
  if(q->command==MOVIES_D3D9_UPLOAD_VERTEX||q->command==MOVIES_D3D9_UPLOAD_INDEX||q->command==MOVIES_D3D9_UPLOAD_TEXTURE){assert(q->data&&q->bytes);r->values[0]=next_handle++;uploaded_bytes=q->bytes;memcpy(uploaded,q->data,q->bytes<128?q->bytes:128);}
- if(q->command==MOVIES_D3D9_UPLOAD_VERTEX){last_vertex_bytes=q->bytes;last_vertex_fvf=q->args[0];memcpy(last_vertices,q->data,q->bytes<256?q->bytes:256);if(check_finite_vertices){unsigned stride=q->args[0]==0x142?24:16;for(unsigned at=0;at<q->bytes;at+=stride)for(unsigned k=0;k<3;k++){float v;memcpy(&v,(const uint8_t*)q->data+at+k*4,4);if(!isfinite(v))return 0;}}}
+ if(q->command==MOVIES_D3D9_UPLOAD_VERTEX){memcpy(last_vertex_args,q->args,sizeof last_vertex_args);last_vertex_bytes=q->bytes;last_vertex_fvf=q->args[0];memcpy(last_vertices,q->data,q->bytes<256?q->bytes:256);if(check_finite_vertices){unsigned stride=q->args[0]==0x142?24:16;for(unsigned at=0;at<q->bytes;at+=stride)for(unsigned k=0;k<3;k++){float v;memcpy(&v,(const uint8_t*)q->data+at+k*4,4);if(!isfinite(v))return 0;}}}
  if(q->command==MOVIES_D3D9_UPLOAD_INDEX){last_index_bytes=q->bytes;memcpy(last_indices,q->data,q->bytes<128?q->bytes:128);}
  if(q->command==MOVIES_D3D9_CREATE_TARGET){assert(q->args[0]&&q->args[1]&&!q->data);r->values[0]=next_handle++;}
  if(q->command==MOVIES_D3D9_CLEAR)memcpy(clearargs,q->args,sizeof clearargs);
@@ -41,7 +41,7 @@ static int backend(const MoviesD3D9Request*q,MoviesD3D9Reply*r,void*ctx){(void)c
  if(q->command==MOVIES_D3D9_READ_BACKBUFFER)assert(q->args[1]==640&&q->args[2]==480);
  if(q->command==MOVIES_D3D9_READ_TARGET||q->command==MOVIES_D3D9_READ_BACKBUFFER){assert(q->bytes==q->args[1]*q->args[2]*4);uint8_t*out=(uint8_t*)q->data;for(uint32_t i=0;i<q->bytes;i+=4){out[i]=0x11;out[i+1]=0x22;out[i+2]=0x33;out[i+3]=0x44;}}
  if(q->command==MOVIES_D3D9_WRITE_TARGET){assert(q->bytes==q->args[1]*q->args[2]*4);uploaded_bytes=q->bytes;memcpy(uploaded,q->data,q->bytes<128?q->bytes:128);}
- if(q->command==MOVIES_D3D9_DRAW){memcpy(drawargs,q->args,sizeof drawargs);assert(q->matrices[0]==1&&q->matrices[16]==1&&q->matrices[32]==1);}
+ if(q->command==MOVIES_D3D9_DRAW){memcpy(drawargs,q->args,sizeof drawargs);last_lit=q->args[61];memcpy(last_lighting,q->lighting,sizeof last_lighting);assert(q->matrices[0]==1&&q->matrices[16]==1&&q->matrices[32]==1);}
  return 1;
 }
 static uint32_t invoke(GuestFn f,unsigned argc,const uint32_t*args){CPU c={0};c.fpu_cw=0x0b7f;c.fpu_sw=0x4500;c.top=3;c.st[3]=1.25;c.esp=0x10000;W32(c.esp,0x12345678);for(unsigned i=0;i<argc;i++)W32(c.esp+4+i*4,args[i]);f(&c);assert(c.fpu_cw==0x0b7f&&c.fpu_sw==0x4500&&c.top==3&&c.st[3]==1.25);assert(c.esp==0x10000+4*(argc+1));return c.eax;}
@@ -111,6 +111,7 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(!method(vb,11,5,0u,0u,0x2020u,0u));uint32_t vp=R32(0x2020);for(unsigned i=0;i<3;i++){WF32(vp+i*16,0);WF32(vp+i*16+4,0);WF32(vp+i*16+8,.5f);W32(vp+i*16+12,0xffff0000);}assert(method(vb,11,5,0u,0u,0x2020u,0u)==0x8876086c);assert(!method(vb,12,1));assert(method(vb,11,5,47u,2u,0x2020u,0u)==0x8876086c);
  assert(!method(ib,11,5,0u,0u,0x2020u,0u));uint32_t ip=R32(0x2020);W16(ip,0);W16(ip+2,1);W16(ip+4,2);assert(!method(ib,12,1));
  assert(!method(d,89,2,0x42u));assert(!method(d,92,2,0u)&&!method(d,107,2,0u));assert(!method(d,90,2,0x4100u)&&R32(0x4100)==0x42);assert(!method(d,100,5,0u,vb,0u,16u));assert(!method(d,104,2,ib));assert(!method(d,57,3,137u,0u));assert(!method(d,57,3,22u,1u));assert(!method(d,41,1));
+ movies_d3d9_force_cpu_lighting(1); /* CPU lighting reference; the GPU path is checked below */
  /* Lighting on an XYZ|DIFFUSE format converts to a lit XYZ|DIFFUSE|TEX1 snapshot. */
  assert(!method(d,57,3,137u,1u));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&last_vertex_fvf==0x242&&last_vertex_bytes==96);assert(!method(d,57,3,137u,0u));
  assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(calls[MOVIES_D3D9_DRAW]==2&&drawargs[3]==3&&drawargs[5]==1);unsigned uploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,0u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==uploads);
@@ -219,14 +220,14 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
  assert(!method(tx,18,3,0u,0x2060u));uint32_t ts=R32(0x2060);assert(!method(ts,13,4,0x2040u,0u,0u));assert(method(tx,19,5,0u,0x2040u,0u,0u)==0x8876086c);assert(!method(ts,14,1));assert(method(ts,2,1)==1);
  assert(!method(d,26,7,72u,0u,0x142u,1u,0x2070u,0u));uint32_t uvb=R32(0x2070);assert(!method(uvb,11,5,0u,0u,0x2020u,0u));uint32_t uvp=R32(0x2020);for(unsigned i=0;i<3;i++){memcpy(HP(uvp+i*24),HP(vp+i*16),16);WF32(uvp+i*24+16,.5f);WF32(uvp+i*24+20,.5f);W32(uvp+i*24+12,0x7f123456);}assert(!method(uvb,12,1));
  assert(!method(d,65,3,0u,tx));assert(!method(d,89,2,0x142u));assert(!method(d,100,5,0u,uvb,0u,24u));assert(!method(d,69,4,0u,1u,3u));assert(!method(d,69,4,0u,2u,3u));assert(!method(d,67,4,0u,1u,2u));assert(!method(d,41,1));assert(!method(d,82,7,4u,0u,0u,3u,0u,1u));assert(drawargs[20]==1&&drawargs[21]==5&&drawargs[22]==100);assert(drawargs[12]&&drawargs[16]==2&&drawargs[17]==2&&drawargs[18]==1&&drawargs[19]==0xbf800000u);assert(uploaded_bytes==72&&uploaded[12]==0x56&&uploaded[13]==0x34&&uploaded[14]==0x12&&uploaded[15]==0x7f&&R32(uvp+12)==0x7f123456);assert(drawargs[31]==4&&drawargs[33]==2&&drawargs[34]==2);assert(!method(d,42,1));
- /* Original104 has no diffuse: retain guest24B stride, expand only host
-  * snapshot to144/28B with opaque white. Pretransformed input bypasseslighting. */
+ /* Original 104 has no diffuse: uploaded unchanged (24B, XYZRHW_UV layout), the
+  * shader uses opaque white. Pretransformed input bypasses lighting. */
  assert(!method(d,26,7,120u,0x208u,0x104u,0u,0x2030u,0u));uint32_t rhwvb=R32(0x2030);assert(!method(rhwvb,13,2,0x4000u)&&R32(0x4014)==0x104);
  assert(!method(rhwvb,11,5,0u,0u,0x2020u,0x2800u));uint32_t rhwdata=R32(0x2020);memset(HP(rhwdata),255,120);
  for(unsigned i=2;i<5;i++){uint32_t p=rhwdata+i*24;WF32(p,(float)i*10);WF32(p+4,30);WF32(p+8,.5f);WF32(p+12,.25f);WF32(p+16,.125f);WF32(p+20,.875f);}assert(!method(rhwvb,12,1));
  assert(!method(d,89,2,0x104u)&&!method(d,90,2,0x4100u)&&R32(0x4100)==0x104);assert(!method(d,100,5,0u,rhwvb,24u,24u));assert(!method(d,57,3,137u,1u));assert(!method(d,41,1));
- assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0x244&&last_vertex_bytes==108);
- for(unsigned i=0;i<3;i++){assert(!memcmp(last_vertices+i*36,HP(rhwdata+(i+2)*24),16));uint32_t color;memcpy(&color,last_vertices+i*36+16,4);assert(color==0xffffffff);assert(!memcmp(last_vertices+i*36+20,HP(rhwdata+(i+2)*24+16),8));}
+ assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0x104&&last_vertex_bytes==72); /* uploaded as stored; the GPU supplies opaque white */
+ assert(!memcmp(last_vertices,HP(rhwdata+2*24),72));
  assert(R32(rhwdata)==0xffffffff);unsigned rhwuploads=calls[MOVIES_D3D9_UPLOAD_VERTEX];assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==rhwuploads);
  /* Any stage setup draws; the raw stage values reach the shader combiner. */
  assert(!method(d,67,4,0u,1u,3u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&drawargs[31]==4&&drawargs[33]==3);
@@ -260,7 +261,21 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
   assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==lituploads+1);
   assert(!method(d,53,3,0u,0u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==lituploads+2);
   {uint32_t color;memcpy(&color,last_vertices+12,4);assert((color&0xffff)==0x2020);}
-  assert(!method(d,57,3,137u,0u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));{uint32_t color;memcpy(&color,last_vertices+12,4);assert(color==0xffffffff);}
+  /* GPU lighting: raw XYZ|NORMAL|DIFFUSE|TEX2 (44B) plus a per-draw lighting block;
+   * the upload is independent of lights, so changing a light re-uses it. */
+  {assert(!method(d,53,3,0u,1u));movies_d3d9_force_cpu_lighting(0);unsigned gu=calls[MOVIES_D3D9_UPLOAD_VERTEX];
+   assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0xffff&&last_vertex_bytes==96&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==gu+1&&last_lit==1);
+   /* Raw: the guest's XYZ|NORMAL|TEX1 bytes as stored, described as stride 32, XYZ, normal@12, no diffuse, uv@24 (+1 encoded). */
+   assert(last_vertex_args[1]==32&&last_vertex_args[2]==3&&last_vertex_args[3]==13&&last_vertex_args[4]==0&&last_vertex_args[5]==25&&last_vertex_args[6]==25);
+   assert(!memcmp(last_vertices,HP(litdata+32),96));
+   assert(last_lighting[11]>=1&&last_lighting[35]==3&&last_lighting[46]==-1&&last_lighting[32]==1); /* one directional light, direction negated */
+   assert(last_lighting[12]>.12f&&last_lighting[12]<.13f&&last_lighting[16]==1&&last_lighting[17]==.5f&&last_lighting[19]==.75f&&last_lighting[20]==1);
+   assert(last_lighting[0]==1&&last_lighting[5]==1&&last_lighting[10]==1&&!last_lighting[28]); /* identity normal matrix, material diffuse source */
+   float dim[26]={0};dim[1]=dim[2]=dim[3]=.5f;dim[4]=1;dim[18]=1;memcpy(HP(0x4400),dim,104);W32(0x4400,3);assert(!method(d,51,3,0u,0x4400u));
+   assert(!method(d,82,7,4u,1u,0u,3u,0u,1u)&&calls[MOVIES_D3D9_UPLOAD_VERTEX]==gu+1); /* cached vertices */
+   {int dimmed=0;for(unsigned l=0;l<(unsigned)last_lighting[11];l++)if(last_lighting[32+l*20]==.5f&&last_lighting[35+l*20]==3)dimmed=1;assert(dimmed);} /* new light reaches the draw */
+   movies_d3d9_force_cpu_lighting(1);assert(!method(d,53,3,0u,0u));}
+  assert(!method(d,57,3,137u,0u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(last_vertex_fvf==0xffff&&!last_vertex_args[4]&&!last_lit); /* unlit raw, no diffuse: the GPU uses opaque white */
   assert(!method(d,57,3,22u,3u));assert(!method(d,82,7,4u,1u,0u,3u,0u,1u));assert(!method(d,57,3,22u,1u));
   /* General FVF 0x212 (XYZ|NORMAL|TEX2, 40B) through DrawPrimitive as a 2-triangle strip:
    * converted to 24B XYZ|DIFFUSE|TEX1 (stage-0 coordinate set), strip rebuilt as a list. */
@@ -268,21 +283,22 @@ int main(void){g_mem=calloc(1,0x05500000);assert(g_mem);assert(movies_d3d9_init(
    for(unsigned i=0;i<5;i++){uint32_t p=gdata+i*40;WF32(p,(float)i);WF32(p+4,1);WF32(p+8,.5f);WF32(p+20,-1);WF32(p+24,.1f*i);WF32(p+28,.2f*i);WF32(p+32,9);WF32(p+36,9);}assert(!method(gvb,12,1));
    assert(!method(d,89,2,0x212u)&&!method(d,100,5,0u,gvb,0u,40u));
    unsigned draws=calls[MOVIES_D3D9_DRAW];assert(!method(d,81,4,5u,1u,2u));
-   assert(calls[MOVIES_D3D9_DRAW]==draws+1&&drawargs[3]==6&&last_vertex_fvf==0x242&&last_vertex_bytes==128&&last_index_bytes==24);
-   float u;memcpy(&u,last_vertices+16,4);assert(u>.09f&&u<.11f); /* vertex 1, coordinate set 0 */
+   assert(calls[MOVIES_D3D9_DRAW]==draws+1&&drawargs[3]==6&&last_vertex_fvf==0xffff&&last_vertex_bytes==160&&last_index_bytes==24);
+   assert(last_vertex_args[1]==40&&last_vertex_args[3]==13&&last_vertex_args[5]==25&&last_vertex_args[6]==33); /* raw: stage 0 set 0 @24, stage 1 set 1 @32 */
+   float u;memcpy(&u,last_vertices+24,4);assert(u>.09f&&u<.11f); /* vertex 1, coordinate set 0, as stored */
    assert(!method(d,81,4,2u,0u,1u)&&calls[MOVIES_D3D9_DRAW]==draws+1); /* line list skipped, not drawn */
    /* D3DTS_TEXTURE0 with a u translation in row 3 and COUNT2: (u,v,1,0) * M. */
    {float m[16]={1,0,0,0, 0,1,0,0, .5f,0,1,0, 0,0,0,1};memcpy(HP(0x4600),m,64);assert(!method(d,44,3,16u,0x4600u));assert(!method(d,45,3,16u,0x4640u)&&!memcmp(HP(0x4600),HP(0x4640),64));
     assert(!method(d,67,4,0u,24u,2u));assert(!method(d,81,4,5u,1u,2u));float tu;memcpy(&tu,last_vertices+16,4);assert(tu>.59f&&tu<.61f);
     assert(!method(d,67,4,0u,24u,0u));}
    /* DrawPrimitiveUP fan of 3 triangles from caller memory; stream 0 is unbound afterwards. */
-   assert(!method(d,83,5,6u,3u,gdata,40u));assert(calls[MOVIES_D3D9_DRAW]==draws+3&&drawargs[3]==9&&last_vertex_bytes==160);
+   assert(!method(d,83,5,6u,3u,gdata,40u));assert(calls[MOVIES_D3D9_DRAW]==draws+3&&drawargs[3]==9&&last_vertex_bytes==200);
    assert(!method(d,101,5,0u,0x4100u,0x4104u,0x4108u)&&!R32(0x4100));
    /* Stage 1 (lightmap pattern): MODULATE2X(TEXTURE,CURRENT) with coordinate set 1
     * reaches the draw as texture1 and the second UV of the 32B two-set layout. */
    {assert(!method(d,64,3,0u,0x4700u));uint32_t t0=R32(0x4700);assert(t0);if(t0){assert(!method(d,100,5,0u,gvb,0u,40u));assert(!method(d,65,3,1u,t0));
      assert(!method(d,67,4,1u,1u,5u)&&!method(d,67,4,1u,2u,2u)&&!method(d,67,4,1u,3u,1u)&&!method(d,67,4,1u,11u,1u));
-     assert(!method(d,81,4,5u,1u,2u)&&drawargs[45]&&drawargs[39]==5);float s1;memcpy(&s1,last_vertices+24,4);assert(s1==9.f);
+     assert(!method(d,81,4,5u,1u,2u)&&drawargs[45]&&drawargs[39]==5);assert(last_vertex_args[6]==33); /* stage 1 reads coordinate set 1 (where 9.0 is stored) */
      assert(!method(d,67,4,1u,1u,1u));assert(!method(d,65,3,1u,0u));assert(method(t0,2,1)>=1);assert(!method(d,100,5,0u,0u,0u,0u));}}
    /* Upload cache: alternating ranges of one buffer upload once each, then hit. */
    {assert(!method(d,100,5,0u,gvb,0u,40u));unsigned vu=calls[MOVIES_D3D9_UPLOAD_VERTEX];
